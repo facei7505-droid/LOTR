@@ -1,0 +1,20 @@
+const { chromium } = require('playwright');
+(async () => {
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const p = await ctx.newPage(); p.on('pageerror', e => console.log('ERR', e.message));
+  await p.goto('file://' + require('path').resolve(__dirname, '../index.html')); await p.waitForTimeout(800);
+  const t0 = Date.now();
+  await p.click('text=Битва с ИИ'); await p.click('.race[data-v="hum"]'); await p.click('text=Все против всех (4)'); await p.click('text=В бой!'); await p.waitForTimeout(300);
+  console.log('start ms', Date.now()-t0);
+  await p.evaluate(() => { const A = window.__AK, g = A.game; const ai = new AI(g, 0); for (let i = 0; i < 20 * 200; i++) { ai.step(0.05); for (const a of []) a; for (const e of g.ents) { e.px = e.x; e.py = e.y; } g.step(0.05); window.__aiStep && 0; } });
+  await p.evaluate(() => { const A = window.__AK; const us = A.game.ents.filter(e => e.d.kind === 'u'); let best = us[0], bc = 0; for (const u of us) { let c = 0; for (const o of us) if (o.owner !== u.owner && Math.hypot(o.x - u.x, o.y - u.y) < 250) c++; if (c > bc) { bc = c; best = u; } } A.R.cam.z = 1.1; if (best) A.R.centerOn(best.x, best.y); document.getElementById('toasts').innerHTML=''; A.UI.sel=new Set(A.game.ents.filter(e=>e.owner===0&&e.d.kind==='u').slice(0,6).map(e=>e.id)); });
+  await p.waitForTimeout(600);
+  const fps = await p.evaluate(() => new Promise(r => { let n = 0; const t = performance.now(); const f = () => { n++; if (performance.now() - t < 2000) requestAnimationFrame(f); else r(n / 2); }; requestAnimationFrame(f); }));
+  console.log('fps', fps);
+  await p.screenshot({ path: require('path').resolve(__dirname, '../shots') + '/s1.png' });
+  await p.evaluate(() => { const A = window.__AK; const f = A.game.byId.get(A.game.players[0].fort); A.R.cam.z = 0.8; A.R.centerOn(f.x + 150, f.y + 60); });
+  await p.waitForTimeout(400);
+  await p.screenshot({ path: require('path').resolve(__dirname, '../shots') + '/s2.png' });
+  await b.close();
+})();
