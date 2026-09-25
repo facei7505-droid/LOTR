@@ -4605,7 +4605,7 @@ function detailAtlas() {
   return cv;
 }
 // pattern → [atlas cell + 1, tile size in world px]
-const PAT3 = { stone: [1, 24], roof: [2, 18], planks: [3, 21], plaster: [4, 40], thatch: [5, 16], rock: [6, 55], wood: [7, 22], leaf: [8, 14], mail: [8, 4], cloth: [8, 7], fur: [7, 8], leather: [8, 10], metal: [8, 26], skin: [8, 14] };
+const PAT3 = { stone: [1, 40], roof: [2, 45], planks: [3, 22], plaster: [4, 40], thatch: [5, 45], rock: [6, 70], wood: [7, 22], leaf: [8, 14], mail: [8, 4], cloth: [8, 7], fur: [7, 8], leather: [8, 10], metal: [8, 26], skin: [8, 14] };
 
 // ---------- R3 primitive lists (units: metres, buildings/trees: world px) → merged three.js geometry ----------
 const G3 = {
@@ -4722,16 +4722,23 @@ function treePrims(v) {
   } else {
     const autumn = v === 6 || v === 7, bark = MAT(v % 3 === 1 ? '#4d3a2b' : '#6e6558', { pat: 'wood' });
     P.push(frus(0, 0, 0, 4.4, 2.4, 40, bark), cap([0, 26, 0], [-10, 42, 3], 1.8, bark), cap([0, 30, 0], [9, 46, -4], 1.8, bark));
-    const base = autumn ? (v === 6 ? [[92, 36, 16], [224, 145, 58]] : [[74, 53, 16], [216, 180, 74]]) : v % 3 === 1 ? [[29, 58, 28], [110, 154, 69]] : [[39, 64, 31], [138, 166, 80]];
+    const base = autumn ? (v === 6 ? [[78, 34, 16], [176, 108, 44]] : [[64, 48, 18], [168, 138, 60]]) : v % 3 === 1 ? [[22, 40, 20], [72, 100, 46]] : [[30, 46, 22], [92, 112, 54]];
     for (let k = 0; k < 11; k++) {
       const a = r() * 6.283, d = Math.sqrt(r()) * 17, y = 50 + (r() - 0.3) * 20, rad = 10 + r() * 7;
       const light = clamp(0.35 + (y - 45) / 40 + (r() - 0.5) * 0.3, 0, 1);
-      P.push(sph(Math.cos(a) * d, y, Math.sin(a) * d * 0.9, rad, MAT(mix3(base[0], base[1], light).map(c => c / 255), { pat: 'leaf' })));
+      P.push(sph(Math.cos(a) * d, y, Math.sin(a) * d * 0.9, rad, MAT(mix3(base[0], base[1], light).map(c => c / 255), { pat: 'leaf', ns: 0.4 })));
     }
   }
   return P;
 }
 
+// photo-scanned ground materials (Poly Haven, CC0): [asset, colour map name, tile size in world px]
+const PH_URL = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/';
+const PBR_SETS = {
+  meadow: [['rocky_terrain_02', 'diff', 420], ['dirt_aerial_02', 'diff', 360], ['lichen_rock', 'diff', 150]],
+  highland: [['grass_path_3', 'diff', 110], ['rocks_ground_02', 'col', 120], ['lichen_rock', 'diff', 150]],
+  snow: [['snow_02', 'diff', 170], ['aerial_mud_1', 'diff', 170], ['lichen_rock', 'diff', 150]],
+};
 class Renderer3D extends Renderer {
   constructor(cv, glcv) {
     super(cv);
@@ -4759,6 +4766,41 @@ class Renderer3D extends Renderer {
     this.yawT = 0; this.tgtH = 0;
     this.parts3 = [];
     this.makeParticles(); this.makeGround();
+    const dummy = new T.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); dummy.needsUpdate = true;
+    this.pbrU = { tGC: { value: dummy }, tGN: { value: dummy }, tDC: { value: dummy }, tDN: { value: dummy }, tRC: { value: dummy }, tRN: { value: dummy }, uPBR: { value: 0 }, uTile: { value: new T.Vector3(300, 300, 500) }, uAvg: { value: new T.Color(0.1, 0.12, 0.06) } };
+    this.texCache = new Map(); this.pbrTarget = 0;
+    this.loadAtlasPhotos();
+    this.postOn = !this.low;
+  }
+  // photo-scanned surfaces (Poly Haven, CC0) replace the procedural detail cells: masonry, roof tiles, planks, plaster, reed thatch, rock, bark
+  loadAtlasPhotos() {
+    const cv = this.atlas.image, c = cv.getContext('2d'), S = cv.width / 4;
+    const list = [[0, 'medieval_blocks_05'], [1, 'grey_roof_tiles'], [2, 'brown_planks_05'], [3, 'plaster_grey_04'], [4, 'reed_roof_04'], [5, 'lichen_rock'], [6, 'bark_brown_02']];
+    for (const [cell, a] of list) {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const t = mkCanvas(S, S), tc = t.getContext('2d'); tc.drawImage(img, 0, 0, S, S);
+        const d = tc.getImageData(0, 0, S, S), px = d.data; let sum = 0, sq = 0, n = S * S;
+        for (let i = 0; i < px.length; i += 4) { const l = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / 255; sum += l; sq += l * l; }
+        const mean = sum / n, sd = Math.sqrt(Math.max(1e-6, sq / n - mean * mean)), k = 0.27 / sd;
+        for (let i = 0; i < px.length; i += 4) { const l = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / 255, v = clamp(0.5 + (l - mean) * k, 0.05, 0.95) * 255; px[i] = px[i + 1] = px[i + 2] = v; px[i + 3] = 255; }
+        c.putImageData(d, (cell % 4) * S, Math.floor(cell / 4) * S); this.atlas.needsUpdate = true;
+      };
+      img.src = PH_URL + a + '/' + a + '_diff_1k.jpg';
+    }
+  }
+  // load the biome's photo materials in the background; the procedural ground stays until they arrive
+  loadPBR(biome) {
+    const set = PBR_SETS[biome] || PBR_SETS.meadow, U = this.pbrU, T = THREE, loader = new T.TextureLoader(); loader.setCrossOrigin('anonymous');
+    this.pbrTarget = 0; U.uPBR.value = 0; U.uTile.value.set(set[0][2], set[1][2], set[2][2]);
+    const want = set.flatMap(([a, c]) => [[a, c, true], [a, 'nor_gl', false]]), keys = ['tGC', 'tGN', 'tDC', 'tDN', 'tRC', 'tRN'];
+    let done = 0, failed = false; const my = this.pbrGen = (this.pbrGen || 0) + 1;
+    want.forEach(([a, kind, col], i) => {
+      const url = PH_URL + a + '/' + a + '_' + kind + '_1k.jpg';
+      const use = tex => { if (my !== this.pbrGen) return; U[keys[i]].value = tex; if (++done === want.length && !failed) this.pbrTarget = 1; };
+      const hit = this.texCache.get(url); if (hit) { use(hit); return; }
+      loader.load(url, tex => { tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.colorSpace = col ? T.SRGBColorSpace : T.NoColorSpace; tex.anisotropy = Math.min(8, this.gl.capabilities.getMaxAnisotropy()); this.texCache.set(url, tex); use(tex); }, undefined, () => { failed = true; });
+    });
   }
   // ---- shared materials: dull, metal, glowing (+ triplanar detail from the atlas) ----
   patchDetail(m, extra) {
@@ -4853,31 +4895,59 @@ class Renderer3D extends Renderer {
     const P = PAL[b], edge = new T.Color().setRGB(...mix3(P.G1, P.G2, 0.45).map(v => Math.pow(v / 255, 2.2)));
     const mat = new T.MeshStandardMaterial({ map: colT, roughness: 0.94, metalness: 0, envMapIntensity: 0.35 });
     const uTime = this.uTime, uCloud = this.uCloud;
+    // average colour of the painted map: photo textures are tinted by the map's large-scale hues, roads and hillshade
+    { const tc = this.terrain.cv.getContext('2d').getImageData(0, 0, this.terrain.cv.width, this.terrain.cv.height).data; let r = 0, g = 0, bb = 0, n = 0; for (let i = 0; i < tc.length; i += 4 * 97) { r += Math.pow(tc[i] / 255, 2.2); g += Math.pow(tc[i + 1] / 255, 2.2); bb += Math.pow(tc[i + 2] / 255, 2.2); n++; } this.pbrU.uAvg.value.setRGB(r / n, g / n, bb / n); }
+    this.loadPBR(b);
+    const U = this.pbrU;
     mat.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, { tMask: { value: mskT }, tDG: { value: dG }, tDD: { value: dD }, tDR: { value: dR }, tTr: { value: this.trampleT3 }, tCl: { value: cl }, uTime, uCloud, uEdge: { value: edge }, uMap: { value: new T.Vector2(MAP_W, MAP_H) }, uSnow: { value: b === 'snow' ? 1 : 0 } });
+      Object.assign(sh.uniforms, { tMask: { value: mskT }, tDG: { value: dG }, tDD: { value: dD }, tDR: { value: dR }, tTr: { value: this.trampleT3 }, tCl: { value: cl }, uTime, uCloud, uEdge: { value: edge }, uMap: { value: new T.Vector2(MAP_W, MAP_H) }, uSnow: { value: b === 'snow' ? 1 : 0 } }, U);
       sh.vertexShader = 'varying vec3 vWP;\nvarying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);');
-      sh.fragmentShader = 'varying vec3 vWP;\nvarying vec3 vWN;\nuniform sampler2D tMask, tDG, tDD, tDR, tTr, tCl;\nuniform float uTime, uCloud, uSnow;\nuniform vec3 uEdge;\nuniform vec2 uMap;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      sh.fragmentShader = 'varying vec3 vWP;\nvarying vec3 vWN;\nuniform sampler2D tMask, tDG, tDD, tDR, tTr, tCl, tGC, tGN, tDC, tDN, tRC, tRN;\nuniform float uTime, uCloud, uSnow, uPBR;\nuniform vec3 uEdge, uTile, uAvg;\nuniform vec2 uMap;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         vec2 muv = clamp(vWP.xz / uMap, 0.0, 1.0);
         vec4 mk = texture2D(tMask, vWP.xz / uMap);
-        vec2 wuv = vWP.xz / 170.0;
         vec3 an = abs(vWN); an /= (an.x + an.y + an.z);
+        vec2 wuv = vWP.xz / 170.0;
         float g = texture2D(tDG, wuv).r, dd = texture2D(tDD, wuv * 1.2).r, rr = texture2D(tDR, vWP.zy / 110.0).r * an.x + texture2D(tDR, vWP.xz / 130.0).r * an.y + texture2D(tDR, vWP.xy / 110.0).r * an.z;
         float tot = mk.r + mk.g + mk.b + 0.001;
         float det = (g * mk.r + dd * mk.g + rr * mk.b) / tot;
         float dA = clamp(tot, 0.0, 1.0) * (1.0 - mk.a) * 0.85;
-        diffuseColor.rgb *= mix(vec3(1.0), vec3(det * 2.0), dA * (1.0 - 0.35 * mk.b / tot));
-        diffuseColor.rgb *= 1.0 - 0.38 * clamp(mk.b * 1.4 - 0.2, 0.0, 1.0) * (1.0 - uSnow * 0.5);
-        float fine = texture2D(tDG, vWP.xz / 23.0).r;
-        diffuseColor.rgb *= 0.9 + fine * 0.2;
+        vec3 cmap = diffuseColor.rgb;
+        vec3 procC = cmap * mix(vec3(1.0), vec3(det * 2.0), dA * (1.0 - 0.35 * mk.b / tot));
+        procC *= 1.0 - 0.38 * clamp(mk.b * 1.4 - 0.2, 0.0, 1.0) * (1.0 - uSnow * 0.5);
+        procC *= 0.9 + texture2D(tDG, vWP.xz / 23.0).r * 0.2;
+        vec3 akPert = vec3(0.0); float akRough = 0.94;
+        if (uPBR > 0.001) {
+          float mac = texture2D(tCl, vWP.xz / 1100.0).a;
+          vec2 r2 = vec2(vWP.x * 0.8 + vWP.z * 0.6, -vWP.x * 0.6 + vWP.z * 0.8);
+          vec2 g1 = vWP.xz / uTile.x, g2 = r2 / (uTile.x * 2.6), d1 = vWP.xz / uTile.y, d2 = r2 / (uTile.y * 2.3);
+          float mg = 0.25 + 0.5 * mac;
+          vec3 gC = mix(texture2D(tGC, g1).rgb, texture2D(tGC, g2).rgb, mg), gN = mix(texture2D(tGN, g1).rgb, texture2D(tGN, g2).rgb, mg);
+          vec3 dC = mix(texture2D(tDC, d1).rgb, texture2D(tDC, d2).rgb, mg), dN = mix(texture2D(tDN, d1).rgb, texture2D(tDN, d2).rgb, mg);
+          vec2 rx = vWP.zy / uTile.z, ry = vWP.xz / uTile.z, rz = vWP.xy / uTile.z;
+          vec3 rC = texture2D(tRC, rx).rgb * an.x + texture2D(tRC, ry).rgb * an.y + texture2D(tRC, rz).rgb * an.z, rN = texture2D(tRN, ry).rgb;
+          float slope = 1.0 - clamp((vWN.y - 0.62) * 3.0, 0.0, 1.0);
+          float wg = mk.r * (0.55 + dot(gC, vec3(0.6))), wd = (mk.g + mk.a * 0.7) * (0.55 + dot(dC, vec3(0.6))), wr = (mk.b + slope * 1.5) * (0.55 + dot(rC, vec3(0.6)));
+          wg = pow(wg, 3.0); wd = pow(wd, 3.0); wr = pow(wr, 3.0);
+          float ws = wg + wd + wr + 1e-4; wg /= ws; wd /= ws; wr /= ws;
+          vec3 pc = gC * wg + dC * wd + rC * wr;
+          // keep the painted map's hues: roads, forest floor, hillshade, biome tint
+          vec3 tint = clamp(cmap / max(uAvg, vec3(0.02)), vec3(0.5), vec3(1.8));
+          pc *= mix(vec3(1.0), vec3(dot(tint, vec3(0.333))), 0.45) * mix(vec3(1.0), tint / max(dot(tint, vec3(0.333)), 0.05), 0.18);
+          diffuseColor.rgb = mix(procC, pc, uPBR);
+          vec3 nn = (gN * wg + dN * wd + rN * wr) * 2.0 - 1.0;
+          akPert = vec3(nn.x, 0.0, -nn.y) * 0.9;
+          akRough = mix(0.97, 0.86, wr) - uSnow * wg * 0.3;
+        } else diffuseColor.rgb = procC;
         vec4 tr = texture2D(tTr, muv);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.12, 0.08), clamp(tr.a * 1.6, 0.0, 0.55) * (1.0 - uSnow * 0.4));
         float outD = max(max(-vWP.x, vWP.x - uMap.x), max(-vWP.z, vWP.z - uMap.y));
-        float slope = 1.0 - clamp((vWN.y - 0.55) * 3.0, 0.0, 1.0);
-        vec3 outer = mix(uEdge * (0.7 + det * 0.6), vec3(0.23, 0.22, 0.21) * (0.6 + rr * 0.8), clamp(slope + (vWP.y - 120.0) / 200.0, 0.0, 1.0));
+        float slope2 = 1.0 - clamp((vWN.y - 0.55) * 3.0, 0.0, 1.0);
+        vec3 outer = mix(uEdge * (0.7 + det * 0.6), vec3(0.23, 0.22, 0.21) * (0.6 + rr * 0.8), clamp(slope2 + (vWP.y - 120.0) / 200.0, 0.0, 1.0));
         if (uSnow > 0.5) outer = mix(outer, vec3(0.86, 0.89, 0.93), clamp((vWP.y - 60.0) / 120.0, 0.0, 0.85));
-        diffuseColor.rgb = mix(diffuseColor.rgb, outer, smoothstep(60.0, 520.0, outD));
+        diffuseColor.rgb = mix(diffuseColor.rgb, uPBR > 0.001 ? mix(outer, diffuseColor.rgb, 0.5) : outer, smoothstep(60.0, 520.0, outD));
         float cloud = texture2D(tCl, vWP.xz / 1400.0 + vec2(uTime * 0.01, uTime * 0.005)).a;
-        diffuseColor.rgb *= 1.0 - cloud * uCloud;`);
+        diffuseColor.rgb *= 1.0 - cloud * uCloud;`).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n        roughnessFactor = mix(roughnessFactor, akRough, uPBR);').replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        if (uPBR > 0.001) { vec3 akW = normalize(vWN + akPert * uPBR); normal = normalize((viewMatrix * vec4(akW, 0.0)).xyz); }`);
     };
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; this.world.add(mesh); this.terrMesh = mesh;
   }
@@ -5169,7 +5239,7 @@ class Renderer3D extends Renderer {
   bldGeo(d, col) {
     const key = d.key + col; let g = this.geos.get('b' + key); if (g) return g;
     const P = B3.build(d, col); const { MAT, box } = R3;
-    P.push(box(0, -14, 0, d.r * 0.98, 14.5, d.r * 0.78, MAT(RACES[d.race] ? RACES[d.race].stone : '#777', { pat: 'stone' })));
+    P.push(box(0, -14, 0, d.r * 0.98, 14.5, d.r * 0.78, MAT('#5c564c', { pat: 'rock' })));
     g = G3.build(P, { seg: 1 }); this.geos.set('b' + key, g); return g;
   }
   flagTex(race, col) {
@@ -5207,6 +5277,7 @@ class Renderer3D extends Renderer {
     const rdt = clamp(now - this.lastT, 0, 0.1); this.lastT = now; this.frameN++;
     const env = this.env = envAt(this.map, this.seed, S.gameT !== undefined ? S.gameT : now);
     this.uTime.value = now; this.lights = [];
+    if (this.pbrU.uPBR.value !== this.pbrTarget) this.pbrU.uPBR.value = clamp(this.pbrU.uPBR.value + (this.pbrTarget ? 1 : -1) * rdt * 1.2, 0, 1);
     this.pumpGeos(this.frameN < 60 ? 24 : 8);
     this.placeCamera();
     // sun, sky light, fog and exposure follow the time of day and the weather
@@ -5351,13 +5422,64 @@ class Renderer3D extends Renderer {
     // ground marks: this frame's + those queued by main.js
     this.gN = 0; this.gFlush(G); this.gFlush(this.gq); this.gq = [];
     const gg = this.gMesh.geometry; gg.setDrawRange(0, this.gN); gg.attributes.position.needsUpdate = true; gg.attributes.color.needsUpdate = true;
-    this.gl.render(this.scene, this.camera);
+    if (this.postOn) this.renderPost(env); else this.gl.render(this.scene, this.camera);
     // 2D overlay: bars and names
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, this.cv.width, this.cv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawBars(S, SQ);
     if (this.flash > 0) { c.fillStyle = 'rgba(230,236,255,' + (this.flash * 0.25).toFixed(3) + ')'; c.fillRect(0, 0, this.w, this.h); }
     if (!this.vign) { const g = c.createRadialGradient(this.w / 2, this.h * 0.45, Math.min(this.w, this.h) * 0.4, this.w / 2, this.h / 2, Math.max(this.w, this.h) * 0.8); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(8,10,6,0.4)'); this.vign = [g]; }
     c.fillStyle = this.vign[0]; c.fillRect(0, 0, this.w, this.h);
+  }
+  initPost() {
+    const T = THREE, g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3)); g.setAttribute('uv', new T.Float32BufferAttribute([0, 0, 2, 0, 0, 2], 2));
+    const vs = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+    const M = (fs, u) => new T.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, uniforms: u, depthTest: false, depthWrite: false });
+    const P = this.post = { scene: new T.Scene(), cam: new T.OrthographicCamera(-1, 1, 1, -1, 0, 1), quad: new T.Mesh(g), w: 0, h: 0 };
+    P.quad.frustumCulled = false; P.scene.add(P.quad);
+    P.bright = M('uniform sampler2D t; uniform float thr; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b)); gl_FragColor = vec4(c * smoothstep(thr, thr + 0.9, l), 1.0); }', { t: { value: null }, thr: { value: 1.0 } });
+    P.copy = M('uniform sampler2D t; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(t, vUv).rgb, 1.0); }', { t: { value: null } });
+    P.blur = M('uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227; c += (texture2D(t, vUv + d * 1.385).rgb + texture2D(t, vUv - d * 1.385).rgb) * 0.316; c += (texture2D(t, vUv + d * 3.231).rgb + texture2D(t, vUv - d * 3.231).rgb) * 0.070; gl_FragColor = vec4(c, 1.0); }', { t: { value: null }, d: { value: new T.Vector2() } });
+    P.final = M(`uniform sampler2D tS, tB, tD; uniform float uExp, uBloom, uVig, uDof, uWarm, uFocusY, uSat; varying vec2 vUv;
+      vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+      vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+      void main() {
+        vec3 c = texture2D(tS, vUv).rgb;
+        float k = smoothstep(0.55, 1.0, abs(vUv.y - uFocusY) * 1.9) * uDof;
+        c = mix(c, texture2D(tD, vUv).rgb, k);
+        c += texture2D(tB, vUv).rgb * uBloom;
+        c = aces(c * uExp * 0.62);
+        float l = dot(c, vec3(0.299, 0.587, 0.114));
+        c = mix(c, c * vec3(1.07, 1.0, 0.88), smoothstep(0.3, 0.95, l) * uWarm);
+        c = mix(c, c * vec3(0.88, 0.97, 1.1), (1.0 - smoothstep(0.02, 0.35, l)) * uWarm);
+        c = max(mix(vec3(l), c, uSat), 0.0);
+        c = toSRGB(c);
+        c = clamp((c - 0.5) * 1.06 + 0.5, 0.0, 1.0);
+        vec2 q = vUv - 0.5; c *= 1.0 - uVig * pow(dot(q, q) * 2.2, 1.4);
+        gl_FragColor = vec4(c, 1.0);
+      }`, { tS: { value: null }, tB: { value: null }, tD: { value: null }, uExp: { value: 1 }, uBloom: { value: 0.45 }, uVig: { value: 0.55 }, uDof: { value: 0.8 }, uWarm: { value: 0.6 }, uFocusY: { value: 0.45 }, uSat: { value: 1.08 } });
+  }
+  sizePost() {
+    const T = THREE, P = this.post, sz = this.gl.getDrawingBufferSize(new T.Vector2()), w = sz.x, h = sz.y;
+    if (P.w === w && P.h === h) return; P.w = w; P.h = h;
+    for (const k of ['rt', 'h1', 'q1', 'q2', 'd1', 'd2']) if (P[k]) P[k].dispose();
+    const RT = (a, b, ms) => new T.WebGLRenderTarget(Math.max(1, a), Math.max(1, b), { type: T.HalfFloatType, depthBuffer: !!ms, samples: ms && this.gl.capabilities.isWebGL2 ? 4 : 0 });
+    P.rt = RT(w, h, true); P.h1 = RT(w >> 1, h >> 1); P.q1 = RT(w >> 2, h >> 2); P.q2 = RT(w >> 2, h >> 2); P.d1 = RT(w >> 2, h >> 2); P.d2 = RT(w >> 2, h >> 2);
+  }
+  pass(mat, target, u) { const P = this.post; for (const k in u) mat.uniforms[k].value = u[k]; P.quad.material = mat; this.gl.setRenderTarget(target); this.gl.render(P.scene, P.cam); }
+  renderPost(env) {
+    if (!this.post) this.initPost();
+    this.sizePost();
+    const P = this.post, gl = this.gl, qw = 1 / Math.max(1, P.w >> 2), qh = 1 / Math.max(1, P.h >> 2);
+    gl.setRenderTarget(P.rt); gl.render(this.scene, this.camera);
+    // bloom: bright parts, blurred twice at quarter resolution
+    this.pass(P.bright, P.h1, { t: P.rt.texture, thr: 0.95 });
+    this.pass(P.blur, P.q1, { t: P.h1.texture, d: new THREE.Vector2(qw, 0) }); this.pass(P.blur, P.q2, { t: P.q1.texture, d: new THREE.Vector2(0, qh) });
+    this.pass(P.blur, P.q1, { t: P.q2.texture, d: new THREE.Vector2(qw * 2.5, 0) }); this.pass(P.blur, P.q2, { t: P.q1.texture, d: new THREE.Vector2(0, qh * 2.5) });
+    // soft copy of the scene for the tilt-shift edges
+    this.pass(P.copy, P.d1, { t: P.rt.texture }); this.pass(P.blur, P.d2, { t: P.d1.texture, d: new THREE.Vector2(qw * 1.5, 0) }); this.pass(P.blur, P.d1, { t: P.d2.texture, d: new THREE.Vector2(0, qh * 1.5) });
+    const night = clamp((1 - env.light) * 2, 0, 1);
+    this.pass(P.final, null, { tS: P.rt.texture, tB: P.q2.texture, tD: P.d1.texture, uExp: gl.toneMappingExposure * 1.55, uBloom: 0.3 + 0.35 * night, uVig: 0.45, uDof: clamp(0.15 + (this.cam.z - 0.8) * 0.3, 0.1, 0.45), uWarm: 0.32 - 0.2 * night, uFocusY: 0.5 + (this.padB || 0) / this.h * 0.25, uSat: this.map.biome === 'snow' ? 0.95 : 1.02 });
   }
   poleGeo() { let g = this.geos.get('pole'); if (!g) { g = G3.build([R3.cap([0, 0, 0], [0, 58, 0], 0.9, R3.MAT('#3b2c1f', { pat: 'wood' })), R3.sph(0, 59, 0, 1.6, R3.MAT('#d4a73c', { pat: 'metal', spec: 1 }))], { seg: 1 }); this.geos.set('pole', g); } return g; }
   flagGeo() { let g = this.geos.get('flagG'); if (!g) { g = new THREE.PlaneGeometry(16, 16, 8, 1).translate(8, 8, 0); this.geos.set('flagG', g); } return g; }
