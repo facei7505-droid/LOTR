@@ -2775,17 +2775,17 @@ const M3 = (() => {
   };
   const HERO3 = {
     hum_h1: { w: 'bigsword', sh: 'kite', helm: 'crown', arm: 'plate', cape: '#6d1f1f', S: 1.1, steel: '#c4cad0', gold: 1 },
-    hum_h2: { w: 'banner', helm: 'none', hair: '#6b3f22', arm: 'plate', steel: '#d6dbe0', cape: '#e8e4dc', S: 1.02 },
-    elf_h1: { w: 'spear', sh: 'leaf', helm: 'none', hair: '#a8442a', arm: 'scale', cape: '#2e5d3a', S: 1.08 },
-    elf_h2: { w: 'bow', helm: 'none', hair: '#ece4ca', robe: '#d9d6c8', cape: '#9bb0c8', S: 1.05, quiver: 1 },
+    hum_h2: { w: 'banner', helm: 'none', hair: '#6b3f22', arm: 'plate', steel: '#d6dbe0', cape: '#e8e4dc', S: 1.02, halo: '#fff1b0' },
+    elf_h1: { w: 'spear', sh: 'leaf', helm: 'none', hair: '#a8442a', arm: 'scale', cape: '#2e5d3a', S: 1.08, glow: '#ff5a3c' },
+    elf_h2: { w: 'bow', helm: 'none', hair: '#ece4ca', robe: '#d9d6c8', cape: '#9bb0c8', S: 1.05, quiver: 1, halo: '#dfe8ff' },
     dwf_h1: { w: 'hammer', helm: 'winged', arm: 'plate', beard: '#b04a1e', cape: '#8a1c16', S: 0.86, glow: '#9fd0ff' },
-    dwf_h2: { w: 'staff', helm: 'none', hair: '#f0c060', robe: '#6e4a7a', cape: '#d9c38a', S: 0.84, orb: '#ffb86a' },
-    orc_h1: { w: 'spear', sh: 'round', helm: 'crest', arm: 'bronze', skin: '#b98d6c', cape: '#7a1414', S: 1.12, human: 1 },
+    dwf_h2: { w: 'staff', helm: 'none', hair: '#f0c060', robe: '#6e4a7a', cape: '#d9c38a', S: 0.84, orb: '#ffb86a', wings: '#e8d8b0' },
+    orc_h1: { w: 'spear', sh: 'round', helm: 'crest', arm: 'bronze', skin: '#b98d6c', cape: '#7a1414', S: 1.12, human: 1, glow: '#ff6a3a' },
     orc_h2: { w: 'staff', helm: 'crown', skin: '#c9c7b4', robe: '#1e1b22', cape: '#101014', S: 1.1, orb: '#8dff9a', human: 1 },
     und_h1: { w: 'bigsword', sh: 'kite', helm: 'great', arm: 'plate', steel: '#3c3f44', cape: '#2a0d10', S: 1.12, glow: '#7dff9a' },
-    und_h2: { w: 'staff', helm: 'crown', skin: '#d8d4cc', hair: '#e8e8e0', robe: '#1b2a26', cape: '#0e1614', S: 1.06, orb: '#7dffb0', human: 1, deadEyes: 1 },
-    des_h1: { w: 'khopesh', helm: 'jackal', arm: 'bronze', skin: '#1f1b1a', cape: '#2a4f8a', S: 1.2, human: 1, gold: 1 },
-    des_h2: { w: 'staff', helm: 'nemes', robe: '#efe6cf', cape: '#2f6aa3', S: 1.04, orb: '#ffe28a', human: 1 },
+    und_h2: { w: 'staff', helm: 'crown', skin: '#d8d4cc', hair: '#e8e8e0', robe: '#1b2a26', cape: '#0e1614', S: 1.06, orb: '#7dffb0', human: 1, deadEyes: 1, halo: '#9fe8ff' },
+    des_h1: { w: 'khopesh', helm: 'jackal', arm: 'bronze', skin: '#1f1b1a', cape: '#2a4f8a', S: 1.2, human: 1, gold: 1, glow: '#ffd46a' },
+    des_h2: { w: 'staff', helm: 'nemes', robe: '#efe6cf', cape: '#2f6aa3', S: 1.04, orb: '#ffe28a', human: 1, wings: '#3f7ab8' },
   };
   // ---------- humanoid ----------
   function human(o, pose, P) {
@@ -2825,6 +2825,9 @@ const M3 = (() => {
     P.push(ell(0, base + 1.0 * S, 0, 0.15 * B, 0.028 * S, 0.185 * B, leather));
     if (o.arm === 'plate' || o.arm === 'bronze') P.push(ell(ch[0] + 0.02, ch[1] + 0.03, 0, 0.16 * B, 0.2 * S, 0.21 * B, o.arm === 'bronze' ? armour : steel, [-1, 0, 0, 0.02]));
     if (o.cape) P.push(ell(-0.16 * B + lean * 0.2, base + 1.02 * S, 0, 0.05, 0.5 * S, 0.24 * B, MAT(o.cape, { pat: 'cloth' })));
+    // divine heroes: feathered wings and a halo of light
+    if (o.wings) for (const s2 of [1, -1]) { const wm = MAT(o.wings, { pat: 'fur', spec: 0.2 }); P.push(ell(-0.2 * B, base + 1.42 * S, s2 * 0.42 * B, 0.05, 0.3 * S, 0.4 * B, wm), ell(-0.24 * B, base + 1.12 * S, s2 * 0.66 * B, 0.045, 0.34 * S, 0.2 * B, wm), ell(-0.26 * B, base + 0.86 * S, s2 * 0.55 * B, 0.04, 0.26 * S, 0.14 * B, wm)); }
+    if (o.halo) for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283; P.push(sph(hd[0] - 0.13, hd[1] + 0.06 + Math.sin(a) * 0.19, Math.cos(a) * 0.19, 0.022, MAT(o.halo, { emit: 1.4 }))); }
     // heavy armour: a crest in the team colour and a short tabard cape
     if (o.plume && !o.robe) { P.push(ell(-0.03 + lean * 0.5, base + 1.645 * S + 0.16, 0, 0.13, 0.07, 0.025, MAT(o.team, { pat: 'fur' }))); if (!o.cape) P.push(ell(-0.15 * B + lean * 0.2, base + 1.05 * S, 0, 0.04, 0.38 * S, 0.2 * B, MAT(o.team, { pat: 'cloth' }))); }
     if (o.quiver) { P.push(cap([-0.16, base + 1.05 * S, -0.06], [-0.2, base + 1.5 * S, 0.06], 0.05, leather)); P.push(sph(-0.21, base + 1.55 * S, 0.07, 0.035, MAT('#e0dccf'))); }
@@ -2879,13 +2882,15 @@ const M3 = (() => {
     for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); }
     // weapons
     const W = nrm(wd), tip = k => add3(hR, W, k);
+    // enchanted weapons: heroes and forged blades glow in their own colour
+    const GM = (c, sp, sh, e) => MAT(typeof o.glow === 'string' ? o.glow : c, { pat: 'metal', spec: sp, shin: sh, emit: o.glow ? (typeof o.glow === 'string' ? (o.glowK || 0.95) : e) : 0 });
     switch (w) {
-      case 'sword': case 'bigsword': { const L = w === 'bigsword' ? 1.1 : 0.82; P.push(cap(tip(0.08), tip(L), 0.02, MAT('#d6dce2', { pat: 'metal', spec: 1.4, shin: 70, emit: o.glow ? 0.25 : 0 }))); P.push(cap(add3(tip(0.07), [0, 0, 0.09]), add3(tip(0.07), [0, 0, -0.09]), 0.014, w === 'bigsword' ? gold : steel), sph(...tip(-0.06), 0.022, gold)); break; }
-      case 'spear': case 'halberd': case 'javelin': { const L = w === 'javelin' ? 1.3 : 2.4; P.push(cap(tip(w === 'javelin' ? -0.4 : -0.7), tip(L - (w === 'javelin' ? 0.4 : 0.7)), 0.017, wood)); const t0 = tip(L - (w === 'javelin' ? 0.4 : 0.7)); P.push(cap(t0, add3(t0, W, 0.2), 0.03, MAT('#cfd5da', { pat: 'metal', spec: 1.3, shin: 60, emit: o.glow ? 0.25 : 0 }))); if (w === 'halberd') P.push(ell(t0[0], t0[1] - 0.06, t0[2], 0.12, 0.1, 0.02, steel)); break; }
-      case 'axe': { P.push(cap(tip(-0.1), tip(0.75), 0.02, wood)); const t0 = tip(0.62), t1 = tip(0.74), off = [W[1] * 0.1, -W[0] * 0.1, 0]; P.push(cap(add3(t0, off), add3(t1, off), 0.045, MAT('#9aa1a8', { pat: 'metal', spec: 1.2, shin: 50, emit: o.glow ? 0.2 : 0 }))); break; }
-      case 'khopesh': { P.push(cap(tip(-0.05), tip(0.18), 0.022, leather)); const bm = MAT('#c9a24a', { pat: 'metal', spec: 1.2, shin: 50, emit: o.glow ? 0.2 : 0 }), side = [-W[1], W[0], 0], bend = add3(tip(0.52), side, 0.14); P.push(cap(tip(0.18), tip(0.52), 0.026, bm), cap(tip(0.52), bend, 0.03, bm), cap(bend, add3(bend, W, -0.12), 0.024, bm)); break; }
-      case 'cleaver': { P.push(cap(tip(-0.05), tip(0.2), 0.022, leather), cap(tip(0.22), tip(0.62), 0.05, MAT('#6d6863', { pat: 'metal', spec: 0.8, shin: 30, emit: o.glow ? 0.2 : 0 }))); break; }
-      case 'hammer': { P.push(cap(tip(-0.1), tip(0.72), 0.022, wood)); const t0 = tip(0.72); P.push(ell(t0[0], t0[1], t0[2], 0.12, 0.08, 0.08, MAT('#a8afb6', { pat: 'metal', spec: 1.1, shin: 44, emit: o.glow ? 0.35 : 0 }))); break; }
+      case 'sword': case 'bigsword': { const L = w === 'bigsword' ? 1.1 : 0.82; P.push(cap(tip(0.08), tip(L), 0.02, GM('#d6dce2', 1.4, 70, 0.25))); P.push(cap(add3(tip(0.07), [0, 0, 0.09]), add3(tip(0.07), [0, 0, -0.09]), 0.014, w === 'bigsword' ? gold : steel), sph(...tip(-0.06), 0.022, gold)); break; }
+      case 'spear': case 'halberd': case 'javelin': { const L = w === 'javelin' ? 1.3 : 2.4; P.push(cap(tip(w === 'javelin' ? -0.4 : -0.7), tip(L - (w === 'javelin' ? 0.4 : 0.7)), 0.017, wood)); const t0 = tip(L - (w === 'javelin' ? 0.4 : 0.7)); P.push(cap(t0, add3(t0, W, 0.2), 0.03, GM('#cfd5da', 1.3, 60, 0.25))); if (w === 'halberd') P.push(ell(t0[0], t0[1] - 0.06, t0[2], 0.12, 0.1, 0.02, steel)); break; }
+      case 'axe': { P.push(cap(tip(-0.1), tip(0.75), 0.02, wood)); const t0 = tip(0.62), t1 = tip(0.74), off = [W[1] * 0.1, -W[0] * 0.1, 0]; P.push(cap(add3(t0, off), add3(t1, off), 0.045, GM('#9aa1a8', 1.2, 50, 0.2))); break; }
+      case 'khopesh': { P.push(cap(tip(-0.05), tip(0.18), 0.022, leather)); const bm = GM('#c9a24a', 1.2, 50, 0.2), side = [-W[1], W[0], 0], bend = add3(tip(0.52), side, 0.14); P.push(cap(tip(0.18), tip(0.52), 0.026, bm), cap(tip(0.52), bend, 0.03, bm), cap(bend, add3(bend, W, -0.12), 0.024, bm)); break; }
+      case 'cleaver': { P.push(cap(tip(-0.05), tip(0.2), 0.022, leather), cap(tip(0.22), tip(0.62), 0.05, GM('#6d6863', 0.8, 30, 0.2))); break; }
+      case 'hammer': { P.push(cap(tip(-0.1), tip(0.72), 0.022, wood)); const t0 = tip(0.72); P.push(ell(t0[0], t0[1], t0[2], 0.12, 0.08, 0.08, GM('#a8afb6', 1.1, 44, 0.35))); break; }
       case 'club': { P.push(cap(tip(-0.05), tip(0.35), 0.035, wood), cap(tip(0.35), tip(0.85), 0.075, wood)); break; }
       case 'bow': { const c0 = hL, up = [0, 0.62 * S, 0]; const bw = MAT(o.race === 'elf' ? '#c9a55a' : '#5b3f24', { pat: 'wood', ns: 30, spec: 0.3 }); P.push(cap(add3(c0, [0.06, 0, 0]), add3(c0, up, 0.55), 0.016, bw), cap(add3(c0, [0.06, 0, 0]), add3(c0, up, -0.55), 0.016, bw)); if (at !== 0) P.push(cap(hR, add3(hL, [0.12, 0, 0]), 0.008, MAT('#d9d0bd'))); break; }
       case 'xbow': P.push(cap(hR, add3(hL, [0.2, 0, 0]), 0.03, wood), cap(add3(hL, [0.16, 0, 0.22]), add3(hL, [0.16, 0, -0.22]), 0.018, steel)); break;
@@ -2998,7 +3003,7 @@ const M3 = (() => {
     else {
       const L = Object.assign({ race: d.race, team }, LOOK[d.race][d.sub] || {});
       if (up & 2 && L.arm !== 'leather' && L.arm !== 'apron') { L.arm = 'plate'; L.steel = '#9da5ad'; L.plume = 1; }
-      if (up & 1) L.glow = 1;
+      if (up & 1) { L.glow = { hum: '#fff0c8', elf: '#bfe3ff', dwf: '#9fd0ff', orc: '#ff7a4a', und: '#8dffb0', des: '#ffd86a' }[d.race] || 1; L.glowK = 0.45; }
       if (d.sub === 'siege') catapult(d.race, pose, P, team);
       else if (d.sub === 'cav' && d.race === 'des') chariot(L, pose, P, team);
       else if (d.sub === 'cav') {
@@ -4089,6 +4094,7 @@ class Renderer {
   centerOn(x, y) { this.cam.x = x - this.w / 2 / this.cam.z; this.cam.y = y - (this.h - (this.padB || 0)) / 2 / this.cam.z; this.clampCam(); }
   toWorld(sx, sy) { return { x: this.cam.x + sx / this.cam.z, y: this.cam.y + sy / this.cam.z }; }
   toScreen(x, y) { return { x: (x - this.cam.x) * this.cam.z, y: (y - this.cam.y) * this.cam.z }; }
+  setFog() {}
   proj(x, y, up) { return { x: (x - this.cam.x) * this.cam.z, y: (y - (up || 0) - this.cam.y) * this.cam.z }; }
   pxAt() { return this.cam.z; }
   zoomAt(sx, sy, z) { const w = this.toWorld(sx, sy); this.cam.z = z; this.clampCam(); this.cam.x = w.x - sx / this.cam.z; this.cam.y = w.y - sy / this.cam.z; this.clampCam(); }
@@ -4328,6 +4334,8 @@ class Renderer {
       for (const [TT, sp] of [[900, 10], [1300, -6]]) { const o = (now * sp) % TT; for (let tx = Math.floor((vx0 - o) / TT) - 1; tx <= Math.floor((vx1 - o) / TT) + 1; tx++) for (let ty = Math.floor(vy0 / TT) - 1; ty <= Math.floor(vy1 / TT) + 1; ty++) c.drawImage(this.fog, tx * TT + o, ty * TT, TT, TT); }
       c.restore();
     }
+    // fog of war (dark where the player has no eyes)
+    if (S.fogCv) { c.imageSmoothingEnabled = true; c.drawImage(S.fogCv, 0, 0, MAP_W, MAP_H); }
     // bars & names
     for (const q of SQ.values()) {
       const b = q.b; if (!inView(b.rx, b.ry)) continue;
@@ -4661,6 +4669,7 @@ class Renderer {
     c.save(); c.beginPath(); c.arc(R, R, R - 1, 0, 7); c.clip();
     const g = c.createRadialGradient(R, R, R * 0.2, R, R, R); g.addColorStop(0, '#c9b286'); g.addColorStop(1, '#7d6440'); c.fillStyle = g; c.fillRect(0, 0, W, W);
     c.drawImage(this.terrain.cv, X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
+    if (S.fogCv) c.drawImage(S.fogCv, X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
     c.fillStyle = 'rgba(140,105,50,0.16)'; c.fillRect(X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
     const P = (x, y) => [X.ox + x * X.s, X.oy + y * X.s];
     this.map.camps.forEach((cp, i) => { if (this.campAlive && !this.campAlive[i]) return; const [x, y] = P(cp[0], cp[1]); c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fillStyle = '#3a3128'; c.fill(); c.strokeStyle = '#d8cfb8'; c.lineWidth = 1; c.stroke(); });
@@ -4867,6 +4876,7 @@ class Renderer3D extends Renderer {
     this.scene.fog = new T.Fog(0xb8c4c8, 2000, 9000);
     this.uTime = { value: 0 }; this.uCloud = { value: 0.2 };
     this.atlas = new T.CanvasTexture(detailAtlas()); this.atlas.wrapS = this.atlas.wrapT = T.ClampToEdgeWrapping; this.atlas.colorSpace = T.NoColorSpace;
+    this.fogU = { tex: { value: null }, on: { value: 0 }, map: { value: new T.Vector2(MAP_W, MAP_H) } };
     this.m3 = this.makeMats3();
     this.units = new Map(); this.geoQ = []; this.geoBusy = new Set(); this.geos = new Map();
     this.bldMesh = new Map();
@@ -4931,6 +4941,28 @@ class Renderer3D extends Renderer {
     m.customProgramCacheKey = () => 'ak' + (extra ? extra.length : 0);
     return m;
   }
+  // fog of war on a material: unexplored land is near black, explored but unseen land is dimmed
+  fogPatch(mat) {
+    if (!mat || mat.__fog) return mat; mat.__fog = 1;
+    const prev = mat.onBeforeCompile, U = this.fogU, pk = mat.customProgramCacheKey;
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev.call(mat, sh, r);
+      sh.uniforms.tFogW = U.tex; sh.uniforms.uFogOn = U.on; sh.uniforms.uFogMap = U.map;
+      sh.vertexShader = 'varying vec2 vFogUV;\nuniform vec2 uFogMap;\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\n{ vec4 fw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nfw = instanceMatrix * fw;\n#endif\nfw = modelMatrix * fw; vFogUV = fw.xz / uFogMap; }');
+      sh.fragmentShader = 'varying vec2 vFogUV;\nuniform sampler2D tFogW;\nuniform float uFogOn;\n' + sh.fragmentShader.replace('#include <fog_fragment>', 'if (uFogOn > 0.5) { vec2 fv = texture2D(tFogW, vFogUV).rg; gl_FragColor.rgb *= mix(0.1, mix(0.45, 1.0, fv.r), fv.g); }\n#include <fog_fragment>');
+    };
+    mat.customProgramCacheKey = () => (pk ? pk.call(mat) : '') + '|fog';
+    mat.needsUpdate = true;
+    return mat;
+  }
+  fogAt(x, y) { const F = this.fogF; if (!this.fogU.on.value || !F) return 1; const i = clamp((y / 40) | 0, 0, F.H - 1) * F.W + clamp((x / 40) | 0, 0, F.W - 1); return F.vis[i] ? 1 : F.exp[i] ? 0.4 : 0.06; }
+  setFog(F) {
+    const T = THREE;
+    if (!F || !F.active) { this.fogU.on.value = 0; return; }
+    if (!this.fogTex || this.fogTex.image.width !== F.W) { const d = new Uint8Array(F.W * F.H * 4); this.fogTex = new T.DataTexture(d, F.W, F.H, T.RGBAFormat); this.fogTex.magFilter = this.fogTex.minFilter = T.LinearFilter; this.fogU.tex.value = this.fogTex; }
+    const d = this.fogTex.image.data; for (let i = 0; i < F.W * F.H; i++) { d[i * 4] = F.vis[i] ? 255 : 0; d[i * 4 + 1] = F.exp[i] ? 255 : 0; d[i * 4 + 3] = 255; }
+    this.fogTex.needsUpdate = true; this.fogU.on.value = 1; this.fogF = F;
+  }
   makeMats3() {
     const T = THREE;
     const dull = this.patchDetail(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, envMapIntensity: 0.45 }));
@@ -4939,6 +4971,7 @@ class Renderer3D extends Renderer {
     const wind = 'float sw = sin(uTime * 1.3 + instanceMatrix[3].x * 0.021 + instanceMatrix[3].z * 0.017) * max(0.0, position.y - 18.0) * 0.012; transformed.x += sw; transformed.z += sw * 0.6;';
     const treeD = this.patchDetail(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 }), wind);
     const ghost = new T.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false });
+    for (const m of [dull, metal, glow, treeD]) this.fogPatch(m);
     return { unit: [dull, metal, glow], tree: [treeD, metal, glow], ghost: [ghost, ghost, ghost] };
   }
   // ---- world ----
@@ -5060,6 +5093,7 @@ class Renderer3D extends Renderer {
         diffuseColor.rgb *= 1.0 - cloud * uCloud;`).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n        roughnessFactor = mix(roughnessFactor, akRough, uPBR);').replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (uPBR > 0.001) { vec3 akW = normalize(vWN + akPert * uPBR); normal = normalize((viewMatrix * vec4(akW, 0.0)).xyz); }`);
     };
+    this.fogPatch(mat);
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; this.world.add(mesh); this.terrMesh = mesh;
   }
   buildWater3() {
@@ -5098,6 +5132,7 @@ class Renderer3D extends Renderer {
           mapN = normalize(vec3((mapN.xy + mapN2.xy) * normalScale, mapN.z * mapN2.z));
           normal = normalize(tbn * mapN);`); };
     }
+    this.fogPatch(mat);
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; mesh.renderOrder = 2; this.world.add(mesh); this.water3 = mesh;
     this.buildMist3();
   }
@@ -5218,6 +5253,7 @@ class Renderer3D extends Renderer {
     const uTime = this.uTime;
     mat.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat sw = sin(uTime * 2.1 + instanceMatrix[3].x * 0.05 + instanceMatrix[3].z * 0.03) * position.y * 0.16; transformed.x += sw; transformed.z += sw * 0.5;'); };
     mat.customProgramCacheKey = () => 'grass';
+    this.fogPatch(mat);
     const mesh = new T.InstancedMesh(g, mat, n), m4 = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), pp = new T.Vector3(), yax = new T.Vector3(0, 1, 0), c = new T.Color();
     const tc = this.terrain.cv.getContext('2d').getImageData(0, 0, this.terrain.cv.width, this.terrain.cv.height), TW = this.terrain.cv.width, tsc = this.terrain.sc;
     let k = 0, tries = 0;
@@ -5438,6 +5474,7 @@ class Renderer3D extends Renderer {
     const uTime = this.uTime;
     m.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.z += sin(uTime * 4.0 + position.x * 0.35 + instanceMatrix[3].x * 0.1) * position.x * 0.12;'); };
     m.customProgramCacheKey = () => 'flag';
+    this.fogPatch(m);
     this.geos.set(key, m); return m;
   }
   // ---- main draw ----
@@ -5467,7 +5504,7 @@ class Renderer3D extends Renderer {
       su.uZen.value.copy(zen); su.uHor.value.copy(fogC); su.uSunCol.value.copy(sunCol).multiplyScalar(L > 0.6 ? 1 : 0.25); su.uCov.value = env.weather === 'clear' ? 0.35 : 0.85;
       this.skyDome.position.copy(this.camera.position); this.skyDome.scale.setScalar(this.camera.far * 0.9);
     }
-    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a; } }
+    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a * this.fogAt(m.position.x, m.position.z); } }
     const fogK = env.weather === 'fog' ? 1 - 0.65 * wa : env.weather === 'rain' ? 1 - 0.3 * wa : 1;
     this.scene.fog.near = this.D * 0.9 * fogK; this.scene.fog.far = (this.D * 2.8 + 1200) * fogK;
     this.gl.toneMappingExposure = (0.55 + 0.35 * L) * (1 - 0.15 * wa) + this.flash * 0.6;
@@ -6139,9 +6176,31 @@ function hint(text) { const h = $('hint'); if (text) { h.textContent = text; h.h
 function fmtT(s) { s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 
 // ---------- world picking ----------
+// ---------- fog of war (visual: the host still simulates everything) ----------
+const FOG = { W: Math.ceil(MAP_W / 40), H: Math.ceil(MAP_H / 40), vis: null, exp: null, t: 0, active: false, cv: null };
+function fogReset() { FOG.vis = new Uint8Array(FOG.W * FOG.H); FOG.exp = new Uint8Array(FOG.W * FOG.H); FOG.t = 0; FOG.active = !!V && V.me >= 0 && store.get('fog', true); if (!FOG.active) R.setFog && R.setFog(null); }
+function fogCell(x, y) { return clamp((y / 40) | 0, 0, FOG.H - 1) * FOG.W + clamp((x / 40) | 0, 0, FOG.W - 1); }
+function fogSeen(e) { if (!FOG.active || !e || V.teamOf(e.owner) === V.teamOf(V.me)) return true; const i = fogCell(e.rx !== undefined ? e.rx : e.x, e.ry !== undefined ? e.ry : e.y); return e.d.kind === 'b' ? FOG.exp[i] > 0 : FOG.vis[i] > 0; }
+function fogUpdate(dt) {
+  if (!FOG.active || !V) return;
+  FOG.t -= dt; if (FOG.t > 0) return; FOG.t = 0.25;
+  const vis = FOG.vis, exp = FOG.exp, W = FOG.W, H = FOG.H, team = V.teamOf(V.me); vis.fill(0);
+  for (const e of V.ents) {
+    if (V.teamOf(e.owner) !== team) continue;
+    const R0 = e.d.kind === 'b' ? (e.d.shoot ? 420 : e.built < 1 ? 180 : 320) : e.d.hero ? 400 : e.d.cls === 'arch' || e.d.cls === 'siege' ? 330 : e.d.worker ? 220 : 290, rc = Math.ceil(R0 / 40);
+    const cx = (e.rx / 40) | 0, cy = (e.ry / 40) | 0;
+    for (let y = Math.max(0, cy - rc); y <= Math.min(H - 1, cy + rc); y++) for (let x = Math.max(0, cx - rc); x <= Math.min(W - 1, cx + rc); x++) { const dx = x - cx, dy = y - cy; if (dx * dx + dy * dy <= rc * rc) { vis[y * W + x] = 1; exp[y * W + x] = 1; } }
+  }
+  if (!FOG.cv) FOG.cv = mkCanvas(W, H);
+  const c = FOG.cv.getContext('2d'), img = c.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { img.data[i * 4] = 8; img.data[i * 4 + 1] = 10; img.data[i * 4 + 2] = 14; img.data[i * 4 + 3] = vis[i] ? 0 : exp[i] ? 120 : 225; }
+  c.putImageData(img, 0, 0);
+  if (R.setFog) R.setFog(FOG);
+}
 function pick(sx, sy, touch) {
   let best = null, bd = 1e9; const tol = touch ? 28 : 10;
   for (const e of V.ents) {
+    if (!fogSeen(e)) continue;
     let d;
     const k = R.pxAt(e.rx, e.ry);
     if (e.d.kind === 'b') { const c = R.proj(e.rx, e.ry, e.r * (R.is3D ? 1 : 0.5)); d = Math.hypot(sx - c.x, (sy - c.y) * 1.1) - e.r * 1.05 * k; }
@@ -6708,6 +6767,7 @@ function menuSkirm() {
   show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Битва с ИИ</h2><h3>Ваш народ</h3>' + raceCards(setup.race, 'race') +
     '<h3>Режим</h3><div class="seg">' + modes.map((m, i) => '<button data-a="modeN" data-v="' + i + '" class="' + (setup.modeN === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Сложность</h3><div class="seg">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, i) => '<button data-a="diff" data-v="' + i + '" class="' + (setup.diff === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
+    '<h3>Туман войны</h3><div class="seg"><button data-a="fogset" data-v="1" class="' + (store.get('fog', true) ? 'on' : '') + '">Включён</button><button data-a="fogset" data-v="0" class="' + (store.get('fog', true) ? '' : 'on') + '">Выключен</button></div>' +
     '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="map" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '"' + (m.desc ? ' title="' + m.desc + '"' : '') + '>' + m.name + '</button>').join('') + '</div>' +
     '<div class="btns" style="margin-top:16px"><button class="big" data-a="go">В бой!</button></div></div>');
 }
@@ -6894,6 +6954,7 @@ function beginView() {
   $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
   requestAnimationFrame(measurePads); tipsIdx = store.get('tipsDone', false) || mode !== 'local' ? 99 : 0;
   UI.sel = new Set(); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; heroSig = ''; prevIds = new Map();
+  fogReset();
   R.resize();
   const me = V.player(V.me); void me;
   R.cam.z = R.w < 700 ? 0.75 : 1;
@@ -7022,6 +7083,7 @@ $('scr').addEventListener('click', e => {
     case 'gfxset': if ((v === '3d') !== !!R.is3D) { store.set('gfx', v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); } break;
     case 'qset': if (+v !== R.q) { store.set('q3', +v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Качество сменится после битвы'); break; } location.reload(); } break;
     case 'sndset': Snd.setOn(v === '1'); store.set('snd', Snd.on); Snd.init(); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
+    case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
     case 'lobmap': setup.map = v; store.set('map', v); hostSync(); onlineScreen(); break;
@@ -7192,13 +7254,14 @@ function frame(now) {
     if (game && game.notes.length >= 30 && noteIdx >= 30) noteIdx = game.notes.length - 1;
     trackDeaths(); fxSounds(); battleSounds(dt);
     // ghost/skill range
-    const S = { ents: V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, relic: V.relic, gameT: V.gameT, ups: V.ups };
+    fogUpdate(dt);
+    const S = { ents: FOG.active ? V.ents.filter(fogSeen) : V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, relic: V.relic, gameT: V.gameT, ups: V.ups, fogCv: FOG.active && !R.is3D ? FOG.cv : null };
     if (R.is3D) drawOverlay(now / 1000);
     R.draw(S);
     if (!R.is3D) drawOverlay(now / 1000);
     drawBoxRect();
     uiT -= dt;
-    if (uiT <= 0) { uiT = 0.15; updateHud(); updateRing(); updateBuildPanel(); updateQuick(); V.alerts = UI.alerts; R.drawMini(mini, V); runTips(); if (Math.random() < 0.05) measurePads(); }
+    if (uiT <= 0) { uiT = 0.15; updateHud(); updateRing(); updateBuildPanel(); updateQuick(); V.alerts = UI.alerts; R.drawMini(mini, FOG.active ? { ents: V.ents.filter(fogSeen), outposts: V.outposts, alerts: V.alerts, relic: V.relic, fogCv: FOG.cv } : V); runTips(); if (Math.random() < 0.05) measurePads(); }
     if (V.over !== -1 && V.over !== undefined && !endShown) {
       endShown = true; if (mode === 'local') store.set('save', null);
       const myTeam = V.teamOf(V.me);

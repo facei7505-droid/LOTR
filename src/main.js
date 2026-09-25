@@ -139,9 +139,31 @@ function hint(text) { const h = $('hint'); if (text) { h.textContent = text; h.h
 function fmtT(s) { s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 
 // ---------- world picking ----------
+// ---------- fog of war (visual: the host still simulates everything) ----------
+const FOG = { W: Math.ceil(MAP_W / 40), H: Math.ceil(MAP_H / 40), vis: null, exp: null, t: 0, active: false, cv: null };
+function fogReset() { FOG.vis = new Uint8Array(FOG.W * FOG.H); FOG.exp = new Uint8Array(FOG.W * FOG.H); FOG.t = 0; FOG.active = !!V && V.me >= 0 && store.get('fog', true); if (!FOG.active) R.setFog && R.setFog(null); }
+function fogCell(x, y) { return clamp((y / 40) | 0, 0, FOG.H - 1) * FOG.W + clamp((x / 40) | 0, 0, FOG.W - 1); }
+function fogSeen(e) { if (!FOG.active || !e || V.teamOf(e.owner) === V.teamOf(V.me)) return true; const i = fogCell(e.rx !== undefined ? e.rx : e.x, e.ry !== undefined ? e.ry : e.y); return e.d.kind === 'b' ? FOG.exp[i] > 0 : FOG.vis[i] > 0; }
+function fogUpdate(dt) {
+  if (!FOG.active || !V) return;
+  FOG.t -= dt; if (FOG.t > 0) return; FOG.t = 0.25;
+  const vis = FOG.vis, exp = FOG.exp, W = FOG.W, H = FOG.H, team = V.teamOf(V.me); vis.fill(0);
+  for (const e of V.ents) {
+    if (V.teamOf(e.owner) !== team) continue;
+    const R0 = e.d.kind === 'b' ? (e.d.shoot ? 420 : e.built < 1 ? 180 : 320) : e.d.hero ? 400 : e.d.cls === 'arch' || e.d.cls === 'siege' ? 330 : e.d.worker ? 220 : 290, rc = Math.ceil(R0 / 40);
+    const cx = (e.rx / 40) | 0, cy = (e.ry / 40) | 0;
+    for (let y = Math.max(0, cy - rc); y <= Math.min(H - 1, cy + rc); y++) for (let x = Math.max(0, cx - rc); x <= Math.min(W - 1, cx + rc); x++) { const dx = x - cx, dy = y - cy; if (dx * dx + dy * dy <= rc * rc) { vis[y * W + x] = 1; exp[y * W + x] = 1; } }
+  }
+  if (!FOG.cv) FOG.cv = mkCanvas(W, H);
+  const c = FOG.cv.getContext('2d'), img = c.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { img.data[i * 4] = 8; img.data[i * 4 + 1] = 10; img.data[i * 4 + 2] = 14; img.data[i * 4 + 3] = vis[i] ? 0 : exp[i] ? 120 : 225; }
+  c.putImageData(img, 0, 0);
+  if (R.setFog) R.setFog(FOG);
+}
 function pick(sx, sy, touch) {
   let best = null, bd = 1e9; const tol = touch ? 28 : 10;
   for (const e of V.ents) {
+    if (!fogSeen(e)) continue;
     let d;
     const k = R.pxAt(e.rx, e.ry);
     if (e.d.kind === 'b') { const c = R.proj(e.rx, e.ry, e.r * (R.is3D ? 1 : 0.5)); d = Math.hypot(sx - c.x, (sy - c.y) * 1.1) - e.r * 1.05 * k; }
@@ -708,6 +730,7 @@ function menuSkirm() {
   show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Битва с ИИ</h2><h3>Ваш народ</h3>' + raceCards(setup.race, 'race') +
     '<h3>Режим</h3><div class="seg">' + modes.map((m, i) => '<button data-a="modeN" data-v="' + i + '" class="' + (setup.modeN === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Сложность</h3><div class="seg">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, i) => '<button data-a="diff" data-v="' + i + '" class="' + (setup.diff === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
+    '<h3>Туман войны</h3><div class="seg"><button data-a="fogset" data-v="1" class="' + (store.get('fog', true) ? 'on' : '') + '">Включён</button><button data-a="fogset" data-v="0" class="' + (store.get('fog', true) ? '' : 'on') + '">Выключен</button></div>' +
     '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="map" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '"' + (m.desc ? ' title="' + m.desc + '"' : '') + '>' + m.name + '</button>').join('') + '</div>' +
     '<div class="btns" style="margin-top:16px"><button class="big" data-a="go">В бой!</button></div></div>');
 }
@@ -894,6 +917,7 @@ function beginView() {
   $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
   requestAnimationFrame(measurePads); tipsIdx = store.get('tipsDone', false) || mode !== 'local' ? 99 : 0;
   UI.sel = new Set(); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; heroSig = ''; prevIds = new Map();
+  fogReset();
   R.resize();
   const me = V.player(V.me); void me;
   R.cam.z = R.w < 700 ? 0.75 : 1;
@@ -1022,6 +1046,7 @@ $('scr').addEventListener('click', e => {
     case 'gfxset': if ((v === '3d') !== !!R.is3D) { store.set('gfx', v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); } break;
     case 'qset': if (+v !== R.q) { store.set('q3', +v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Качество сменится после битвы'); break; } location.reload(); } break;
     case 'sndset': Snd.setOn(v === '1'); store.set('snd', Snd.on); Snd.init(); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
+    case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
     case 'lobmap': setup.map = v; store.set('map', v); hostSync(); onlineScreen(); break;
@@ -1192,13 +1217,14 @@ function frame(now) {
     if (game && game.notes.length >= 30 && noteIdx >= 30) noteIdx = game.notes.length - 1;
     trackDeaths(); fxSounds(); battleSounds(dt);
     // ghost/skill range
-    const S = { ents: V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, relic: V.relic, gameT: V.gameT, ups: V.ups };
+    fogUpdate(dt);
+    const S = { ents: FOG.active ? V.ents.filter(fogSeen) : V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, relic: V.relic, gameT: V.gameT, ups: V.ups, fogCv: FOG.active && !R.is3D ? FOG.cv : null };
     if (R.is3D) drawOverlay(now / 1000);
     R.draw(S);
     if (!R.is3D) drawOverlay(now / 1000);
     drawBoxRect();
     uiT -= dt;
-    if (uiT <= 0) { uiT = 0.15; updateHud(); updateRing(); updateBuildPanel(); updateQuick(); V.alerts = UI.alerts; R.drawMini(mini, V); runTips(); if (Math.random() < 0.05) measurePads(); }
+    if (uiT <= 0) { uiT = 0.15; updateHud(); updateRing(); updateBuildPanel(); updateQuick(); V.alerts = UI.alerts; R.drawMini(mini, FOG.active ? { ents: V.ents.filter(fogSeen), outposts: V.outposts, alerts: V.alerts, relic: V.relic, fogCv: FOG.cv } : V); runTips(); if (Math.random() < 0.05) measurePads(); }
     if (V.over !== -1 && V.over !== undefined && !endShown) {
       endShown = true; if (mode === 'local') store.set('save', null);
       const myTeam = V.teamOf(V.me);

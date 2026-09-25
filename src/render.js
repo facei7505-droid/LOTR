@@ -873,6 +873,7 @@ class Renderer {
   centerOn(x, y) { this.cam.x = x - this.w / 2 / this.cam.z; this.cam.y = y - (this.h - (this.padB || 0)) / 2 / this.cam.z; this.clampCam(); }
   toWorld(sx, sy) { return { x: this.cam.x + sx / this.cam.z, y: this.cam.y + sy / this.cam.z }; }
   toScreen(x, y) { return { x: (x - this.cam.x) * this.cam.z, y: (y - this.cam.y) * this.cam.z }; }
+  setFog() {}
   proj(x, y, up) { return { x: (x - this.cam.x) * this.cam.z, y: (y - (up || 0) - this.cam.y) * this.cam.z }; }
   pxAt() { return this.cam.z; }
   zoomAt(sx, sy, z) { const w = this.toWorld(sx, sy); this.cam.z = z; this.clampCam(); this.cam.x = w.x - sx / this.cam.z; this.cam.y = w.y - sy / this.cam.z; this.clampCam(); }
@@ -1112,6 +1113,8 @@ class Renderer {
       for (const [TT, sp] of [[900, 10], [1300, -6]]) { const o = (now * sp) % TT; for (let tx = Math.floor((vx0 - o) / TT) - 1; tx <= Math.floor((vx1 - o) / TT) + 1; tx++) for (let ty = Math.floor(vy0 / TT) - 1; ty <= Math.floor(vy1 / TT) + 1; ty++) c.drawImage(this.fog, tx * TT + o, ty * TT, TT, TT); }
       c.restore();
     }
+    // fog of war (dark where the player has no eyes)
+    if (S.fogCv) { c.imageSmoothingEnabled = true; c.drawImage(S.fogCv, 0, 0, MAP_W, MAP_H); }
     // bars & names
     for (const q of SQ.values()) {
       const b = q.b; if (!inView(b.rx, b.ry)) continue;
@@ -1445,6 +1448,7 @@ class Renderer {
     c.save(); c.beginPath(); c.arc(R, R, R - 1, 0, 7); c.clip();
     const g = c.createRadialGradient(R, R, R * 0.2, R, R, R); g.addColorStop(0, '#c9b286'); g.addColorStop(1, '#7d6440'); c.fillStyle = g; c.fillRect(0, 0, W, W);
     c.drawImage(this.terrain.cv, X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
+    if (S.fogCv) c.drawImage(S.fogCv, X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
     c.fillStyle = 'rgba(140,105,50,0.16)'; c.fillRect(X.ox, X.oy, MAP_W * X.s, MAP_H * X.s);
     const P = (x, y) => [X.ox + x * X.s, X.oy + y * X.s];
     this.map.camps.forEach((cp, i) => { if (this.campAlive && !this.campAlive[i]) return; const [x, y] = P(cp[0], cp[1]); c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fillStyle = '#3a3128'; c.fill(); c.strokeStyle = '#d8cfb8'; c.lineWidth = 1; c.stroke(); });

@@ -184,6 +184,7 @@ class Renderer3D extends Renderer {
     this.scene.fog = new T.Fog(0xb8c4c8, 2000, 9000);
     this.uTime = { value: 0 }; this.uCloud = { value: 0.2 };
     this.atlas = new T.CanvasTexture(detailAtlas()); this.atlas.wrapS = this.atlas.wrapT = T.ClampToEdgeWrapping; this.atlas.colorSpace = T.NoColorSpace;
+    this.fogU = { tex: { value: null }, on: { value: 0 }, map: { value: new T.Vector2(MAP_W, MAP_H) } };
     this.m3 = this.makeMats3();
     this.units = new Map(); this.geoQ = []; this.geoBusy = new Set(); this.geos = new Map();
     this.bldMesh = new Map();
@@ -248,6 +249,28 @@ class Renderer3D extends Renderer {
     m.customProgramCacheKey = () => 'ak' + (extra ? extra.length : 0);
     return m;
   }
+  // fog of war on a material: unexplored land is near black, explored but unseen land is dimmed
+  fogPatch(mat) {
+    if (!mat || mat.__fog) return mat; mat.__fog = 1;
+    const prev = mat.onBeforeCompile, U = this.fogU, pk = mat.customProgramCacheKey;
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev.call(mat, sh, r);
+      sh.uniforms.tFogW = U.tex; sh.uniforms.uFogOn = U.on; sh.uniforms.uFogMap = U.map;
+      sh.vertexShader = 'varying vec2 vFogUV;\nuniform vec2 uFogMap;\n' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\n{ vec4 fw = vec4(transformed, 1.0);\n#ifdef USE_INSTANCING\nfw = instanceMatrix * fw;\n#endif\nfw = modelMatrix * fw; vFogUV = fw.xz / uFogMap; }');
+      sh.fragmentShader = 'varying vec2 vFogUV;\nuniform sampler2D tFogW;\nuniform float uFogOn;\n' + sh.fragmentShader.replace('#include <fog_fragment>', 'if (uFogOn > 0.5) { vec2 fv = texture2D(tFogW, vFogUV).rg; gl_FragColor.rgb *= mix(0.1, mix(0.45, 1.0, fv.r), fv.g); }\n#include <fog_fragment>');
+    };
+    mat.customProgramCacheKey = () => (pk ? pk.call(mat) : '') + '|fog';
+    mat.needsUpdate = true;
+    return mat;
+  }
+  fogAt(x, y) { const F = this.fogF; if (!this.fogU.on.value || !F) return 1; const i = clamp((y / 40) | 0, 0, F.H - 1) * F.W + clamp((x / 40) | 0, 0, F.W - 1); return F.vis[i] ? 1 : F.exp[i] ? 0.4 : 0.06; }
+  setFog(F) {
+    const T = THREE;
+    if (!F || !F.active) { this.fogU.on.value = 0; return; }
+    if (!this.fogTex || this.fogTex.image.width !== F.W) { const d = new Uint8Array(F.W * F.H * 4); this.fogTex = new T.DataTexture(d, F.W, F.H, T.RGBAFormat); this.fogTex.magFilter = this.fogTex.minFilter = T.LinearFilter; this.fogU.tex.value = this.fogTex; }
+    const d = this.fogTex.image.data; for (let i = 0; i < F.W * F.H; i++) { d[i * 4] = F.vis[i] ? 255 : 0; d[i * 4 + 1] = F.exp[i] ? 255 : 0; d[i * 4 + 3] = 255; }
+    this.fogTex.needsUpdate = true; this.fogU.on.value = 1; this.fogF = F;
+  }
   makeMats3() {
     const T = THREE;
     const dull = this.patchDetail(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, envMapIntensity: 0.45 }));
@@ -256,6 +279,7 @@ class Renderer3D extends Renderer {
     const wind = 'float sw = sin(uTime * 1.3 + instanceMatrix[3].x * 0.021 + instanceMatrix[3].z * 0.017) * max(0.0, position.y - 18.0) * 0.012; transformed.x += sw; transformed.z += sw * 0.6;';
     const treeD = this.patchDetail(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 }), wind);
     const ghost = new T.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false });
+    for (const m of [dull, metal, glow, treeD]) this.fogPatch(m);
     return { unit: [dull, metal, glow], tree: [treeD, metal, glow], ghost: [ghost, ghost, ghost] };
   }
   // ---- world ----
@@ -377,6 +401,7 @@ class Renderer3D extends Renderer {
         diffuseColor.rgb *= 1.0 - cloud * uCloud;`).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n        roughnessFactor = mix(roughnessFactor, akRough, uPBR);').replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (uPBR > 0.001) { vec3 akW = normalize(vWN + akPert * uPBR); normal = normalize((viewMatrix * vec4(akW, 0.0)).xyz); }`);
     };
+    this.fogPatch(mat);
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; this.world.add(mesh); this.terrMesh = mesh;
   }
   buildWater3() {
@@ -415,6 +440,7 @@ class Renderer3D extends Renderer {
           mapN = normalize(vec3((mapN.xy + mapN2.xy) * normalScale, mapN.z * mapN2.z));
           normal = normalize(tbn * mapN);`); };
     }
+    this.fogPatch(mat);
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; mesh.renderOrder = 2; this.world.add(mesh); this.water3 = mesh;
     this.buildMist3();
   }
@@ -535,6 +561,7 @@ class Renderer3D extends Renderer {
     const uTime = this.uTime;
     mat.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat sw = sin(uTime * 2.1 + instanceMatrix[3].x * 0.05 + instanceMatrix[3].z * 0.03) * position.y * 0.16; transformed.x += sw; transformed.z += sw * 0.5;'); };
     mat.customProgramCacheKey = () => 'grass';
+    this.fogPatch(mat);
     const mesh = new T.InstancedMesh(g, mat, n), m4 = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), pp = new T.Vector3(), yax = new T.Vector3(0, 1, 0), c = new T.Color();
     const tc = this.terrain.cv.getContext('2d').getImageData(0, 0, this.terrain.cv.width, this.terrain.cv.height), TW = this.terrain.cv.width, tsc = this.terrain.sc;
     let k = 0, tries = 0;
@@ -755,6 +782,7 @@ class Renderer3D extends Renderer {
     const uTime = this.uTime;
     m.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed.z += sin(uTime * 4.0 + position.x * 0.35 + instanceMatrix[3].x * 0.1) * position.x * 0.12;'); };
     m.customProgramCacheKey = () => 'flag';
+    this.fogPatch(m);
     this.geos.set(key, m); return m;
   }
   // ---- main draw ----
@@ -784,7 +812,7 @@ class Renderer3D extends Renderer {
       su.uZen.value.copy(zen); su.uHor.value.copy(fogC); su.uSunCol.value.copy(sunCol).multiplyScalar(L > 0.6 ? 1 : 0.25); su.uCov.value = env.weather === 'clear' ? 0.35 : 0.85;
       this.skyDome.position.copy(this.camera.position); this.skyDome.scale.setScalar(this.camera.far * 0.9);
     }
-    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a; } }
+    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a * this.fogAt(m.position.x, m.position.z); } }
     const fogK = env.weather === 'fog' ? 1 - 0.65 * wa : env.weather === 'rain' ? 1 - 0.3 * wa : 1;
     this.scene.fog.near = this.D * 0.9 * fogK; this.scene.fog.far = (this.D * 2.8 + 1200) * fogK;
     this.gl.toneMappingExposure = (0.55 + 0.35 * L) * (1 - 0.15 * wa) + this.flash * 0.6;

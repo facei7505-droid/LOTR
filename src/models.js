@@ -26,17 +26,17 @@ const M3 = (() => {
   };
   const HERO3 = {
     hum_h1: { w: 'bigsword', sh: 'kite', helm: 'crown', arm: 'plate', cape: '#6d1f1f', S: 1.1, steel: '#c4cad0', gold: 1 },
-    hum_h2: { w: 'banner', helm: 'none', hair: '#6b3f22', arm: 'plate', steel: '#d6dbe0', cape: '#e8e4dc', S: 1.02 },
-    elf_h1: { w: 'spear', sh: 'leaf', helm: 'none', hair: '#a8442a', arm: 'scale', cape: '#2e5d3a', S: 1.08 },
-    elf_h2: { w: 'bow', helm: 'none', hair: '#ece4ca', robe: '#d9d6c8', cape: '#9bb0c8', S: 1.05, quiver: 1 },
+    hum_h2: { w: 'banner', helm: 'none', hair: '#6b3f22', arm: 'plate', steel: '#d6dbe0', cape: '#e8e4dc', S: 1.02, halo: '#fff1b0' },
+    elf_h1: { w: 'spear', sh: 'leaf', helm: 'none', hair: '#a8442a', arm: 'scale', cape: '#2e5d3a', S: 1.08, glow: '#ff5a3c' },
+    elf_h2: { w: 'bow', helm: 'none', hair: '#ece4ca', robe: '#d9d6c8', cape: '#9bb0c8', S: 1.05, quiver: 1, halo: '#dfe8ff' },
     dwf_h1: { w: 'hammer', helm: 'winged', arm: 'plate', beard: '#b04a1e', cape: '#8a1c16', S: 0.86, glow: '#9fd0ff' },
-    dwf_h2: { w: 'staff', helm: 'none', hair: '#f0c060', robe: '#6e4a7a', cape: '#d9c38a', S: 0.84, orb: '#ffb86a' },
-    orc_h1: { w: 'spear', sh: 'round', helm: 'crest', arm: 'bronze', skin: '#b98d6c', cape: '#7a1414', S: 1.12, human: 1 },
+    dwf_h2: { w: 'staff', helm: 'none', hair: '#f0c060', robe: '#6e4a7a', cape: '#d9c38a', S: 0.84, orb: '#ffb86a', wings: '#e8d8b0' },
+    orc_h1: { w: 'spear', sh: 'round', helm: 'crest', arm: 'bronze', skin: '#b98d6c', cape: '#7a1414', S: 1.12, human: 1, glow: '#ff6a3a' },
     orc_h2: { w: 'staff', helm: 'crown', skin: '#c9c7b4', robe: '#1e1b22', cape: '#101014', S: 1.1, orb: '#8dff9a', human: 1 },
     und_h1: { w: 'bigsword', sh: 'kite', helm: 'great', arm: 'plate', steel: '#3c3f44', cape: '#2a0d10', S: 1.12, glow: '#7dff9a' },
-    und_h2: { w: 'staff', helm: 'crown', skin: '#d8d4cc', hair: '#e8e8e0', robe: '#1b2a26', cape: '#0e1614', S: 1.06, orb: '#7dffb0', human: 1, deadEyes: 1 },
-    des_h1: { w: 'khopesh', helm: 'jackal', arm: 'bronze', skin: '#1f1b1a', cape: '#2a4f8a', S: 1.2, human: 1, gold: 1 },
-    des_h2: { w: 'staff', helm: 'nemes', robe: '#efe6cf', cape: '#2f6aa3', S: 1.04, orb: '#ffe28a', human: 1 },
+    und_h2: { w: 'staff', helm: 'crown', skin: '#d8d4cc', hair: '#e8e8e0', robe: '#1b2a26', cape: '#0e1614', S: 1.06, orb: '#7dffb0', human: 1, deadEyes: 1, halo: '#9fe8ff' },
+    des_h1: { w: 'khopesh', helm: 'jackal', arm: 'bronze', skin: '#1f1b1a', cape: '#2a4f8a', S: 1.2, human: 1, gold: 1, glow: '#ffd46a' },
+    des_h2: { w: 'staff', helm: 'nemes', robe: '#efe6cf', cape: '#2f6aa3', S: 1.04, orb: '#ffe28a', human: 1, wings: '#3f7ab8' },
   };
   // ---------- humanoid ----------
   function human(o, pose, P) {
@@ -76,6 +76,9 @@ const M3 = (() => {
     P.push(ell(0, base + 1.0 * S, 0, 0.15 * B, 0.028 * S, 0.185 * B, leather));
     if (o.arm === 'plate' || o.arm === 'bronze') P.push(ell(ch[0] + 0.02, ch[1] + 0.03, 0, 0.16 * B, 0.2 * S, 0.21 * B, o.arm === 'bronze' ? armour : steel, [-1, 0, 0, 0.02]));
     if (o.cape) P.push(ell(-0.16 * B + lean * 0.2, base + 1.02 * S, 0, 0.05, 0.5 * S, 0.24 * B, MAT(o.cape, { pat: 'cloth' })));
+    // divine heroes: feathered wings and a halo of light
+    if (o.wings) for (const s2 of [1, -1]) { const wm = MAT(o.wings, { pat: 'fur', spec: 0.2 }); P.push(ell(-0.2 * B, base + 1.42 * S, s2 * 0.42 * B, 0.05, 0.3 * S, 0.4 * B, wm), ell(-0.24 * B, base + 1.12 * S, s2 * 0.66 * B, 0.045, 0.34 * S, 0.2 * B, wm), ell(-0.26 * B, base + 0.86 * S, s2 * 0.55 * B, 0.04, 0.26 * S, 0.14 * B, wm)); }
+    if (o.halo) for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283; P.push(sph(hd[0] - 0.13, hd[1] + 0.06 + Math.sin(a) * 0.19, Math.cos(a) * 0.19, 0.022, MAT(o.halo, { emit: 1.4 }))); }
     // heavy armour: a crest in the team colour and a short tabard cape
     if (o.plume && !o.robe) { P.push(ell(-0.03 + lean * 0.5, base + 1.645 * S + 0.16, 0, 0.13, 0.07, 0.025, MAT(o.team, { pat: 'fur' }))); if (!o.cape) P.push(ell(-0.15 * B + lean * 0.2, base + 1.05 * S, 0, 0.04, 0.38 * S, 0.2 * B, MAT(o.team, { pat: 'cloth' }))); }
     if (o.quiver) { P.push(cap([-0.16, base + 1.05 * S, -0.06], [-0.2, base + 1.5 * S, 0.06], 0.05, leather)); P.push(sph(-0.21, base + 1.55 * S, 0.07, 0.035, MAT('#e0dccf'))); }
@@ -130,13 +133,15 @@ const M3 = (() => {
     for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); }
     // weapons
     const W = nrm(wd), tip = k => add3(hR, W, k);
+    // enchanted weapons: heroes and forged blades glow in their own colour
+    const GM = (c, sp, sh, e) => MAT(typeof o.glow === 'string' ? o.glow : c, { pat: 'metal', spec: sp, shin: sh, emit: o.glow ? (typeof o.glow === 'string' ? (o.glowK || 0.95) : e) : 0 });
     switch (w) {
-      case 'sword': case 'bigsword': { const L = w === 'bigsword' ? 1.1 : 0.82; P.push(cap(tip(0.08), tip(L), 0.02, MAT('#d6dce2', { pat: 'metal', spec: 1.4, shin: 70, emit: o.glow ? 0.25 : 0 }))); P.push(cap(add3(tip(0.07), [0, 0, 0.09]), add3(tip(0.07), [0, 0, -0.09]), 0.014, w === 'bigsword' ? gold : steel), sph(...tip(-0.06), 0.022, gold)); break; }
-      case 'spear': case 'halberd': case 'javelin': { const L = w === 'javelin' ? 1.3 : 2.4; P.push(cap(tip(w === 'javelin' ? -0.4 : -0.7), tip(L - (w === 'javelin' ? 0.4 : 0.7)), 0.017, wood)); const t0 = tip(L - (w === 'javelin' ? 0.4 : 0.7)); P.push(cap(t0, add3(t0, W, 0.2), 0.03, MAT('#cfd5da', { pat: 'metal', spec: 1.3, shin: 60, emit: o.glow ? 0.25 : 0 }))); if (w === 'halberd') P.push(ell(t0[0], t0[1] - 0.06, t0[2], 0.12, 0.1, 0.02, steel)); break; }
-      case 'axe': { P.push(cap(tip(-0.1), tip(0.75), 0.02, wood)); const t0 = tip(0.62), t1 = tip(0.74), off = [W[1] * 0.1, -W[0] * 0.1, 0]; P.push(cap(add3(t0, off), add3(t1, off), 0.045, MAT('#9aa1a8', { pat: 'metal', spec: 1.2, shin: 50, emit: o.glow ? 0.2 : 0 }))); break; }
-      case 'khopesh': { P.push(cap(tip(-0.05), tip(0.18), 0.022, leather)); const bm = MAT('#c9a24a', { pat: 'metal', spec: 1.2, shin: 50, emit: o.glow ? 0.2 : 0 }), side = [-W[1], W[0], 0], bend = add3(tip(0.52), side, 0.14); P.push(cap(tip(0.18), tip(0.52), 0.026, bm), cap(tip(0.52), bend, 0.03, bm), cap(bend, add3(bend, W, -0.12), 0.024, bm)); break; }
-      case 'cleaver': { P.push(cap(tip(-0.05), tip(0.2), 0.022, leather), cap(tip(0.22), tip(0.62), 0.05, MAT('#6d6863', { pat: 'metal', spec: 0.8, shin: 30, emit: o.glow ? 0.2 : 0 }))); break; }
-      case 'hammer': { P.push(cap(tip(-0.1), tip(0.72), 0.022, wood)); const t0 = tip(0.72); P.push(ell(t0[0], t0[1], t0[2], 0.12, 0.08, 0.08, MAT('#a8afb6', { pat: 'metal', spec: 1.1, shin: 44, emit: o.glow ? 0.35 : 0 }))); break; }
+      case 'sword': case 'bigsword': { const L = w === 'bigsword' ? 1.1 : 0.82; P.push(cap(tip(0.08), tip(L), 0.02, GM('#d6dce2', 1.4, 70, 0.25))); P.push(cap(add3(tip(0.07), [0, 0, 0.09]), add3(tip(0.07), [0, 0, -0.09]), 0.014, w === 'bigsword' ? gold : steel), sph(...tip(-0.06), 0.022, gold)); break; }
+      case 'spear': case 'halberd': case 'javelin': { const L = w === 'javelin' ? 1.3 : 2.4; P.push(cap(tip(w === 'javelin' ? -0.4 : -0.7), tip(L - (w === 'javelin' ? 0.4 : 0.7)), 0.017, wood)); const t0 = tip(L - (w === 'javelin' ? 0.4 : 0.7)); P.push(cap(t0, add3(t0, W, 0.2), 0.03, GM('#cfd5da', 1.3, 60, 0.25))); if (w === 'halberd') P.push(ell(t0[0], t0[1] - 0.06, t0[2], 0.12, 0.1, 0.02, steel)); break; }
+      case 'axe': { P.push(cap(tip(-0.1), tip(0.75), 0.02, wood)); const t0 = tip(0.62), t1 = tip(0.74), off = [W[1] * 0.1, -W[0] * 0.1, 0]; P.push(cap(add3(t0, off), add3(t1, off), 0.045, GM('#9aa1a8', 1.2, 50, 0.2))); break; }
+      case 'khopesh': { P.push(cap(tip(-0.05), tip(0.18), 0.022, leather)); const bm = GM('#c9a24a', 1.2, 50, 0.2), side = [-W[1], W[0], 0], bend = add3(tip(0.52), side, 0.14); P.push(cap(tip(0.18), tip(0.52), 0.026, bm), cap(tip(0.52), bend, 0.03, bm), cap(bend, add3(bend, W, -0.12), 0.024, bm)); break; }
+      case 'cleaver': { P.push(cap(tip(-0.05), tip(0.2), 0.022, leather), cap(tip(0.22), tip(0.62), 0.05, GM('#6d6863', 0.8, 30, 0.2))); break; }
+      case 'hammer': { P.push(cap(tip(-0.1), tip(0.72), 0.022, wood)); const t0 = tip(0.72); P.push(ell(t0[0], t0[1], t0[2], 0.12, 0.08, 0.08, GM('#a8afb6', 1.1, 44, 0.35))); break; }
       case 'club': { P.push(cap(tip(-0.05), tip(0.35), 0.035, wood), cap(tip(0.35), tip(0.85), 0.075, wood)); break; }
       case 'bow': { const c0 = hL, up = [0, 0.62 * S, 0]; const bw = MAT(o.race === 'elf' ? '#c9a55a' : '#5b3f24', { pat: 'wood', ns: 30, spec: 0.3 }); P.push(cap(add3(c0, [0.06, 0, 0]), add3(c0, up, 0.55), 0.016, bw), cap(add3(c0, [0.06, 0, 0]), add3(c0, up, -0.55), 0.016, bw)); if (at !== 0) P.push(cap(hR, add3(hL, [0.12, 0, 0]), 0.008, MAT('#d9d0bd'))); break; }
       case 'xbow': P.push(cap(hR, add3(hL, [0.2, 0, 0]), 0.03, wood), cap(add3(hL, [0.16, 0, 0.22]), add3(hL, [0.16, 0, -0.22]), 0.018, steel)); break;
@@ -249,7 +254,7 @@ const M3 = (() => {
     else {
       const L = Object.assign({ race: d.race, team }, LOOK[d.race][d.sub] || {});
       if (up & 2 && L.arm !== 'leather' && L.arm !== 'apron') { L.arm = 'plate'; L.steel = '#9da5ad'; L.plume = 1; }
-      if (up & 1) L.glow = 1;
+      if (up & 1) { L.glow = { hum: '#fff0c8', elf: '#bfe3ff', dwf: '#9fd0ff', orc: '#ff7a4a', und: '#8dffb0', des: '#ffd86a' }[d.race] || 1; L.glowK = 0.45; }
       if (d.sub === 'siege') catapult(d.race, pose, P, team);
       else if (d.sub === 'cav' && d.race === 'des') chariot(L, pose, P, team);
       else if (d.sub === 'cav') {
