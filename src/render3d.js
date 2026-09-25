@@ -816,9 +816,10 @@ class Renderer3D extends Renderer {
       su.uZen.value.copy(zen); su.uHor.value.copy(fogC); su.uSunCol.value.copy(sunCol).multiplyScalar(L > 0.6 ? 1 : 0.25); su.uCov.value = env.weather === 'clear' ? 0.35 : 0.85;
       this.skyDome.position.copy(this.camera.position); this.skyDome.scale.setScalar(this.camera.far * 0.9);
     }
-    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a * this.fogAt(m.position.x, m.position.z); } }
-    const fogK = env.weather === 'fog' ? 1 - 0.65 * wa : env.weather === 'rain' ? 1 - 0.3 * wa : 1;
-    this.scene.fog.near = this.D * 0.9 * fogK; this.scene.fog.far = (this.D * 2.8 + 1200) * fogK;
+    if (this.mist) { const mistA = Math.min(0.3, 0.04 + 0.14 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.14 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.08 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a * this.fogAt(m.position.x, m.position.z); } }
+    // weather fog thickens the distance only: the ground under the camera (and your base) stays readable
+    const fogK = env.weather === 'fog' ? 1 - 0.4 * wa : env.weather === 'rain' ? 1 - 0.2 * wa : 1;
+    this.scene.fog.near = this.D * (0.75 + 0.2 * fogK); this.scene.fog.far = Math.max(this.D * 2.2, (this.D * 2.8 + 1200) * fogK);
     this.gl.toneMappingExposure = (0.55 + 0.35 * L) * (1 - 0.15 * wa) + this.flash * 0.6;
     this.uCloud.value = (this.map.biome === 'snow' ? 0.12 : 0.26) * L * (env.weather === 'clear' ? 1 : 0.5);
     if (this.flash > 0) this.flash = Math.max(0, this.flash - rdt * 4);

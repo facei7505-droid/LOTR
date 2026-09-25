@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 # downloaded glTF models (assets/*.glb) are embedded so the game also works from a local file
 ASSETS="const ASSET_DATA = {};"
 for f in assets/*.glb; do [ -f "$f" ] && ASSETS="$ASSETS ASSET_DATA['$(basename "$f" .glb)'] = '$(base64 -w0 "$f")';"; done
-JS=$(cat src/data.js src/engine.js src/map.js src/ai.js src/net.js src/audio.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/render3d.js src/assets3d.js src/main.js)
+JS=$(cat src/data.js src/engine.js src/map.js src/ai.js src/net.js src/audio.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/icons.js src/render3d.js src/assets3d.js src/main.js)
 JS="$ASSETS
 $JS"
 mkdir -p dist

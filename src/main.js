@@ -125,13 +125,44 @@ function selSquads() { const m = new Map(); for (const e of mySel()) if (e.sq) {
 function selEnts() { const out = []; for (const id of UI.sel) { const e = V.get(id); if (e) out.push(e); } return out; }
 function mySel() { return selEnts().filter(e => e.owner === V.me); }
 function setSel(ids) { UI.sel = new Set(ids); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; ringSig = ''; UI.buildOpen = ids.length > 0 && ids.every(id => { const e = V.get(id); return e && e.d.worker; }); }
+// pictures that fill their round frame (portraits, painted command icons) vs. transparent building sprites
+const FULLPIC = new Set();
+const PORTRAIT_BG = { hum: ['#6a7a98', '#141824'], elf: ['#5a8a5a', '#0c180e'], dwf: ['#9a7040', '#1c1208'], orc: ['#8a3a2a', '#1a0806'], und: ['#3a6a5a', '#060e0c'], des: ['#b08a50', '#201608'] };
 function iconFor(d, owner) {
   const key = 'ic' + d.key + owner; if (SPR.has(key)) return SPR.get(key);
-  const c = mkCanvas(64, 64), x = c.getContext('2d');
+  const face = d.kind !== 'b' && d.sub !== 'siege' && d.sub !== 'wolf' && d.sub !== 'treant';
+  const c = mkCanvas(face ? 96 : 64, face ? 96 : 64), x = c.getContext('2d');
   if (d.kind === 'b') { const spr = bld3(d, TEAM_COLORS[owner], true); const s = Math.min(64 / spr.w, 64 / spr.h); x.drawImage(spr.cv, 32 - spr.w * s / 2, 64 - spr.h * s, spr.w * s, spr.h * s); }
+  else if (face) {
+    // a portrait: heroes face close up, soldiers from the chest up, over a painted sky in the race's colours
+    const [c1, c2] = PORTRAIT_BG[d.race] || PORTRAIT_BG.hum, g = x.createRadialGradient(40, 30, 4, 48, 52, 64);
+    g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fillRect(0, 0, 96, 96);
+    const tc = TEAM_COLORS[owner] || '#888'; x.fillStyle = tc; x.globalAlpha = 0.25; x.beginPath(); x.ellipse(48, 104, 52, 30, 0, 0, 7); x.fill(); x.globalAlpha = 1;
+    x.drawImage(icon3(d, tc, d.hero ? 'face' : 'bust'), 0, 0, 96, 96);
+    const v = x.createRadialGradient(48, 48, 30, 48, 48, 50); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); x.fillStyle = v; x.fillRect(0, 0, 96, 96);
+  }
   else x.drawImage(icon3(d, TEAM_COLORS[owner] || '#888'), 0, 0, 64, 64);
   let url = ''; try { url = c.toDataURL(); } catch (e) {}
+  if (face && url) FULLPIC.add(url);
   SPR.set(key, url); return url;
+}
+function pic(k, o) { const u = PIC.get(k, Object.assign({ col: TEAM_COLORS[V ? V.me : 0], race: V && V.player(V.me) ? V.player(V.me).race : 'hum' }, o)); if (u) FULLPIC.add(u); return u; }
+function imgTag(u) { return '<img src="' + u + '"' + (FULLPIC.has(u) ? ' class="pic"' : '') + ' alt="">'; }
+const rgbHex = s => '#' + s.split(',').map(v => (+v).toString(16).padStart(2, '0')).join('');
+// command slot -> painted picture
+const PIC_ACT = { hold: 'hold', retreat: 'retreat', flag: 'flag', refill: 'refill', cancelmode: 'cancel', cancelq: 'undo', place: 'place', rally: 'rally', sendworkers: 'repair', repair: 'repair', buildopen: 'build', nextworker: 'worker', army: 'army', builders: 'builders', recruitmenu: 'recruit', desel: 'desel', book: 'book', boxmode: 'box' };
+function slotPics(M, hero) {
+  for (const s of M.slots) {
+    if (s.img) continue;
+    let k = PIC_ACT[s.act], o = {};
+    if ((s.act === 'research' || s.act === 'equip' || s.act === 'noop') && PIC.has(s.arg)) k = s.arg;
+    else if (s.act === 'march') k = s.cls === 'on' ? 'march' : 'attack';
+    else if (s.act === 'autocast') k = s.cls === 'on' ? 'auto' : 'manual';
+    else if (s.act === 'stance') { const cur = STANCE_KEYS.find(q => STANCES[q].g === s.g) || 'norm'; k = cur === 'wall' ? 'shieldwall' : cur; }
+    else if (s.act === 'skill' && hero) { const sk = hero.d.skills[s.arg], hf = HERO_FX[hero.d.key]; k = 'sk_' + sk.type; o.fx = hf ? rgbHex(hf[0]) : '#ffd27a'; }
+    if (k) { s.img = pic(k, o); s.pic = 1; }
+  }
+  if (M.core && !M.core.img && M.core.g) { const k = M.core.g === '⚒' ? 'repair' : M.core.g === '⚔' ? 'recruit' : null; if (k) M.core.img = pic(k); }
 }
 function toast(text, x, y) {
   const el = document.createElement('div'); el.className = 'toast'; el.textContent = text;
@@ -469,9 +500,10 @@ function ringModel() {
     add('builders', '', { g: '⚒', cap: 'Строит.', count: myWorkers().length, name: 'Строители', desc: 'Выбрать свободного строителя' });
     add('recruitmenu', '', { g: '⚑', cap: 'Нанять', name: 'Нанять войска' });
     add('book', '', { g: '✦', cap: 'Книга', cls: P.pts > 0 ? 'ready' : '', name: 'Книга сил' });
-    if (fort) add('fortsel', fort.id, { g: '⌂', cap: 'Цитад.', name: 'Цитадель' });
+    if (fort) add('fortsel', fort.id, { img: iconFor(fort.d, V.me), name: 'Цитадель' });
     add('boxmode', '', { g: '▭', cap: 'Рамка', cls: UI.boxMode ? 'on' : '', name: 'Выделение рамкой' });
   }
+  slotPics(M, hero);
   return M;
 }
 let ringSig = '', ringM = null;
@@ -486,14 +518,14 @@ function updateRing() {
   let h = '';
   if (M.core) {
     const c = M.core;
-    h += '<div class="core">' + (c.img ? '<img src="' + c.img + '" alt="">' : '<span class="g">' + c.g + '</span>') + (c.hp !== undefined ? '<i class="hpr" style="--p:' + clamp(c.hp, 0, 1).toFixed(3) + ';--hc:' + (c.hc || (c.hp > 0.5 ? '#6fd66a' : c.hp > 0.25 ? '#e0b640' : '#d9432f')) + '"></i>' : '') + (c.cnt ? '<b class="cnt">' + c.cnt + '</b>' : '') + '</div>';
+    h += '<div class="core">' + (c.img ? imgTag(c.img) : '<span class="g">' + c.g + '</span>') + (c.hp !== undefined ? '<i class="hpr" style="--p:' + clamp(c.hp, 0, 1).toFixed(3) + ';--hc:' + (c.hc || (c.hp > 0.5 ? '#6fd66a' : c.hp > 0.25 ? '#e0b640' : '#d9432f')) + '"></i>' : '') + (c.cnt ? '<b class="cnt">' + c.cnt + '</b>' : '') + '</div>';
   }
   for (let i = 0; i < n; i++) {
     const a = -Math.PI / 2 + i / n * Math.PI * 2, x = 50 + Math.cos(a) * rf, y = 50 + Math.sin(a) * rf, s = M.slots[i];
     const pos = 'left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%';
     if (!s) continue;
     h += '<button class="slot ' + (s.cls || '') + '" data-i="' + i + '" style="' + pos + '" aria-label="' + escapeHtml(s.name || s.cap || '') + '">' +
-      (s.img ? '<img src="' + s.img + '" alt="">' : '<span class="g">' + s.g + '</span>') + (s.cap && !s.img ? '<span class="cap">' + s.cap + '</span>' : '') +
+      (s.img ? imgTag(s.img) : '<span class="g">' + s.g + '</span>') + (s.cap && (!s.img || (s.pic && (s.cost === undefined || s.cost === '') && !s.cd)) ? '<span class="cap">' + s.cap + '</span>' : '') +
       (s.prog !== null && s.prog !== undefined ? '<i class="pr" style="--p:' + clamp(s.prog, 0, 1).toFixed(3) + '"></i>' : '') +
       (s.cd ? '<i class="cdw" style="--p:' + clamp(s.cd / s.cdMax, 0, 1).toFixed(3) + '"></i><b class="cdn">' + Math.ceil(s.cd) + '</b>' : '') +
       (s.lvl ? '<b class="lv">' + s.lvl + '</b>' : '') + (s.cost !== undefined && s.cost !== '' ? '<b class="cost">' + s.cost + '</b>' : '') + (s.count ? '<b class="cnt">' + s.count + '</b>' : '') + '</button>';
@@ -615,7 +647,7 @@ function renderBook() {
   let h = '<div class="bookcard"><button class="x" data-bk="close" aria-label="Закрыть">✖</button><h2>Книга сил</h2><div class="bs">Очков: <b style="color:#fff">' + P.pts + '</b> · уровень силы ' + P.plvl + ' · до нового очка ' + Math.round((1 - P.pxpF) * 100) + '% — побеждайте врагов, берите аванпосты и лагеря</div><div class="tree"><svg></svg>';
   for (let t = 1; t <= 4; t++) {
     h += '<div class="tier"><span class="tl">' + roman[t] + ' · ' + TIER_COST[t] + ' оч.</span>';
-    for (const k of SPELL_ORDER) if (SPELLS[k].tier === t) { const st = spellState(P, k); h += '<button class="node ' + st + (bookSel === k ? ' sel' : '') + '" data-k="' + k + '"><span class="o">' + SPELLS[k].glyph + '</span><small>' + SPELL_NAMES[race][k][0] + '</small></button>'; }
+    for (const k of SPELL_ORDER) if (SPELLS[k].tier === t) { const st = spellState(P, k); h += '<button class="node ' + st + (bookSel === k ? ' sel' : '') + '" data-k="' + k + '"><span class="o">' + imgTag(pic('sp_' + k, { fx: FX_COLORS[ARROW_FX[race]] })) + '</span><small>' + SPELL_NAMES[race][k][0] + '</small></button>'; }
     h += '</div>';
   }
   const k = bookSel, S = SPELLS[k], st = spellState(P, k), [nm, ds] = SPELL_NAMES[race][k], req = SPELL_REQ[k];
@@ -650,7 +682,7 @@ function updateSpells() {
   const own = SPELL_ORDER.filter(k => P.spells[k]), cm = UI.cmode;
   const sig = own.map(k => k + Math.ceil(P.scd[k] || 0)).join(',') + (cm && cm.t === 'power' ? cm.k : '');
   if (sig === spellSig) return; spellSig = sig;
-  el.innerHTML = own.map(k => { const S = SPELLS[k], cd = P.scd[k] || 0; return '<button class="spl ' + (cd <= 0 ? 'ready' : '') + (cm && cm.t === 'power' && cm.k === k ? ' on' : '') + '" data-k="' + k + '" aria-label="' + SPELL_NAMES[P.race][k][0] + '">' + S.glyph + (cd > 0 ? '<i class="cdw" style="--p:' + clamp(cd / S.cd, 0, 1).toFixed(3) + '"></i><b>' + Math.ceil(cd) + '</b>' : '') + '</button>'; }).join('');
+  el.innerHTML = own.map(k => { const S = SPELLS[k], cd = P.scd[k] || 0; return '<button class="spl ' + (cd <= 0 ? 'ready' : '') + (cm && cm.t === 'power' && cm.k === k ? ' on' : '') + '" data-k="' + k + '" aria-label="' + SPELL_NAMES[P.race][k][0] + '">' + imgTag(pic('sp_' + k, { fx: FX_COLORS[ARROW_FX[P.race]] })) + (cd > 0 ? '<i class="cdw" style="--p:' + clamp(cd / S.cd, 0, 1).toFixed(3) + '"></i><b>' + Math.ceil(cd) + '</b>' : '') + '</button>'; }).join('');
 }
 let splPress = null;
 $('spells').addEventListener('pointerdown', e => { const b = e.target.closest('[data-k]'); if (!b) return; e.preventDefault(); Snd.init(); const P = { k: b.dataset.k, long: false }; P.timer = setTimeout(() => { P.long = true; const pl = V.player(V.me), [nm, ds] = SPELL_NAMES[pl.race][P.k]; toast(nm + ': ' + ds); }, 480); splPress = P; });
@@ -717,6 +749,7 @@ function updateHud() {
   for (const h of hs) {
     const e = h.id ? V.get(h.id) : null;
     const f = e ? clamp(e.hp / e.maxhp, 0, 1) : 0;
+    if (!e && !h.recruited) continue; // not hired yet: the fortress ring hires heroes
     parts.push(h.hk + (e ? Math.round(f * 20) : 'x') + h.lvl + h.recruited + UI.sel.has(h.id));
     s += '<div class="hp ' + (e ? '' : h.recruited ? 'dead' : 'none') + (UI.sel.has(h.id) ? ' sel' : '') + '" data-id="' + (e ? e.id : 0) + '" data-hk="' + h.hk + '"><img src="' + iconFor(h.d, V.me) + '" alt="' + h.d.heroName + '"><span class="lv">' + h.lvl + '</span>' + (e ? '' : '<span class="st">' + (h.recruited ? 'пал' : 'нанять') + '</span>') + '<div class="bar"><i style="width:' + Math.round(f * 100) + '%"></i></div></div>';
   }
@@ -820,7 +853,7 @@ function startMission(i) {
 function menuHelp() {
   let h = '<div class="card help"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Как играть</h2>' +
     '<p><b>Цель:</b> разрушить цитадель противника. Потеря своей цитадели — поражение.</p>' +
-    '<p><b>Экономика:</b> золото идёт само. Фермы (у каждого народа свои) увеличивают доход и лимит армии.</p>' +
+    '<p><b>Экономика:</b> золото идёт само. Фермы (у каждого народа свои) увеличивают доход и лимит армии: +25 бойцов за ферму, максимум 300.</p>' +
     '<p><b>Строители:</b> здания возводят строители. Нажмите на строителя — справа выедут здания; выберите здание и место. Стройка идёт, только пока рядом работают строители (чем больше, тем быстрее). Нажмите строителем на повреждённое здание — он его починит. Новых строителей нанимают в цитадели.</p>' +
     '<p><b>Панель как в BFME:</b> слева внизу круглая карта, вокруг неё золото, лимит армии и время. Рядом круг команд: в центре портрет выбранного, по кругу — действия. Удержание любой кнопки — подсказка.</p>' +
     '<p><b>Книга сил ✦</b> (над картой): за убийства, аванпосты и лагеря дают очки. Изучайте силы по древу — от лечения и золота до ультимативной силы народа. Изученные силы стоят колонкой слева.</p>' +
@@ -1043,7 +1076,7 @@ function startHost() {
   const mapType = pickMap(setup.map);
   if (surv) { const hr = RACE_KEYS.filter(r => !players.some(p => p.race === r))[0] || 'und'; players.push({ race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }); }
   game = new Game({ seed, players, online: true, mapType, mode: surv ? 'survival' : 'battle', waveDiff: 1 });
-  if (players.length > 2) game.popMax = 22;
+  if (players.length > 2) game.popMax = 80;
   ais = game.players.filter(p => p.ai).map(p => new AI(game, p.i));
   R.setWorld(seed, mapType);
   V = makeLocalView(game, 0); mode = 'host'; paused = false; speed = 1;

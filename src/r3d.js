@@ -1,9 +1,9 @@
 // ================= R3D: tiny software ray-caster — units and buildings are built from lit 3D primitives and baked into sprites =================
 // Camera: orthographic, ~40° above the ground (like BFME). Sun from the upper left/back, matching the ground shadows.
 const R3 = (() => {
-  const PHI = 0.72, SP = Math.sin(PHI), CP = Math.cos(PHI);
+  const PHI = 0.72, SP0 = Math.sin(PHI), CP0 = Math.cos(PHI);
   const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
-  const LW = nrm([-0.75, 0.72, 0.14]), VW = [0, SP, CP], HW = nrm([LW[0] + VW[0], LW[1] + VW[1], LW[2] + VW[2]]);
+  const LW = nrm([-0.75, 0.72, 0.14]), VW = [0, SP0, CP0], HW = nrm([LW[0] + VW[0], LW[1] + VW[1], LW[2] + VW[2]]);
   const hash = (x, y, z) => { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(z | 0, 2147483647)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   const vnoise = (x, y, z) => { const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi; const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf); const l = (a, b, t) => a + (b - a) * t; return l(l(l(hash(xi, yi, zi), hash(xi + 1, yi, zi), u), l(hash(xi, yi + 1, zi), hash(xi + 1, yi + 1, zi), u), v), l(l(hash(xi, yi, zi + 1), hash(xi + 1, yi, zi + 1), u), l(hash(xi, yi + 1, zi + 1), hash(xi + 1, yi + 1, zi + 1), u), v), w); };
   const hex = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
@@ -130,8 +130,10 @@ const R3 = (() => {
   function render(prims, opt) {
     const ss = opt.ss || 1, W = Math.ceil(opt.w * ss), H = Math.ceil(opt.h * ss), ppu = opt.ppu * ss, ox0 = opt.ox * ss, oy0 = opt.oy * ss;
     const cy = Math.cos(opt.yaw || 0), sy = Math.sin(opt.yaw || 0);
+    const SP = opt.pitch !== undefined ? Math.sin(opt.pitch) : SP0, CP = opt.pitch !== undefined ? Math.cos(opt.pitch) : CP0; // portraits look from lower
     const rot = v => [v[0] * cy + v[2] * sy, v[1], -v[0] * sy + v[2] * cy];
-    const L = rot(LW), Hh = rot(HW), Vv = rot(VW), D = rot([0, -SP, -CP]);
+    const LW1 = opt.light ? nrm(opt.light) : LW, HW1 = opt.light ? nrm([LW1[0], LW1[1] + SP, LW1[2] + CP]) : HW; // portraits: key light from the front
+    const L = rot(LW1), Hh = rot(HW1), Vv = rot(opt.pitch !== undefined ? [0, SP, CP] : VW), D = rot([0, -SP, -CP]);
     const dx = D[0], dy = D[1], dz = D[2];
     const aoH = opt.ao || 1.6, emitAll = opt.emit || 0, FAR = opt.far || aoH * 60;
     const cv = mkCanvas(W, H), c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
@@ -187,5 +189,5 @@ const R3 = (() => {
     const out = mkCanvas(opt.w, opt.h), oc = out.getContext('2d'); oc.imageSmoothingEnabled = true; oc.imageSmoothingQuality = 'high';
     oc.drawImage(cv, 0, 0, opt.w, opt.h); out.bb = cv.bb; return out;
   }
-  return { MAT, sph, ell, cap, box, gable, frus, poly, render, hex, SP, CP };
+  return { MAT, sph, ell, cap, box, gable, frus, poly, render, hex, SP: SP0, CP: CP0 };
 })();

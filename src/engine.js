@@ -20,7 +20,7 @@ class Game {
     this.proj = []; this.fx = []; this.fxSeq = 1; this.pending = []; this.relic = null; this.relicT = 170;
     this.notes = []; // {p, text, t}
     this.over = -1; // winning team
-    this.popMax = cfg.popMax || (cfg.online ? 60 : 150);
+    this.popMax = cfg.popMax || (cfg.online ? 120 : 300);
     this.auraT = 0;
     this.gcw = Math.ceil(MAP_W / GCELL) + 2; this.gch = Math.ceil(MAP_H / GCELL) + 2;
     this.gcells = Array.from({ length: this.gcw * this.gch }, () => []);
@@ -305,7 +305,7 @@ class Game {
       if (e.d.sub === 'farm' && e.built >= 1) farms++;
       if (e.d.kind === 'b') for (const q of e.queue) if (!q.hero && !q.up) used += DEF[q.u].pop * DEF[q.u].n;
     }
-    return { used, cap: Math.min(this.popMax, 30 + 12 * farms + 10 * this.outposts.filter(o => o.owner === pi).length) };
+    return { used, cap: Math.min(this.popMax, 30 + 25 * farms + 10 * this.outposts.filter(o => o.owner === pi).length) };
   }
 
   // ---- spatial grid ----

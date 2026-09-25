@@ -89,7 +89,7 @@ const M3 = (() => {
     if (o.race === 'des' && !o.robe) P.push(ell(ch[0] + 0.02, base + 1.38 * S, 0, 0.17 * B, 0.07 * S, 0.24 * B, MAT('#c9a04a', { pat: 'metal', spec: 0.9, shin: 36 }), [0, -1, 0, -(base + 1.33 * S)])); // broad collar
     P.push(cap([hd[0] * 0.6, base + 1.46 * S, 0], [hd[0], base + 1.56 * S, 0], 0.05 * B, skin));
     const hr = 0.105 * (0.85 + 0.15 * S);
-    P.push(sph(hd[0], hd[1], hd[2], hr, skin));
+    P.push(sph(hd[0], hd[1], hd[2], hr, skin)); P.headP = P[P.length - 1]; // portraits frame this
     const hair = MAT(o.hair || R.hair, { pat: 'fur', spec: 0.15 });
     P.push(sph(hd[0] + hr * 0.95, hd[1] - 0.012, 0, hr * 0.2, skin));
     const deadEye = (o.race === 'und' && !o.human) || o.deadEyes;
@@ -300,8 +300,15 @@ function bakeUnit3(d, col, frame, dir, up) {
   return { cv: out, w: cw / K3, h: ch / K3, ox: (ox - bb[0]) / K3, oy: (oy - bb[1]) / K3 };
 }
 // portrait: the figure turned three-quarters toward the viewer, tightly framed
-function icon3(d, col) {
+function icon3(d, col, mode) {
   const P = M3.build(d, col, 0, 0), big = d.sub === 'cav' || d.sub === 'troll' || d.sub === 'treant';
+  // 'face': a hero's head and shoulders close up; 'bust': a soldier from the chest up
+  if (mode && P.headP) {
+    const h = P.headP, yaw = Math.PI * 0.26, pitch = 0.2, cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const wx = h.bx * cy - h.bz * sy, wz = h.bx * sy + h.bz * cy, sv = h.by * Math.cos(pitch) - wz * Math.sin(pitch);
+    const ppu = (mode === 'face' ? 30 : 23) / h.br, fy = mode === 'face' ? 54 : 50;
+    return R3.render(P, { yaw, pitch, ppu, w: 128, h: 128, ox: 60 - wx * ppu, oy: fy + sv * ppu, ss: 2, ao: 1.7, far: 40, light: [-0.55, 0.6, 0.6] });
+  }
   return R3.render(P, { yaw: Math.PI * 0.3, ppu: big ? 30 : 52, w: 128, h: 128, ox: big ? 58 : 64, oy: big ? 122 : 124, ss: 2, ao: 1.7 });
 }
 function unit3(d, col, frame, dir, up, sync) {
