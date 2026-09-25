@@ -740,7 +740,7 @@ function menuMain() {
   show('<div class="card"><h1 class="logo">Пепельные Королевства<small>СТРАТЕГИЯ ЭПОХИ ЛЕГЕНД</small></h1>' +
     '<p class="lead">Шесть народов, двенадцать легендарных героев — от Короля Артура и Тора до Анубиса и Мордреда. Стройте крепость, ведите в бой батальоны под знамёнами, держите переправы через реку, прокачивайте героев и сокрушите цитадель врага.</p>' +
     (function () { const sv = store.get('save', null); return sv && sv.game ? '<div class="btns" style="margin-bottom:8px"><button class="big" data-a="load">Продолжить битву<small class="bsub">' + RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t) + '</small></button></div>' : ''; })() +
-    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="settings">Настройки</button></div></div>');
+    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="campaign">Кампания: Пепел Камелота<small class="bsub">Миссия ' + Math.min(CAMPAIGN.length, store.get('camp', 0) + 1) + ' из ' + CAMPAIGN.length + '</small></button><button class="big alt" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="settings">Настройки</button></div></div>');
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
@@ -793,6 +793,29 @@ function chatLine(name, text, mine) {
 }
 function openChat() {
   const w = $('chatbox'); if (!w) return; w.hidden = !w.hidden; if (!w.hidden) { const i = $('chatin'); i.value = ''; setTimeout(() => i.focus(), 30); }
+}
+// ---------- campaign ----------
+let campMission = -1;
+function menuCampaign() {
+  const done = store.get('camp', 0);
+  show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Пепел Камелота</h2><p class="lead">Кампания за Королевство Камелот: от первой стычки на реке до битвы с Мордредом.</p><div class="missions">' +
+    CAMPAIGN.map((m, i) => '<button class="mis' + (i < done ? ' done' : i === done ? ' next' : ' lock') + '" data-a="mission" data-v="' + i + '"' + (i > done ? ' disabled' : '') + '><b>' + (i + 1) + '. ' + m.title + '</b><span>' + (i < done ? 'Пройдено ✔' : i === done ? 'Следующая' : 'Закрыто') + (m.mode === 'survival' ? ' · оборона, ' + m.waves + ' волн' : '') + '</span></button>').join('') + '</div></div>');
+}
+function briefing(i) {
+  const m = CAMPAIGN[i];
+  show('<div class="card"><button class="x" data-a="campaign" aria-label="Назад">✖</button><h2>' + (i + 1) + '. ' + m.title + '</h2><p class="lead">' + m.text + '</p><p class="note">Карта: ' + mapName(m.map) + (m.foes ? ' · враги: ' + m.foes.map(f => RACES[f.race].short).join(', ') : ' · орда: ' + RACES[m.horde].short) + (m.allies ? ' · союзники: ' + m.allies.map(f => RACES[f.race].short).join(', ') : '') + '</p><div class="btns"><button class="big" data-a="missiongo" data-v="' + i + '">В бой!</button></div></div>');
+}
+function startMission(i) {
+  const m = CAMPAIGN[i]; campMission = i;
+  let players;
+  if (m.mode === 'survival') players = [{ race: m.race, team: 0, name: 'Камелот' }, { race: m.horde, team: 1, horde: true, name: 'Орда: ' + RACES[m.horde].short }];
+  else { players = [{ race: m.race, team: 0, name: 'Камелот' }]; for (const a of m.allies || []) players.push({ race: a.race, team: 0, ai: true, diff: a.diff, name: 'Союзник: ' + RACES[a.race].short }); for (const f of m.foes) players.push({ race: f.race, team: 1, ai: true, diff: f.diff, name: RACES[f.race].name }); }
+  game = new Game({ seed: 1000 + i * 17, mode: m.mode || 'battle', waves: m.waves, waveDiff: m.diff, players, mapType: m.map });
+  if (m.gold) game.players[0].gold = m.gold;
+  ais = game.players.filter(p => p.ai).map(p => new AI(game, p.i));
+  R.setWorld(game.seed, game.mapType);
+  V = makeLocalView(game, 0); mode = 'local'; paused = false; speed = 1;
+  beginView(); toast(m.title);
 }
 function menuHelp() {
   let h = '<div class="card help"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Как играть</h2>' +
@@ -853,7 +876,8 @@ function endScreen(win) {
   const t = V.kind === 'client' ? V.lastSnapT / 100 : game.t;
   show('<div class="card"><h2 class="' + (win ? 'win' : 'lose') + '" style="font-size:34px">' + (sv ? (win ? 'Выстояли!' : 'Цитадель пала') : win ? 'Победа!' : 'Поражение') + '</h2><p class="lead">' + (sv ? (win ? 'Все ' + sv.max + ' волн орды разбиты о ваши стены.' : 'Орда прорвалась на волне ' + sv.wave + ' из ' + sv.max + '.') + '</p><p class="lead" hidden>' : '') + (win ? 'Цитадели врагов лежат в руинах. Барды сложат о вас песни.' : 'Ваша цитадель пала. Соберите силы и попробуйте снова.') + '</p>' +
     '<div class="stats"><div><b>' + fmtT(t) + '</b><span>длительность</span></div>' + (game ? '<div><b>' + kills + '</b><span>врагов уничтожено</span></div><div><b>' + lost + '</b><span>потери</span></div>' : '') + '<div><b>' + RACES[P ? P.race : 'hum'].short + '</b><span>ваш народ</span></div></div>' +
-    armyChart() + '<div class="btns"><button class="big" data-a="main">В главное меню</button></div></div>');
+    armyChart() + '<div class="btns">' + (campMission >= 0 && win ? (campMission + 1 < CAMPAIGN.length ? '<button class="big" data-a="nextmission">Следующая миссия: ' + CAMPAIGN[campMission + 1].title + '</button>' : '<p class="lead">Кампания пройдена! Мордред повержен, Камелот спасён.</p>') : '') + (campMission >= 0 && !win ? '<button class="big" data-a="missiongo" data-v="' + campMission + '">Попробовать снова</button>' : '') + '<button class="big' + (campMission >= 0 ? ' alt' : '') + '" data-a="main">В главное меню</button></div></div>');
+  if (campMission >= 0 && win) store.set('camp', Math.max(store.get('camp', 0), campMission + 1));
 }
 
 // ---------- online lobby ----------
@@ -971,7 +995,7 @@ function saveGame() {
   if (mode !== 'local' || !game || game.over !== -1) return false;
   try {
     const aiState = ais.map(a => { const o = {}; for (const k of Object.keys(a)) if (k !== 'g' && k !== 'r' && typeof a[k] !== 'function') o[k] = a[k]; return o; });
-    store.set('save', { at: Date.now(), race: game.players[0].race, map: game.mapType, game: game.serialize(), ais: aiState, groups: UI.groups });
+    store.set('save', { at: Date.now(), race: game.players[0].race, map: game.mapType, game: game.serialize(), ais: aiState, groups: UI.groups, camp: campMission });
     return !!store.get('save', null);
   } catch (e) { console.warn('save', e); return false; }
 }
@@ -983,7 +1007,7 @@ function loadGame() {
     R.setWorld(game.seed, game.mapType);
     V = makeLocalView(game, 0); mode = 'local'; paused = false; speed = 1; noteIdx = 0;
     beginView();
-    UI.groups = sv.groups || [[], [], []];
+    UI.groups = sv.groups || [[], [], []]; campMission = sv.camp === undefined ? -1 : sv.camp;
     const f = game.byId.get(game.players[0].fort); if (f) R.centerOn(f.x, f.y);
     toast('Битва загружена · ' + fmtT(game.t));
   } catch (e) { console.error(e); toast('Сохранение повреждено'); store.set('save', null); menuMain(); }
@@ -1010,6 +1034,7 @@ function startLocal() {
   toast('Карта: ' + mapName(game.mapType));
 }
 function startHost() {
+  campMission = -1;
   const slots = lobby.slots;
   lobby.started = true;
   const seed = (Date.now() % 100000) + 1;
@@ -1027,6 +1052,7 @@ function startHost() {
   beginView();
 }
 function startClient(lob, idx) {
+  campMission = -1;
   lobby.started = true;
   const players = lob.sl.map((s, i) => ({ race: s.race, team: s.team, name: s.nm || ('Игрок ' + (i + 1)) }));
   game = null; ais = [];
@@ -1093,7 +1119,11 @@ $('scr').addEventListener('click', e => {
     case 'race': setup.race = v; store.set('race', v); if (lobby.role === 'guest') Net.set({ race: v }); if (lobby.role === 'host') hostSync(); if (mode === 'menu' && (lobby.role || $('nick'))) onlineScreen(); else menuSkirm(); break;
     case 'modeN': setup.modeN = +v; store.set('modeN', +v); menuSkirm(); break;
     case 'diff': setup.diff = +v; store.set('diff', +v); menuSkirm(); break;
-    case 'go': startLocal(); break;
+    case 'go': campMission = -1; startLocal(); break;
+    case 'campaign': menuCampaign(); break;
+    case 'mission': briefing(+v); break;
+    case 'missiongo': startMission(+v); break;
+    case 'nextmission': if (campMission + 1 < CAMPAIGN.length) briefing(campMission + 1); else menuCampaign(); break;
     case 'host': lobby.role = 'host'; lobby.gid = Math.random().toString(36).slice(2, 8); lobby.slots = [{ k: 'h', race: setup.race, team: 0, nm: setup.name || 'Хост' }]; lobby.started = false; hostSync(); onlineScreen(); break;
     case 'join': lobby.role = 'guest'; lobby.hostPeer = v; lobby.started = false; { const hp = Net.peer(v); lobby.gid = hp && hp.presence.lob ? hp.presence.lob.gid : null; } Net.set({ nm: setup.name || 'Гость', join: lobby.gid, race: setup.race, lob: null, cmd: null, snap: null }); onlineScreen(); break;
     case 'leaveLobby': lobby.role = null; lobby.started = false; Net.set({ lob: null, join: null }); menuMain(); break;

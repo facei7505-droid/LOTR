@@ -27,7 +27,7 @@ class Game {
     this.outposts = this.map.outposts.map(([x, y]) => ({ x, y, owner: -1, prog: 0, cap: -1 }));
     this.camps = this.map.camps.map(([x, y, kind], i) => ({ i, x, y, kind, ids: [], alive: false, respawn: 0, lastOwner: -1 }));
     this.campT = 0;
-    this.mode = cfg.mode || 'battle'; this.wave = 0; this.waveT = 50; this.waveMax = 15; this.waveLive = false;
+    this.mode = cfg.mode || 'battle'; this.wave = 0; this.waveT = 50; this.waveMax = cfg.waves || 15; this.waveLive = false;
     if (this.mode === 'survival') this.relicT = 1e9;
     this.players = cfg.players.map((p, i) => ({
       i, race: p.race, team: p.team, ai: !!p.ai, diff: p.diff || 1, remote: !!p.remote, horde: !!p.horde, name: p.name || ('Игрок ' + (i + 1)),
