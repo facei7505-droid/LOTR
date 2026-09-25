@@ -773,7 +773,7 @@ function menuMain() {
   show('<div class="card"><h1 class="logo">Пепельные Королевства<small>СТРАТЕГИЯ ЭПОХИ ЛЕГЕНД</small></h1>' +
     '<p class="lead">Шесть народов, двенадцать легендарных героев — от Короля Артура и Тора до Анубиса и Мордреда. Стройте крепость, ведите в бой батальоны под знамёнами, держите переправы через реку, прокачивайте героев и сокрушите цитадель врага.</p>' +
     (function () { const sv = store.get('save', null); return sv && sv.game ? '<div class="btns" style="margin-bottom:8px"><button class="big" data-a="load">Продолжить битву<small class="bsub">' + RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t) + '</small></button></div>' : ''; })() +
-    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="campaign">Кампания: Пепел Камелота<small class="bsub">Миссия ' + Math.min(CAMPAIGN.length, store.get('camp', 0) + 1) + ' из ' + CAMPAIGN.length + '</small></button><button class="big alt" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="settings">Настройки</button></div></div>');
+    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="campaign">Кампания: Пепел Камелота<small class="bsub">Миссия ' + Math.min(CAMPAIGN.length, store.get('camp', 0) + 1) + ' из ' + CAMPAIGN.length + '</small></button><button class="big alt" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button>' + (location.protocol.startsWith('http') ? '<button class="big alt" data-a="gallery">Галерея моделей</button>' : '') + '<button class="big alt" data-a="settings">Настройки</button></div></div>');
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
@@ -1132,6 +1132,7 @@ $('scr').addEventListener('click', e => {
     case 'main': leaveGame(); menuMain(); break;
     case 'skirm': menuSkirm(); break;
     case 'help': menuHelp(); break;
+    case 'gallery': location.href = 'gallery.html'; break;
     case 'help2': { const back = mode; menuHelp(); const card = $('scr').querySelector('.card'); card.querySelectorAll('[data-a="main"]').forEach(x => { x.dataset.a = 'resume'; }); void back; break; }
     case 'online': onlineScreen(); break;
     case 'online2': Net.failed = false; onlineScreen(); break;

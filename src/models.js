@@ -13,6 +13,7 @@ const M3 = (() => {
   const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const teamCol = hexc => mixc(R3.hex(hexc), [0.42, 0.4, 0.38], 0.28).map(v => v * 0.86);
   const add3 = (a, b, k) => [a[0] + b[0] * (k === undefined ? 1 : k), a[1] + b[1] * (k === undefined ? 1 : k), a[2] + b[2] * (k === undefined ? 1 : k)];
+  let DET = 0; // close-up detail (gallery, ultra quality): armour lames, knee cops, belts, faces
   const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   // unit look per race and type (weapon, shield, helmet, armour)
@@ -52,6 +53,7 @@ const M3 = (() => {
     const walking = pose.walk !== undefined && pose.walk !== null;
     const ph = pose.walk || 0, swing = walking ? Math.sin(ph) * 0.5 : 0, bob = walking ? Math.abs(Math.cos(ph)) * 0.03 : 0;
     const hipY = base + 0.93 * S + bob;
+    const armd = !o.robe && !['leather', 'rags', 'apron', 'linen'].includes(o.arm || 'mail'), heavy = o.arm === 'plate' || o.arm === 'bronze';
     // legs
     if (!o.robe || walking) for (const side of [1, -1]) {
       const zz = 0.1 * B * side, hip = [0, hipY, zz];
@@ -64,6 +66,7 @@ const M3 = (() => {
       }
       P.push(cap(hip, knee, 0.075 * B, o.robe ? MAT(o.robe, { pat: 'cloth' }) : legsM), cap(knee, ank, 0.06 * B, o.arm === 'plate' ? steel : legsM));
       P.push(ell(ank[0] + 0.05, ank[1] - 0.02, ank[2], 0.12 * B, 0.055, 0.06 * B, leather));
+      if (DET) { P.push(cap(lerp3(knee, ank, 0.55), ank, 0.066 * B, heavy ? steel : leather)); if (armd) P.push(sph(knee[0] + 0.03, knee[1], knee[2], 0.072 * B, steel)); if (heavy) P.push(ell(ank[0] + 0.07, ank[1] - 0.005, ank[2], 0.1 * B, 0.045, 0.062 * B, steel)); }
     }
     // robe for casters
     if (o.robe) P.push(frus(0, base + 0.04, 0, 0.3 * B, 0.15 * B, 0.98 * S, MAT(o.robe, { pat: 'cloth' })));
@@ -74,6 +77,12 @@ const M3 = (() => {
     if (!o.robe && o.arm !== 'apron') P.push(ell(0.03 + lean * 0.2, base + 1.02 * S, 0, 0.165 * B, 0.36 * S, 0.19 * B, team, [-1, 0, 0, -0.02]));
     if (o.arm === 'apron') P.push(ell(0.04, base + 1.02 * S, 0, 0.16 * B, 0.34 * S, 0.18 * B, armour, [-1, 0, 0, -0.02]));
     P.push(ell(0, base + 1.0 * S, 0, 0.15 * B, 0.028 * S, 0.185 * B, leather));
+    if (DET) {
+      P.push(R3.box(0.15 * B, base + 1.0 * S, 0, 0.014, 0.03 * S, 0.034, gold), R3.box(0.02, base + 0.93 * S, 0.18 * B, 0.05, 0.055 * S, 0.022, leather), sph(0.02, base + 0.975 * S, 0.2 * B, 0.012, gold));
+      if (!o.robe && o.arm !== 'apron') P.push(ell(0.03, base + 0.69 * S, 0, 0.172 * B, 0.022 * S, 0.198 * B, heavy ? gold : MAT('#2a2018', { pat: 'cloth' }), [0, -1, 0, -(base + 0.662 * S)]));
+      if (armd) P.push(ell(ch[0] * 0.6, base + 1.455 * S, 0, 0.1 * B, 0.045 * S, 0.12 * B, steel));
+      if (o.arm === 'mail' || o.arm === 'scale') P.push(ell(0.01, base + 0.8 * S, 0, 0.158 * B, 0.13 * S, 0.182 * B, armour, [0, 1, 0, base + 0.87 * S]));
+    }
     if (o.arm === 'plate' || o.arm === 'bronze') P.push(ell(ch[0] + 0.02, ch[1] + 0.03, 0, 0.16 * B, 0.2 * S, 0.21 * B, o.arm === 'bronze' ? armour : steel, [-1, 0, 0, 0.02]));
     if (o.cape) P.push(ell(-0.16 * B + lean * 0.2, base + 1.02 * S, 0, 0.05, 0.5 * S, 0.24 * B, MAT(o.cape, { pat: 'cloth' })));
     // divine heroes: feathered wings and a halo of light
@@ -85,6 +94,7 @@ const M3 = (() => {
     // shoulders, neck, head
     const light = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.arm === 'linen';
     const pad = o.arm === 'plate' || o.arm === 'bronze' ? 0.1 : light ? 0.06 : 0.08;
+    if (DET && armd) for (const side of [1, -1]) for (let k = 0; k < 3; k++) P.push(ell(ch[0] * 0.5 + 0.005, base + (1.43 - k * 0.055) * S, (0.2 + k * 0.018) * B * side, (0.1 - k * 0.008) * B, 0.032 * S, (0.085 - k * 0.006) * B, o.arm === 'bronze' ? armour : steel));
     for (const side of [1, -1]) P.push(sph(ch[0] * 0.5, base + 1.42 * S, 0.2 * B * side, pad * B, o.arm === 'linen' ? skin : light ? cloth : o.arm === 'bronze' ? armour : steel));
     if (o.race === 'des' && !o.robe) P.push(ell(ch[0] + 0.02, base + 1.38 * S, 0, 0.17 * B, 0.07 * S, 0.24 * B, MAT('#c9a04a', { pat: 'metal', spec: 0.9, shin: 36 }), [0, -1, 0, -(base + 1.33 * S)])); // broad collar
     P.push(cap([hd[0] * 0.6, base + 1.46 * S, 0], [hd[0], base + 1.56 * S, 0], 0.05 * B, skin));
@@ -92,6 +102,15 @@ const M3 = (() => {
     P.push(sph(hd[0], hd[1], hd[2], hr, skin)); P.headP = P[P.length - 1]; // portraits frame this
     const hair = MAT(o.hair || R.hair, { pat: 'fur', spec: 0.15 });
     P.push(sph(hd[0] + hr * 0.95, hd[1] - 0.012, 0, hr * 0.2, skin));
+    if (DET && o.helm !== 'jackal' && o.helm !== 'skull') {
+      const browM = MAT(o.hair || R.hair, { pat: 'fur' });
+      for (const s2 of [1, -1]) {
+        P.push(cap([hd[0] + hr * 0.86, hd[1] + hr * 0.36, s2 * hr * 0.14], [hd[0] + hr * 0.76, hd[1] + hr * 0.3, s2 * hr * 0.6], hr * 0.07, browM));
+        if (o.race === 'elf') P.push(cap([hd[0] - hr * 0.1, hd[1], s2 * hr * 0.92], [hd[0] - hr * 0.45, hd[1] + hr * 0.75, s2 * hr * 1.15], hr * 0.1, skin));
+        else P.push(ell(hd[0] - hr * 0.08, hd[1] - hr * 0.05, s2 * hr * 0.97, hr * 0.13, hr * 0.24, hr * 0.08, skin));
+      }
+      P.push(cap([hd[0] + hr * 0.9, hd[1] - hr * 0.45, hr * 0.28], [hd[0] + hr * 0.9, hd[1] - hr * 0.45, -hr * 0.28], hr * 0.045, MAT('#5a2a22')));
+    }
     const deadEye = (o.race === 'und' && !o.human) || o.deadEyes;
     for (const s2 of [1, -1]) P.push(sph(hd[0] + hr * 0.82, hd[1] + 0.012, s2 * hr * 0.38, hr * (deadEye ? 0.17 : 0.13), MAT(deadEye ? '#7dff9a' : o.race === 'orc' && !o.human ? '#c83a1a' : '#1a120c', { emit: deadEye ? 1.2 : o.race === 'orc' && !o.human ? 0.5 : 0 })));
     if (o.race === 'und' && !o.human) P.push(ell(hd[0] + hr * 0.75, hd[1] - hr * 0.62, 0, hr * 0.42, hr * 0.28, hr * 0.62, skin)); // bony jaw
@@ -130,7 +149,7 @@ const M3 = (() => {
     if (w === 'xbow') { hL = P3(0.42, 1.28, 0.08); eL = P3(0.22, 1.24, 0.2); hR = P3(0.2, 1.3, -0.04); eR = P3(0.02, 1.26, -0.2); }
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
-    for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); }
+    for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); if (DET && !o.robe) { P.push(cap(lerp3(e0, h0, 0.35), lerp3(e0, h0, 0.92), 0.054 * B, armd ? steel : leather)); if (armd) P.push(sph(e0[0], e0[1], e0[2], 0.06 * B, steel)); } }
     // weapons
     const W = nrm(wd), tip = k => add3(hR, W, k);
     // enchanted weapons: heroes and forged blades glow in their own colour
@@ -242,7 +261,8 @@ const M3 = (() => {
     const n1 = P.length; human(L, { atk: pose.atk }, P); shiftP(P, n1, -0.6, 0.66, 0);
   }
   // ---------- build a model for a unit type ----------
-  function build(d, colorHex, frame, up) {
+  function build(d, colorHex, frame, up, det) {
+    const DET0 = DET; if (det) DET = 1;
     const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 ? { atk: 0.55 } : { atk: 0 };
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
@@ -264,6 +284,7 @@ const M3 = (() => {
       } else human(L, pose, P);
     }
     if (frame === 10) fall(P);
+    DET = DET0;
     return P;
   }
   // lying pose for the fallen: rotate the whole figure backwards onto the ground
@@ -279,7 +300,7 @@ const M3 = (() => {
   }
   // wildlife for the living world (deer grazing at the forest edge)
   function animal(kind, frame, coat) { const P = [], pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2 } : {}; beast(kind, pose, P, coat, null); return P; }
-  return { build, RACE3, animal };
+  return { build, RACE3, animal, setDetail(v) { DET = v ? 1 : 0; } };
 })();
 
 // ---------- sprite cache + background baking queue ----------
@@ -301,7 +322,7 @@ function bakeUnit3(d, col, frame, dir, up) {
 }
 // portrait: the figure turned three-quarters toward the viewer, tightly framed
 function icon3(d, col, mode) {
-  const P = M3.build(d, col, 0, 0), big = d.sub === 'cav' || d.sub === 'troll' || d.sub === 'treant';
+  const P = M3.build(d, col, 0, 0, true), big = d.sub === 'cav' || d.sub === 'troll' || d.sub === 'treant';
   // 'face': a hero's head and shoulders close up; 'bust': a soldier from the chest up
   if (mode && P.headP) {
     const h = P.headP, yaw = Math.PI * 0.26, pitch = 0.2, cy = Math.cos(yaw), sy = Math.sin(yaw);

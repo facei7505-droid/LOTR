@@ -11,4 +11,7 @@ $JS"
 mkdir -p dist
 { cat src/shell.html; echo '<script>'; echo '"use strict";'; echo "$JS"; echo '</script>'; } > dist/artifact.html
 { echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#1d211a"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">'; sed 's#</style>#</style></head><body>#' src/shell.html; echo '<script>'; echo '"use strict";'; echo "$JS"; echo '</script></body></html>'; } > index.html
-wc -c index.html dist/artifact.html
+# model gallery: every hero, soldier and building on a turntable
+GJS=$(cat src/data.js src/engine.js src/map.js src/net.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/render3d.js src/assets3d.js src/gallery.js)
+{ echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12140f">'; sed 's#</style>#</style></head><body>#' src/gallery.html; echo '<script>'; echo '"use strict";'; echo "$ASSETS"; echo "$GJS"; echo '</script></body></html>'; } > gallery.html
+wc -c index.html dist/artifact.html gallery.html

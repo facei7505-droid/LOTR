@@ -1,0 +1,60 @@
+<title>Галерея моделей</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" integrity="sha384-5UGTcMIxVUKFeJH0zOS3lqMAZNBG+fCXJbi3UglUq6ABO4MQJu6rxNa+MPP+qtwq" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Fira+Sans+Condensed:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --iron:#1d211a; --iron2:#272d22; --iron3:#343c2d; --line:#4a5340;
+  --parch:#ecdfc2; --muted:#a9ad94; --bronze:#c9954b; --bronze2:#e8b765; --good:#69c46f;
+  --disp:"Alegreya SC", "Palatino Linotype", Georgia, serif; --ui:"Fira Sans Condensed", "Arial Narrow", Roboto, sans-serif;
+  color-scheme: dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:#12140f;color:var(--parch);font-family:var(--ui);overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+button{font-family:var(--ui);color:var(--parch);-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+button:focus-visible{outline:2px solid var(--bronze2);outline-offset:2px}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;left:0;right:0;display:flex;gap:6px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;z-index:3}
+.bar::-webkit-scrollbar{display:none}
+#races{top:env(safe-area-inset-top,0px);background:linear-gradient(rgba(18,20,15,.95),rgba(18,20,15,0))}
+#cats{top:calc(env(safe-area-inset-top,0px) + 46px)}
+.chip{flex:none;border:1px solid var(--line);background:rgba(39,45,34,.9);border-radius:18px;padding:6px 13px;font-size:14px;font-weight:600;white-space:nowrap}
+.chip.on{background:linear-gradient(#e8b765,#b8853c);color:#1b1408;border-color:#f3cf8a}
+#home{flex:none;border:1px solid var(--line);background:rgba(39,45,34,.9);border-radius:18px;padding:6px 12px;font-size:14px;text-decoration:none;color:var(--parch)}
+#strip{bottom:env(safe-area-inset-bottom,0px);padding:10px 12px 12px;background:linear-gradient(rgba(18,20,15,0),rgba(18,20,15,.96) 30%);gap:8px}
+.th{flex:none;width:76px;border:none;background:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.th img{width:66px;height:66px;border-radius:12px;background:radial-gradient(circle at 45% 35%,#4a4530,#15130c);box-shadow:0 0 0 1px #1d160c,0 0 0 2px #6a5230;object-fit:contain}
+.th span{font-size:11px;line-height:1.1;text-align:center;color:var(--muted);max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.th.on img{box-shadow:0 0 0 1px #1d160c,0 0 0 3px #f3cf8a,0 0 14px rgba(243,207,138,.5)}
+.th.on span{color:var(--parch)}
+#info{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:3;max-width:min(340px,calc(100vw - 24px));background:rgba(24,27,20,.86);border:1px solid var(--line);border-radius:12px;padding:10px 13px;backdrop-filter:blur(4px)}
+#info h1{font-family:var(--disp);font-size:24px;margin:0 0 2px;color:var(--bronze2);line-height:1.1}
+#info .sub{font-size:13px;color:var(--muted);margin-bottom:6px}
+#info .st{display:grid;grid-template-columns:repeat(3,auto);gap:2px 14px;font-size:13px}
+#info .st b{color:var(--parch);font-weight:600}
+#info .st span{color:var(--muted)}
+#info .tech{font-size:11px;color:#7d826d;margin-top:6px}
+#ctl{position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:3;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.grp{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;background:rgba(24,27,20,.86);border:1px solid var(--line);border-radius:12px;padding:6px}
+.grp button{border:1px solid var(--line);background:var(--iron2);border-radius:8px;padding:5px 9px;font-size:13px}
+.grp button.on{background:var(--bronze);color:#1b1408;border-color:var(--bronze2)}
+.sw{width:24px;height:24px;border-radius:50%;padding:0!important;border:2px solid #1d160c!important}
+.sw.on{box-shadow:0 0 0 2px var(--bronze2)}
+#hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 116px);z-index:2;font-size:12px;color:var(--muted);background:rgba(18,20,15,.6);padding:3px 10px;border-radius:10px;pointer-events:none;white-space:nowrap}
+#err{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-size:16px;z-index:9}
+@media (max-width:640px){#info{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 140px);max-width:calc(100vw - 110px)}#info h1{font-size:19px}#ctl{top:calc(env(safe-area-inset-top,0px) + 90px)}#hint{display:none}}
+</style>
+<canvas id="view" aria-label="3D-модель"></canvas>
+<div id="races" class="bar"></div>
+<div id="cats" class="bar"></div>
+<div id="info"></div>
+<div id="ctl">
+  <div class="grp" id="anim"></div>
+  <div class="grp" id="ups"></div>
+  <div class="grp" id="cols"></div>
+  <div class="grp" id="view3"></div>
+</div>
+<div id="hint">Тяните — вращать · колесо или два пальца — приблизить</div>
+<div id="strip" class="bar"></div>
+<div id="err" hidden></div>

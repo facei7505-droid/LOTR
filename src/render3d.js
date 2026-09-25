@@ -52,7 +52,7 @@ const G3 = {
   },
   // one merged geometry with 3 groups: dull (0), metal (1), glowing (2)
   build(P, opt) {
-    const T = THREE, perM = opt && opt.metres ? PPM : 1, seg = opt && opt.seg || 1;
+    const T = THREE, perM = opt && opt.metres ? PPM : 1, seg = opt && opt.seg || 1, hi = opt && opt.hi ? 2.4 : 1;
     const G = [0, 1, 2].map(() => ({ pos: [], nrm: [], col: [], pat: [], idx: [] }));
     const lin = v => Math.pow(v, 2.2);
     const add = (g, geo, m, jit) => {
@@ -75,9 +75,9 @@ const G3 = {
     for (const p of P) {
       const g = G[this.kindOf(p.m)];
       let geo = null, jit = 0;
-      if (p.k === 0) { const s = Math.max(6, Math.min(14, Math.round(p.r * perM * 0.7 * seg))); geo = new T.SphereGeometry(p.r, s, Math.max(4, s * 0.7 | 0)); geo.translate(p.x, p.y, p.z); if (p.m.pat === 'leaf') jit = p.r * 0.35; }
+      if (p.k === 0) { const s = Math.max(6 * hi, Math.min(14 * hi, Math.round(p.r * perM * 0.7 * seg * hi))) | 0; geo = new T.SphereGeometry(p.r, s, Math.max(4, s * 0.7 | 0)); geo.translate(p.x, p.y, p.z); if (p.m.pat === 'leaf') jit = p.r * 0.35; }
       else if (p.k === 1) {
-        const s = Math.max(6, Math.min(16, Math.round(Math.max(p.a, p.b, p.c) * perM * 0.6 * seg)));
+        const s = Math.max(6 * hi, Math.min(16 * hi, Math.round(Math.max(p.a, p.b, p.c) * perM * 0.6 * seg * hi))) | 0;
         geo = new T.SphereGeometry(1, s, Math.max(4, s * 0.7 | 0)); geo.scale(p.a, p.b, p.c); geo.translate(p.x, p.y, p.z);
         if (p.clip) { // flatten the cut-away part onto the clipping plane
           const a = geo.attributes.position.array, nn = geo.attributes.normal.array, cl = p.clip;
@@ -85,7 +85,7 @@ const G3 = {
         }
         if (p.m.pat === 'leaf') jit = Math.min(p.a, p.b, p.c) * 0.3;
       } else if (p.k === 2) {
-        const ax = p.bx2 - p.ax, ay = p.by2 - p.ay, az = p.bz2 - p.az, L = Math.hypot(ax, ay, az), rs = Math.max(5, Math.min(10, Math.round(p.r * perM * 1.2 * seg)));
+        const ax = p.bx2 - p.ax, ay = p.by2 - p.ay, az = p.bz2 - p.az, L = Math.hypot(ax, ay, az), rs = Math.max(5 * hi, Math.min(10 * hi, Math.round(p.r * perM * 1.2 * seg * hi))) | 0;
         geo = L < 1e-6 ? new T.SphereGeometry(p.r, rs, 4) : new T.CapsuleGeometry(p.r, L, 2, rs);
         if (L >= 1e-6) { v.set(ax / L, ay / L, az / L); q.setFromUnitVectors(up, v); mtx.makeRotationFromQuaternion(q); geo.applyMatrix4(mtx); }
         geo.translate((p.ax + p.bx2) / 2, (p.ay + p.by2) / 2, (p.az + p.bz2) / 2);
@@ -102,7 +102,7 @@ const G3 = {
         }
         geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3));
       } else if (p.k === 4) {
-        const s = Math.max(6, Math.min(20, Math.round(Math.max(p.r0, p.r1) * perM * 0.5 * seg)));
+        const s = Math.max(6 * hi, Math.min(20 * hi, Math.round(Math.max(p.r0, p.r1) * perM * 0.5 * seg * hi))) | 0;
         geo = new T.CylinderGeometry(p.r1, p.r0, p.h, s, 1, false); geo.translate(p.x, p.y + p.h / 2, p.z);
         if (p.m.pat === 'leaf') jit = Math.max(p.r0, p.r1) * 0.12;
       }
@@ -172,6 +172,7 @@ class Renderer3D extends Renderer {
     const phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 700;
     this.q = quality === undefined || quality < 0 ? (phone ? 0 : 2) : quality;
     this.low = this.q === 0;
+    M3.setDetail(this.q >= 3); // ultra: armour lames, knee cops and faces on every soldier
     const gl = this.gl = new T.WebGLRenderer({ canvas: glcv, antialias: this.q >= 2, powerPreference: 'high-performance' });
     gl.outputColorSpace = T.SRGBColorSpace; gl.toneMapping = T.ACESFilmicToneMapping; gl.toneMappingExposure = 1.0;
     gl.shadowMap.enabled = true; gl.shadowMap.type = T.PCFSoftShadowMap;
