@@ -627,7 +627,10 @@ class Renderer3D extends Renderer {
     const tex = new T.CanvasTexture(cv), geo = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     this.blobs = new T.InstancedMesh(geo, new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false }), 3000);
     this.blobs.frustumCulled = false; this.blobs.renderOrder = 3; this.blobs.count = 0; this.scene.add(this.blobs); this.blobN = 0;
+    { const cv2 = mkCanvas(S, S), c2 = cv2.getContext('2d'), g2 = c2.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2); g2.addColorStop(0, 'rgba(70,6,4,0.75)'); g2.addColorStop(0.6, 'rgba(60,5,3,0.5)'); g2.addColorStop(1, 'rgba(50,4,2,0)'); c2.fillStyle = g2; c2.fillRect(0, 0, S, S);
+      this.pools = new T.InstancedMesh(geo, new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv2), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), 1200); this.pools.frustumCulled = false; this.pools.renderOrder = 3; this.pools.count = 0; this.scene.add(this.pools); this.poolN = 0; }
   }
+  pool(x, y, h, r) { if (!this.pools || this.poolN >= 1200) return; const m = this._pm2 || (this._pm2 = new THREE.Matrix4()); m.makeScale(r, 1, r * 0.8); m.setPosition(x, h + 0.9, y); this.pools.setMatrixAt(this.poolN++, m); }
   blob(x, y, h, r) { if (!this.blobs || this.blobN >= 3000) return; const m = this._bm || (this._bm = new THREE.Matrix4()); m.makeScale(r, 1, r * 0.9); m.setPosition(x, h + 0.8, y); this.blobs.setMatrixAt(this.blobN++, m); }
   makeGround() {
     const T = THREE, g = new T.BufferGeometry();
@@ -638,11 +641,11 @@ class Renderer3D extends Renderer {
   }
   gVert(x, y, h, c, a) { if (this.gN >= 60000) return; const i = this.gN++; this.gPos[i * 3] = x; this.gPos[i * 3 + 1] = h; this.gPos[i * 3 + 2] = y; this.gCol[i * 4] = c[0]; this.gCol[i * 4 + 1] = c[1]; this.gCol[i * 4 + 2] = c[2]; this.gCol[i * 4 + 3] = a; }
   col3(hex) { const k = this._cc || (this._cc = new Map()); let c = k.get(hex); if (!c) { const [r, g, b] = hexRgb(hex); c = [Math.pow(r / 255, 2.2), Math.pow(g / 255, 2.2), Math.pow(b / 255, 2.2)]; k.set(hex, c); } return c; }
-  gPath(pts, closed, hex, a, w) {
+  gPath(pts, closed, hex, a, w, flatH) {
     const c = this.col3(hex), n = pts.length, lift = 1.4;
     for (let i = 0; i < (closed ? n : n - 1); i++) {
       const p = pts[i], q = pts[(i + 1) % n], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1, ox = -dy / l * w / 2, oy = dx / l * w / 2;
-      const hp = this.heightAt(p[0], p[1]) + lift, hq = this.heightAt(q[0], q[1]) + lift;
+      const hp = flatH !== undefined ? flatH : this.heightAt(p[0], p[1]) + lift, hq = flatH !== undefined ? flatH : this.heightAt(q[0], q[1]) + lift;
       this.gVert(p[0] - ox, p[1] - oy, hp, c, a); this.gVert(p[0] + ox, p[1] + oy, hp, c, a); this.gVert(q[0] + ox, q[1] + oy, hq, c, a);
       this.gVert(p[0] - ox, p[1] - oy, hp, c, a); this.gVert(q[0] + ox, q[1] + oy, hq, c, a); this.gVert(q[0] - ox, q[1] - oy, hq, c, a);
     }
@@ -656,10 +659,10 @@ class Renderer3D extends Renderer {
   gArc(x, y, r, a0, a1, hex, a, w) { this.gq.push(['arc', x, y, r, a0, a1, hex, a, w]); }
   gFlush(list) {
     for (const g of list) {
-      if (g[0] === 'ring') this.gPath(this.circ(g[1], g[2], g[3], 0, Math.PI * 2).slice(0, -1), true, g[4], g[5], g[6] * Math.max(1, 1 / this.cam.z));
+      if (g[0] === 'ring') this.gPath(this.circ(g[1], g[2], g[3], 0, Math.PI * 2).slice(0, -1), true, g[4], g[5], g[6] * Math.max(1, 1 / this.cam.z), g[3] < 45 ? this.heightAt(g[1], g[2]) + 1.4 : undefined);
       else if (g[0] === 'arc') this.gPath(this.circ(g[1], g[2], g[3], g[4], g[5]), false, g[6], g[7], g[8] * Math.max(1, 1 / this.cam.z));
       else if (g[0] === 'line') { const L = Math.hypot(g[3] - g[1], g[4] - g[2]), n = Math.max(1, Math.round(L / 30)), pts = []; for (let i = 0; i <= n; i++) pts.push([g[1] + (g[3] - g[1]) * i / n, g[2] + (g[4] - g[2]) * i / n]); this.gPath(pts, false, g[5], g[6], g[7] * Math.max(1, 1 / this.cam.z)); }
-      else if (g[0] === 'disc') { const c = this.col3(g[4]), pts = this.circ(g[1], g[2], g[3], 0, Math.PI * 2), h0 = this.heightAt(g[1], g[2]) + 1.2; for (let i = 0; i < pts.length - 1; i++) { this.gVert(g[1], g[2], h0, c, g[5]); this.gVert(pts[i][0], pts[i][1], this.heightAt(pts[i][0], pts[i][1]) + 1.2, c, g[5] * 0.7); this.gVert(pts[i + 1][0], pts[i + 1][1], this.heightAt(pts[i + 1][0], pts[i + 1][1]) + 1.2, c, g[5] * 0.7); } }
+      else if (g[0] === 'disc') { const c = this.col3(g[4]), pts = this.circ(g[1], g[2], g[3], 0, Math.PI * 2), h0 = this.heightAt(g[1], g[2]) + 1.2, flat = g[3] < 45, hs = pts.map(q => flat ? h0 : this.heightAt(q[0], q[1]) + 1.2); for (let i = 0; i < pts.length - 1; i++) { this.gVert(g[1], g[2], h0, c, g[5]); this.gVert(pts[i][0], pts[i][1], hs[i], c, g[5] * 0.7); this.gVert(pts[i + 1][0], pts[i + 1][1], hs[i + 1], c, g[5] * 0.7); } }
       else if (g[0] === 'hull') this.gPath(g[1], true, g[2], g[3], g[4] * Math.max(1, 1 / this.cam.z));
     }
   }
@@ -731,7 +734,7 @@ class Renderer3D extends Renderer {
     for (const [k, u] of this.units) if (hit(k)) { this.scene.remove(u.mesh); u.mesh.dispose(); this.units.delete(k); }
     for (const [id, bm] of this.bldMesh) if (ASSET_BLDS[bm.e.d.key]) { this.scene.remove(bm.mesh); this.bldMesh.delete(id); }
   }
-  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16]) this.geoFor(d, col, f, 0); }
+  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) this.geoFor(d, col, f, 0); }
   inst(key, geo, mats) {
     let u = this.units.get(key);
     if (!u || u.cap < u.n + 1) {
@@ -828,7 +831,7 @@ class Renderer3D extends Renderer {
     // screen-space cull for entities
     const W = this.w, H = this.h, onScr = (x, y, m) => { const s = this.toScreen(x, y, 10); return s.z < 1 && s.x > -m && s.y > -m * 1.6 && s.x < W + m && s.y < H + m; };
     for (const u of this.units.values()) u.n = 0;
-    this.blobN = 0;
+    this.blobN = 0; this.poolN = 0;
     // battalions
     const SQ = new Map();
     for (const e of S.ents) {
@@ -907,7 +910,7 @@ class Renderer3D extends Renderer {
       const fall = clamp(age / 0.45, 0, 1), sink = age > 38 ? (age - 38) / 12 * 14 : 0;
       if (fall < 1) { const g = this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, [0, -fall * fall * 1.5]); }
       else { const g = this.geoFor(k.d, col, 10, uk) || this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? 10 : 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? null : [0, -1.5]); }
-      if (k.blood && age < 40) G.push(['disc', k.x - Math.cos(k.yaw) * 10, k.y - Math.sin(k.yaw) * 10, Math.min(1, age / 2.5) * (k.d.r + 3), '#3e0a08', 0.45]);
+      if (k.blood && age < 40) this.pool(k.x - Math.cos(k.yaw) * 10, k.y - Math.sin(k.yaw) * 10, g0, Math.min(1, age / 2.5) * (k.d.r + 3) * 2.2);
     }
     // buildings that are gone
     if (this.bldMesh.size) { const live = new Set(); for (const e of S.ents) if (e.d.kind === 'b' && !e.dead) live.add(e); for (const [id, bm] of this.bldMesh) if (!live.has(bm.e)) { this.scene.remove(bm.mesh); this.bldMesh.delete(id); } }
@@ -946,7 +949,7 @@ class Renderer3D extends Renderer {
     this.stepParticles(rdt);
     this.applyLights(env);
     for (const u of this.units.values()) { u.mesh.count = u.n; u.mesh.instanceMatrix.needsUpdate = true; u.mesh.visible = u.n > 0; }
-    if (this.blobs) { this.blobs.count = this.blobN; this.blobs.instanceMatrix.needsUpdate = true; }
+    if (this.blobs) { this.blobs.count = this.blobN; this.blobs.instanceMatrix.needsUpdate = true; this.pools.count = this.poolN; this.pools.instanceMatrix.needsUpdate = true; }
     // ground marks: this frame's + those queued by main.js
     this.gN = 0; this.gFlush(G); this.gFlush(this.gq); this.gq = [];
     const gg = this.gMesh.geometry; gg.setDrawRange(0, this.gN); gg.attributes.position.needsUpdate = true; gg.attributes.color.needsUpdate = true;
@@ -991,7 +994,7 @@ class Renderer3D extends Renderer {
     const T = THREE, P = this.post, sz = this.gl.getDrawingBufferSize(new T.Vector2()), w = sz.x, h = sz.y;
     if (P.w === w && P.h === h) return; P.w = w; P.h = h;
     for (const k of ['rt', 'h1', 'q1', 'q2', 'd1', 'd2']) if (P[k]) P[k].dispose();
-    const RT = (a, b, ms) => new T.WebGLRenderTarget(Math.max(1, a), Math.max(1, b), { type: T.HalfFloatType, depthBuffer: !!ms, samples: ms && this.gl.capabilities.isWebGL2 ? 4 : 0 });
+    const RT = (a, b, ms) => new T.WebGLRenderTarget(Math.max(1, a), Math.max(1, b), { type: T.HalfFloatType, depthBuffer: !!ms, samples: ms && this.gl.capabilities.isWebGL2 ? [0, 0, 2, 4][this.q] : 0 });
     P.rt = RT(w, h, true); P.h1 = RT(w >> 1, h >> 1); P.q1 = RT(w >> 2, h >> 2); P.q2 = RT(w >> 2, h >> 2); P.d1 = RT(w >> 2, h >> 2); P.d2 = RT(w >> 2, h >> 2);
   }
   pass(mat, target, u) { const P = this.post; for (const k in u) mat.uniforms[k].value = u[k]; P.quad.material = mat; this.gl.setRenderTarget(target); this.gl.render(P.scene, P.cam); }
