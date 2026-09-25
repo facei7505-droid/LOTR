@@ -85,7 +85,9 @@ h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--bronz
 .lobchat{max-height:150px;overflow:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
 #fps{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);transform:translateX(-50%);font-size:11px;color:#cfe3b0;background:rgba(0,0,0,.45);padding:1px 6px;border-radius:5px;pointer-events:none}
 .rl{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:14px}.rng{flex:1;accent-color:var(--bronze2)}
-#wavebar{top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);background:linear-gradient(rgba(60,20,14,.92),rgba(34,12,8,.92));border:1px solid #b8893c;border-radius:9px;padding:5px 14px;font-weight:600;font-size:14px;color:#ffd9a0;pointer-events:none;white-space:nowrap}
+#wavebar{top:calc(env(safe-area-inset-top,0px) + 50px);left:50%;transform:translateX(-50%);background:linear-gradient(rgba(60,20,14,.92),rgba(34,12,8,.92));border:1px solid #b8893c;border-radius:9px;padding:5px 14px;font-weight:600;font-size:14px;color:#ffd9a0;pointer-events:none;white-space:nowrap}
+body.waves #toasts{top:calc(env(safe-area-inset-top,0px) + 84px)}
+@media (max-width:600px){#wavebar{top:calc(env(safe-area-inset-top,0px) + 92px);font-size:13px}body.waves #toasts{top:calc(env(safe-area-inset-top,0px) + 124px)}}
 .chart{width:100%;height:auto;display:block;margin:6px 0 10px}
 .roomrow{display:flex;gap:8px;align-items:center}.roomrow input{flex:1}.roomrow .big{min-height:38px;font-size:15px;flex:0 0 auto}
 .races{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}

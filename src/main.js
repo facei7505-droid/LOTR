@@ -702,6 +702,7 @@ let heroSig = '';
 function updateHud() {
   const P = V.player(V.me); if (!P) return;
   const sv = V.survival && V.survival(), wb = $('wavebar');
+  document.body.classList.toggle('waves', !!sv);
   if (wb) { wb.hidden = !sv; if (sv) wb.textContent = sv.wave >= sv.max ? 'Последняя волна · врагов: ' + sv.live : 'Волна ' + sv.wave + ' / ' + sv.max + ' · следующая через ' + fmtT(Math.max(0, sv.waveT)) + (sv.live ? ' · врагов: ' + sv.live : ''); }
   histT -= 0.15; if (histT <= 0) { histT = 5; const row = [V.gameT || 0]; for (let i = 0; i < V.nplayers; i++) { const q = V.player(i); row.push(q && q.alive ? q.used : 0); } UI.hist.push(row); if (UI.hist.length > 400) UI.hist.shift(); }
   $('gold').textContent = Math.floor(P.gold);
