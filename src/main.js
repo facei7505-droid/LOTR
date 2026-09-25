@@ -26,6 +26,7 @@ function makeLocalView(g, me) {
     get(id) { const e = g.byId.get(id); return e && !e.dead ? e : null; },
     player(i) { const p = g.players[i]; if (!p) return null; const pi = g.popInfo(i); return { gold: p.gold, used: pi.used, cap: pi.cap, alive: p.alive, income: g.income(p), race: p.race, team: p.team, name: p.name, pts: p.pts, plvl: p.plvl, pxpF: (p.pxp - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)) / (powerNeed(p.plvl) - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)), spells: p.spells, scd: p.scd, up: p.up }; },
     heroes(pi) { const p = g.players[pi]; return ['h1', 'h2'].map(hk => { const s = p.heroes[hk]; const h = s.id ? g.byId.get(s.id) : null; return { hk, id: h ? h.id : 0, lvl: h ? h.lvl : (s.lvl || 1), xp: h ? h.xp / (150 * h.lvl) : 0, recruited: s.recruited, auto: !!s.auto, scd: h ? h.scd.slice() : [0, 0, 0, 0], d: DEF[p.race + '_' + hk] }; }); },
+    survival() { return g.mode === 'survival' ? { wave: g.wave, waveT: g.waveT, max: g.waveMax, live: g.ents.filter(e => !e.dead && e.d.kind === 'u' && g.players[e.owner] && g.players[e.owner].horde).length } : null; },
     sqInfo(id) { const s = g.squads.get(id); return s ? { lvl: s.lvl || 1, xp: g.sqXpF(s) / 99, cd: Math.max(0, s.flagCd || 0), stance: STANCE_KEYS.indexOf(s.stance || 'norm') } : null; },
     queue(bid) { const b = g.byId.get(bid); if (!b || !b.queue.length) return null; const q = b.queue[0]; if (q.up) return { n: b.queue.length, prog: q.t / UPG[q.up].time, ti: -1, up: q.up, items: [] }; return { n: b.queue.length, prog: q.t / DEF[q.u].time, ti: DEF[q.u].ti, items: b.queue.map(x => x.u) }; },
     send(c) { g.cmd(me, c); },
@@ -58,6 +59,7 @@ function makeClientView(me, players, seed, mapType) {
       if (!out.length) return ['h1', 'h2'].map(hk => ({ hk, id: 0, lvl: 1, xp: 0, recruited: false, scd: [0, 0, 0, 0], d: DEF[players[pi].race + '_' + hk] }));
       return out;
     },
+    survival() { const s = this.sv; return s ? { wave: s[0], waveT: s[1], max: s[2], live: s[3] } : null; },
     sqInfo(id) { const i = this.sqi && this.sqi.get(id), m = this.ents.find(e => e.sq === id); return { lvl: m ? m.lvl || 1 : 1, xp: i ? i.xp : 0, cd: i ? i.cd : 0, stance: i ? i.stance : 0 }; },
     queue(bid) { const q = this.qs.get(bid); if (!q) return null; return q[2] >= 100 ? { n: q[0], prog: q[1] / 99, ti: -1, up: UPGRADES[q[2] - 100].k, items: [] } : { n: q[0], prog: q[1] / 99, ti: q[2], items: [] }; },
     send(c) { this.seq++; this.outbox.push([this.seq, c]); if (this.outbox.length > 12) this.outbox.shift(); Net.set({ cmd: { l: this.outbox } }); },
@@ -83,6 +85,7 @@ function makeClientView(me, players, seed, mapType) {
       }
       for (const id of [...ents.keys()]) if (!seen.has(id)) ents.delete(id);
       this.ents = [...ents.values()];
+      this.sv = sn.sv || null;
       this.relic = sn.rl ? { x: sn.rl[0], y: sn.rl[1], prog: sn.rl[2] / 99, cap: sn.rl[3], contested: !!sn.rl[4] } : null;
       this.pl = sn.pl || []; this.hs = sn.hs || []; this.ups = this.pl.map(p => p[8] | 0); this.gameT = sn.t / 100;
       const op = sn.op || []; for (let k = 0, i = 0; k + 3 < op.length && i < this.outposts.length; k += 4, i++) { const o = this.outposts[i]; o.owner = op[k]; o.prog = op[k + 1] / 99; o.cap = op[k + 2]; o.contested = !!op[k + 3]; }
@@ -107,7 +110,7 @@ function makeClientView(me, players, seed, mapType) {
 }
 
 // ---------- selection & interaction state ----------
-const UI = { alerts: [], groups: [[], [], []], targetMark: null, sel: new Set(), cmode: null, marchMode: false, boxMode: false, lastTap: { t: 0, id: 0 }, ghost: null, panelSig: '', notesShown: 0, pings: [] };
+const UI = { hist: [], alerts: [], groups: [[], [], []], targetMark: null, sel: new Set(), cmode: null, marchMode: false, boxMode: false, lastTap: { t: 0, id: 0 }, ghost: null, panelSig: '', notesShown: 0, pings: [] };
 function sqIds(e) { if (!e || !e.sq) return e ? [e.id] : []; const out = []; for (const o of V.ents) if (o.sq === e.sq) out.push(o.id); return out; }
 function expandSq(ids) {
   const sqs = new Set(), out = new Set(ids);
@@ -689,6 +692,9 @@ $('quick').addEventListener('pointercancel', () => clearTimeout(grpTimer));
 let heroSig = '';
 function updateHud() {
   const P = V.player(V.me); if (!P) return;
+  const sv = V.survival && V.survival(), wb = $('wavebar');
+  if (wb) { wb.hidden = !sv; if (sv) wb.textContent = sv.wave >= sv.max ? 'Последняя волна · врагов: ' + sv.live : 'Волна ' + sv.wave + ' / ' + sv.max + ' · следующая через ' + fmtT(Math.max(0, sv.waveT)) + (sv.live ? ' · врагов: ' + sv.live : ''); }
+  histT -= 0.15; if (histT <= 0) { histT = 5; const row = [V.gameT || 0]; for (let i = 0; i < V.nplayers; i++) { const q = V.player(i); row.push(q && q.alive ? q.used : 0); } UI.hist.push(row); if (UI.hist.length > 400) UI.hist.shift(); }
   $('gold').textContent = Math.floor(P.gold);
   $('inc').textContent = '+' + P.income.toFixed(0);
   const pe = $('pop'); pe.textContent = P.used + '/' + P.cap; pe.classList.toggle('full', P.used >= P.cap);
@@ -726,7 +732,7 @@ function menuMain() {
     '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="settings">Настройки</button></div></div>');
 }
 function menuSkirm() {
-  const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)'];
+  const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
   show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Битва с ИИ</h2><h3>Ваш народ</h3>' + raceCards(setup.race, 'race') +
     '<h3>Режим</h3><div class="seg">' + modes.map((m, i) => '<button data-a="modeN" data-v="' + i + '" class="' + (setup.modeN === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Сложность</h3><div class="seg">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, i) => '<button data-a="diff" data-v="' + i + '" class="' + (setup.diff === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
@@ -745,7 +751,7 @@ function menuSettings(back) {
     '<h3>Интерфейс</h3>' + seg('fpsset', store.get('fps', false) ? 1 : 0, [[1, 'Показывать FPS'], [0, 'Скрыть FPS']]) +
     '<div class="btns" style="margin-top:12px"><button class="big alt" data-a="tipsreset">Снова показывать подсказки</button></div></div>');
 }
-let fpsAcc = 0, fpsN = 0;
+let fpsAcc = 0, fpsN = 0, histT = 0;
 function fpsTick(dt) { const el = $('fps'); if (!el) return; el.hidden = !store.get('fps', false); if (el.hidden) return; fpsAcc += dt; fpsN++; if (fpsAcc >= 0.5) { el.textContent = Math.round(fpsN / fpsAcc) + ' FPS'; fpsAcc = 0; fpsN = 0; } }
 // ---------- chat (online: lobby and battle) ----------
 const chat = { seq: 0, mine: [], seen: new Map() };
@@ -821,13 +827,21 @@ function menuPause() {
     '<button class="big alt" data-a="settings2">Настройки</button>' +
     '<button class="big alt" data-a="help2">Герои и навыки</button><button class="big alt" data-a="quit">Сдаться и выйти</button></div></div>');
 }
+// army size of every side over the battle (SVG polyline chart)
+function armyChart() {
+  const H = UI.hist; if (H.length < 3) return '';
+  const W = 520, Hh = 150, tMax = H[H.length - 1][0] || 1; let yMax = 10; for (const r of H) for (let i = 1; i < r.length; i++) yMax = Math.max(yMax, r[i]);
+  let svg = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" class="chart" role="img" aria-label="Размер армий по ходу битвы"><rect width="' + W + '" height="' + Hh + '" rx="8" fill="rgba(0,0,0,.25)"/>';
+  for (let i = 1; i < H[0].length; i++) { const P = V.player(i - 1); if (!P || (V.survival && V.survival() && i - 1 !== V.me && !P.used && H.every(r => !r[i]))) continue; const pts = H.map(r => (r[0] / tMax * (W - 20) + 10).toFixed(1) + ',' + (Hh - 10 - r[i] / yMax * (Hh - 24)).toFixed(1)).join(' '); svg += '<polyline fill="none" stroke="' + (TEAM_COLORS[i - 1] || '#aaa') + '" stroke-width="' + (i - 1 === V.me ? 3 : 2) + '" points="' + pts + '"/>'; }
+  return '<h3>Армии по ходу битвы</h3>' + svg + '</svg>';
+}
 function endScreen(win) {
-  const P = V.player(V.me);
+  const P = V.player(V.me), sv = V.survival && V.survival();
   let kills = 0, lost = 0; if (game) { kills = game.players[V.me].kills; lost = game.players[V.me].lost; }
   const t = V.kind === 'client' ? V.lastSnapT / 100 : game.t;
-  show('<div class="card"><h2 class="' + (win ? 'win' : 'lose') + '" style="font-size:34px">' + (win ? 'Победа!' : 'Поражение') + '</h2><p class="lead">' + (win ? 'Цитадели врагов лежат в руинах. Барды сложат о вас песни.' : 'Ваша цитадель пала. Соберите силы и попробуйте снова.') + '</p>' +
+  show('<div class="card"><h2 class="' + (win ? 'win' : 'lose') + '" style="font-size:34px">' + (sv ? (win ? 'Выстояли!' : 'Цитадель пала') : win ? 'Победа!' : 'Поражение') + '</h2><p class="lead">' + (sv ? (win ? 'Все ' + sv.max + ' волн орды разбиты о ваши стены.' : 'Орда прорвалась на волне ' + sv.wave + ' из ' + sv.max + '.') + '</p><p class="lead" hidden>' : '') + (win ? 'Цитадели врагов лежат в руинах. Барды сложат о вас песни.' : 'Ваша цитадель пала. Соберите силы и попробуйте снова.') + '</p>' +
     '<div class="stats"><div><b>' + fmtT(t) + '</b><span>длительность</span></div>' + (game ? '<div><b>' + kills + '</b><span>врагов уничтожено</span></div><div><b>' + lost + '</b><span>потери</span></div>' : '') + '<div><b>' + RACES[P ? P.race : 'hum'].short + '</b><span>ваш народ</span></div></div>' +
-    '<div class="btns"><button class="big" data-a="main">В главное меню</button></div></div>');
+    armyChart() + '<div class="btns"><button class="big" data-a="main">В главное меню</button></div></div>');
 }
 
 // ---------- online lobby ----------
@@ -866,9 +880,10 @@ function onlineScreen() {
     h += '</div>';
     if (!isHost) h += '<h3>Ваш народ</h3>' + raceCards(setup.race, 'race');
     if (isHost) {
+      h += '<h3>Режим</h3><div class="seg"><button data-a="lobmode" data-v="battle" class="' + (lobby.mode !== 'survival' ? 'on' : '') + '">Битва</button><button data-a="lobmode" data-v="survival" class="' + (lobby.mode === 'survival' ? 'on' : '') + '">Выживание вместе</button></div>';
       h += '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="lobmap" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '">' + m.name + '</button>').join('') + '</div>';
       h += '<div class="btns" style="margin-top:10px">' + (lobby.slots.length < 4 ? '<button class="big alt" data-a="addai">+ Добавить ИИ</button>' : '') +
-        '<button class="big" data-a="start"' + (lobby.slots.length < 2 || new Set(lobby.slots.map(s => s.team)).size < 2 ? ' disabled' : '') + '>Начать битву</button></div>';
+        '<button class="big" data-a="start"' + (lobby.mode === 'survival' ? '' : (lobby.slots.length < 2 || new Set(lobby.slots.map(s => s.team)).size < 2 ? ' disabled' : '')) + '>Начать битву</button></div>';
       h += '<p class="note" style="margin-top:8px">Друзья, открывшие игру, увидят ваше лобби в «Открытых играх». Нужно минимум две команды.</p>';
     } else { const hl = ((Net.peer(lobby.hostPeer) || {}).presence || {}).lob; h += '<p class="note" style="margin-top:10px">Карта: ' + escapeHtml(hl && hl.map ? mapName(hl.map === 'random' ? 'river' : hl.map) + (hl.map === 'random' ? ' (случайная)' : '') : '—') + ' · ждём, пока хост начнёт битву…</p>'; }
     h += '<h3>Чат</h3><div id="lobchat" class="lobchat"></div><div class="roomrow"><input type="text" id="lobin" maxlength="120" placeholder="Сообщение…"><button class="big alt" data-a="lobsend">Отпр.</button></div>';
@@ -917,7 +932,7 @@ function beginView() {
   $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
   requestAnimationFrame(measurePads); tipsIdx = store.get('tipsDone', false) || mode !== 'local' ? 99 : 0;
   UI.sel = new Set(); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; heroSig = ''; prevIds = new Map();
-  fogReset();
+  fogReset(); UI.hist = []; histT = 0;
   R.resize();
   const me = V.player(V.me); void me;
   R.cam.z = R.w < 700 ? 0.75 : 1;
@@ -962,6 +977,13 @@ function loadGame() {
   } catch (e) { console.error(e); toast('Сохранение повреждено'); store.set('save', null); menuMain(); }
 }
 function startLocal() {
+  if (setup.modeN === 3) { // survival: hold the citadel against 15 waves of the horde
+    const hr = RACE_KEYS.filter(r => r !== setup.race)[Math.floor(Math.random() * (RACE_KEYS.length - 1))];
+    game = new Game({ seed: (Date.now() % 100000) + 1, mode: 'survival', waveDiff: setup.diff, players: [{ race: setup.race, team: 0, name: 'Вы' }, { race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }], mapType: pickMap(setup.map) });
+    ais = []; R.setWorld(game.seed, game.mapType);
+    V = makeLocalView(game, 0); mode = 'local'; paused = false; speed = 1;
+    beginView(); toast('Выживание: первая волна через 50 секунд'); return;
+  }
   const n = [2, 4, 4][setup.modeN];
   const others = RACE_KEYS.filter(r => r !== setup.race);
   const rr = mkRng(Date.now() & 0xffff);
@@ -979,15 +1001,17 @@ function startHost() {
   const slots = lobby.slots;
   lobby.started = true;
   const seed = (Date.now() % 100000) + 1;
-  const players = slots.map((s, i) => ({ race: s.race, team: s.team, ai: s.k === 'ai', diff: s.diff === undefined ? 1 : s.diff, remote: s.k === 'p', peer: s.peer, name: s.nm || (s.k === 'ai' ? 'ИИ ' + i : 'Игрок') }));
+  const surv = lobby.mode === 'survival';
+  const players = slots.map((s, i) => ({ race: s.race, team: surv ? 0 : s.team, ai: s.k === 'ai', diff: s.diff === undefined ? 1 : s.diff, remote: s.k === 'p', peer: s.peer, name: s.nm || (s.k === 'ai' ? 'ИИ ' + i : 'Игрок') }));
   const mapType = pickMap(setup.map);
-  game = new Game({ seed, players, online: true, mapType });
+  if (surv) { const hr = RACE_KEYS.filter(r => !players.some(p => p.race === r))[0] || 'und'; players.push({ race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }); }
+  game = new Game({ seed, players, online: true, mapType, mode: surv ? 'survival' : 'battle', waveDiff: 1 });
   if (players.length > 2) game.popMax = 22;
   ais = game.players.filter(p => p.ai).map(p => new AI(game, p.i));
   R.setWorld(seed, mapType);
   V = makeLocalView(game, 0); mode = 'host'; paused = false; speed = 1;
   hostSeq = {};
-  Net.set({ lob: { gid: lobby.gid, st: 1, seed, map: mapType, sl: slots.map(s => ({ k: s.k, peer: s.peer, race: s.race, team: s.team, nm: s.nm })) } });
+  Net.set({ lob: { gid: lobby.gid, st: 1, seed, map: mapType, sl: players.map((p, i) => ({ k: p.horde ? 'horde' : (slots[i] || {}).k, peer: p.peer || null, race: p.race, team: p.team, nm: p.name })) } });
   beginView();
 }
 function startClient(lob, idx) {
@@ -1049,6 +1073,7 @@ $('scr').addEventListener('click', e => {
     case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
+    case 'lobmode': lobby.mode = v; hostSync(); onlineScreen(); break;
     case 'lobmap': setup.map = v; store.set('map', v); hostSync(); onlineScreen(); break;
     case 'lobsend': { const i = $('lobin'); if (i) { sendChat(i.value); i.value = ''; } break; }
     case 'gfx': store.set('gfx', R.is3D ? '2d' : '3d'); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); break;
