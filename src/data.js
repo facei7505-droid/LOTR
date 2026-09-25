@@ -27,7 +27,7 @@ const BONUS = {
   arch:  { inf: 1.2, spear: 1.25, bld: 0.3, hero: 0.8, cav: 0.8 },
   cav:   { arch: 1.7, spear: 0.6, bld: 0.6, inf: 1.1 },
   hero:  { bld: 0.8 },
-  siege: { bld: 2.6 },
+  siege: { bld: 2.6, inf: 1.2, spear: 1.2, arch: 1.2 },
   tower: { cav: 0.8 },
 };
 
@@ -39,6 +39,8 @@ const UNIT_BASE = {
   cav:   { n: 5, hp: 270, dmg: 19, rate: 1.2, range: 18, speed: 130, cost: 480, time: 18, pop: 2, r: 12, armor: 0.15, aggro: 250 },
   // builders: single workers that raise and repair buildings, never pick fights
   worker: { n: 1, hp: 170, dmg: 4, rate: 1.2, range: 12, speed: 84, cost: 100, time: 8, pop: 1, r: 8, armor: 0.05, aggro: 0, worker: true },
+  // siege engine: hurls boulders at long range, splash damage, wrecks buildings
+  siege: { n: 1, hp: 650, dmg: 95, rate: 5.5, range: 500, speed: 44, cost: 600, time: 25, pop: 3, r: 16, armor: 0.1, aggro: 520, splash: 65 },
 };
 
 // race tweaks: [name, overrides]
@@ -49,6 +51,7 @@ const UNITS_BY_RACE = {
     arch:  ['Лучники', {}],
     cav:   ['Рыцари', { hp: 290, armor: 0.2 }],
     worker: ['Строитель', {}],
+    siege: ['Катапульта', {}],
   },
   elf: {
     inf:   ['Стражи рощи', { hp: 85, dmg: 9, speed: 80 }],
@@ -56,6 +59,7 @@ const UNITS_BY_RACE = {
     arch:  ['Лунные лучники', { range: 290, dmg: 8.5, cost: 370, hp: 50 }],
     cav:   ['Всадники на оленях', { hp: 235, speed: 150, dmg: 17 }],
     worker: ['Эльфийский мастер', { speed: 92 }],
+    siege: ['Баллиста рощи', {}],
   },
   dwf: {
     inf:   ['Секироносцы', { n: 8, hp: 140, dmg: 10, speed: 62, armor: 0.25, cost: 330 }],
@@ -63,6 +67,7 @@ const UNITS_BY_RACE = {
     arch:  ['Арбалетчики', { range: 220, dmg: 12, rate: 2.0, hp: 70, speed: 60, armor: 0.1, proj: 'bolt' }],
     cav:   ['Боевые вепри', { hp: 330, speed: 108, dmg: 20, armor: 0.25, cost: 500 }],
     worker: ['Гном-каменщик', { hp: 230, speed: 72, armor: 0.15 }],
+    siege: ['Камнемёт гномов', {}],
   },
   orc: {
     inf:   ['Громилы', { n: 12, hp: 80, dmg: 7, cost: 260, time: 9, speed: 78 }],
@@ -70,6 +75,7 @@ const UNITS_BY_RACE = {
     arch:  ['Метатели копий', { range: 200, dmg: 9.5, rate: 1.5, cost: 300, proj: 'javelin' }],
     cav:   ['Волчьи наездники', { n: 6, hp: 210, speed: 155, dmg: 16, cost: 440 }],
     worker: ['Орк-невольник', { cost: 80, hp: 150 }],
+    siege: ['Осадный камнемёт', {}],
   },
   und: {
     inf:   ['Скелеты-воины', { n: 12, hp: 88, dmg: 8, speed: 70, armor: 0.2, cost: 290 }],
@@ -77,6 +83,7 @@ const UNITS_BY_RACE = {
     arch:  ['Костяные лучники', { n: 9, range: 250, dmg: 8, hp: 52, cost: 330 }],
     cav:   ['Рыцари смерти', { hp: 300, dmg: 21, speed: 118, armor: 0.25, cost: 520 }],
     worker: ['Гуль-могильщик', { hp: 190, speed: 78 }],
+    siege: ['Костяная катапульта', {}],
   },
   des: {
     inf:   ['Хопешники', { hp: 90, dmg: 9, speed: 80, cost: 310 }],
@@ -84,6 +91,7 @@ const UNITS_BY_RACE = {
     arch:  ['Лучники Сета', { range: 260, dmg: 8, rate: 1.4, cost: 350 }],
     cav:   ['Боевые колесницы', { n: 4, hp: 340, dmg: 22, speed: 140, armor: 0.2, cost: 520, r: 14 }],
     worker: ['Каменотёс', {}],
+    siege: ['Осадная катапульта', {}],
   },
 };
 
@@ -93,7 +101,7 @@ const BLD_BASE = {
   barr:   { name: 'Казармы', hp: 1800, r: 42, cost: 300, time: 18, trains: ['inf', 'spear'] },
   range:  { name: 'Стрельбище', hp: 1200, r: 38, cost: 350, time: 18, trains: ['arch'] },
   stable: { name: 'Конюшня', hp: 1800, r: 44, cost: 450, time: 22, trains: ['cav'] },
-  forge:  { name: 'Кузница', hp: 1400, r: 36, cost: 400, time: 22, forge: true },
+  forge:  { name: 'Кузница', hp: 1400, r: 36, cost: 400, time: 22, forge: true, trains: ['siege'] },
   tower:  { name: 'Башня', hp: 1600, r: 22, cost: 400, time: 20, shoot: true, range: 300, dmg: 22, rate: 1.2, proj: 'arrow' },
 };
 const BLD_NAMES = {
@@ -253,7 +261,7 @@ const TYPES = [];
 const DEF = {};
 function addType(d) { d.ti = TYPES.length; TYPES.push(d); DEF[d.key] = d; return d; }
 for (const rk of RACE_KEYS) {
-  for (const cls of ['inf', 'spear', 'arch', 'cav', 'worker']) {
+  for (const cls of ['inf', 'spear', 'arch', 'cav', 'worker', 'siege']) {
     const [name, ov] = UNITS_BY_RACE[rk][cls];
     addType(Object.assign({ key: rk + '_' + cls, race: rk, kind: 'u', cls: cls === 'worker' ? 'inf' : cls, name, sub: cls }, UNIT_BASE[cls], ov));
   }

@@ -261,7 +261,7 @@ class Renderer3D extends Renderer {
     this.built3 = this.worldKey;
     if (this.world) { this.scene.remove(this.world); this.world.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
     for (const m of this.bldMesh.values()) this.scene.remove(m.mesh); this.bldMesh.clear();
-    this.world = new THREE.Group(); this.scene.add(this.world);
+    this.world = new THREE.Group(); this.scene.add(this.world); this.mist = null;
     this.buildHeights(); this.buildTerrain3(); this.buildWater3(); this.buildTrees3(); this.buildProps3(); this.buildGrass3(); this.buildSky3();
     this.corpses = []; this.decals = []; this.parts3 = [];
   }
@@ -401,12 +401,30 @@ class Renderer3D extends Renderer {
     const mat = new T.MeshStandardMaterial({ vertexColors: true, transparent: true, roughness: snow ? 0.3 : 0.1, metalness: snow ? 0 : 0.05, normalMap: nt, normalScale: new T.Vector2(snow ? 0.12 : 0.28, snow ? 0.12 : 0.28), envMapIntensity: snow ? 0.5 : 0.85, depthWrite: false });
     if (!snow) {
       const uTime = this.uTime;
-      mat.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.fragmentShader = 'uniform float uTime;\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', `vec3 mapN = texture2D(normalMap, vNormalMapUv + vec2(uTime * 0.018, uTime * 0.011)).xyz * 2.0 - 1.0;
+      mat.onBeforeCompile = sh => { sh.uniforms.uTime = uTime; sh.fragmentShader = 'uniform float uTime;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+          float shore = 1.0 - smoothstep(0.04, 0.22, vColor.a);
+          float fn = texture2D(normalMap, vNormalMapUv * 4.0 + vec2(uTime * 0.035, -uTime * 0.021)).r * 0.6 + texture2D(normalMap, vNormalMapUv * 9.0 - vec2(uTime * 0.02, uTime * 0.03)).g * 0.4;
+          float foam = shore * smoothstep(0.5, 0.68, fn) * step(0.01, vColor.a);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.8, 0.79), foam * 0.5);
+          diffuseColor.a = max(diffuseColor.a, foam * 0.45);`).replace('#include <normal_fragment_maps>', `vec3 mapN = texture2D(normalMap, vNormalMapUv + vec2(uTime * 0.018, uTime * 0.011)).xyz * 2.0 - 1.0;
           vec3 mapN2 = texture2D(normalMap, vNormalMapUv * 1.7 - vec2(uTime * 0.013, -uTime * 0.02)).xyz * 2.0 - 1.0;
           mapN = normalize(vec3((mapN.xy + mapN2.xy) * normalScale, mapN.z * mapN2.z));
           normal = normalize(tbn * mapN);`); };
     }
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; mesh.renderOrder = 2; this.world.add(mesh); this.water3 = mesh;
+    this.buildMist3();
+  }
+  buildMist3() {
+    const T = THREE, r = mkRng(this.seed * 5 + 3), n = this.low ? 14 : 38;
+    if (!this.mistTex) { const S = 128, cv = mkCanvas(S, S), c = cv.getContext('2d'), N = makeNoise(17, 32), img = c.createImageData(S, S); for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { const dx = (x - S / 2) / (S / 2), dy = (y - S / 2) / (S / 2), rr = Math.sqrt(dx * dx + dy * dy), a = clamp(1 - rr, 0, 1) ** 1.6 * (0.55 + 0.45 * N.fbm(x / 14, y / 14, 3)), q = (y * S + x) * 4; img.data[q] = img.data[q + 1] = img.data[q + 2] = 235; img.data[q + 3] = a * 255; } c.putImageData(img, 0, 0); this.mistTex = new T.CanvasTexture(cv); }
+    this.mist = [];
+    for (let k = 0, tries = 0; k < n && tries < 2000; tries++) {
+      const x = r() * MAP_W, y = r() * MAP_H, h = this.gz(x, y);
+      if (h > WL3 + 6 && r() > 0.12) continue;
+      const m = new T.Sprite(new T.SpriteMaterial({ map: this.mistTex, transparent: true, depthWrite: false, opacity: 0, fog: true, color: 0xe8ecec }));
+      const w = 260 + r() * 320; m.scale.set(w, w * 0.35, 1); m.position.set(x, Math.max(h, WL3) + 14 + r() * 16, y); m.userData = { v: 4 + r() * 8, a: 0.6 + r() * 0.4 }; m.renderOrder = 8;
+      this.world.add(m); this.mist.push(m); k++;
+    }
   }
   buildSky3() {
     const T = THREE, b = this.map.biome;
@@ -421,6 +439,29 @@ class Renderer3D extends Renderer {
     this.envRT = pm.fromScene(sky, 0.02); pm.dispose();
     this.scene.environment = this.envRT.texture;
     this.skyHor = new T.Color().setRGB(...hor);
+    if (!this.skyDome) {
+      const sm = new T.ShaderMaterial({ side: T.BackSide, depthWrite: false, depthTest: false, fog: false,
+        uniforms: { uZen: { value: new T.Color() }, uHor: { value: new T.Color() }, uSun: { value: new T.Vector3(-0.5, 0.78, -0.38).normalize() }, uSunCol: { value: new T.Color(1, 0.9, 0.7) }, uTime: this.uTime, uCov: { value: 0.4 } },
+        vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform vec3 uZen, uHor, uSun, uSunCol; uniform float uTime, uCov; varying vec3 vP;
+          float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+          float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += vn(p) * a; p *= 2.03; a *= 0.5; } return s; }
+          void main() {
+            vec3 d = normalize(vP); float y = d.y;
+            vec3 c = mix(uHor, uZen, pow(clamp(y, 0.0, 1.0), 0.5));
+            float sd = max(dot(d, uSun), 0.0);
+            c += uSunCol * (pow(sd, 900.0) * 8.0 + pow(sd, 10.0) * 0.28);
+            if (y > 0.0) {
+              vec2 uv = d.xz / (y + 0.12) * 0.6 + vec2(uTime * 0.006, uTime * 0.002);
+              float n = fbm(uv * 2.2), cl = smoothstep(0.62 - uCov * 0.3, 0.95, n) * smoothstep(0.0, 0.2, y);
+              vec3 cc = mix(uHor * 1.05, vec3(1.0, 0.97, 0.93), 0.55) * (0.62 + 0.55 * pow(sd, 3.0) + 0.25 * (1.0 - n));
+              c = mix(c, cc, cl * 0.9);
+            }
+            gl_FragColor = vec4(c, 1.0);
+          }` });
+      this.skyDome = new T.Mesh(new T.SphereGeometry(1, 40, 20), sm); this.skyDome.frustumCulled = false; this.skyDome.renderOrder = -1000; this.scene.add(this.skyDome);
+    }
   }
   buildTrees3() {
     const T = THREE, M = this.map, CH = 700, cw = Math.ceil(MAP_W / CH), byKey = new Map();
@@ -513,13 +554,14 @@ class Renderer3D extends Renderer {
     this.camera.aspect = this.w / this.h;
   }
   clampCam() {
-    const cam = this.cam; cam.z = clamp(cam.z, 0.42, 2.2);
+    const cam = this.cam; cam.z = clamp(cam.z, 0.42, this.maxZ);
     if (!this.w) return;
     const hw = this.w / 2 / cam.z, hh = (this.h - (this.padB || 0)) / 2 / cam.z;
     const tx = clamp(cam.x + hw, Math.min(MAP_W / 2, hw * 0.7), Math.max(MAP_W / 2, MAP_W - hw * 0.7)), ty = clamp(cam.y + hh, Math.min(MAP_H / 2, hh * 0.35), Math.max(MAP_H / 2, MAP_H - hh * 0.8));
     cam.x = tx - hw; cam.y = ty - hh;
   }
-  pitch() { return (57 - 17 * clamp((this.cam.z - 1) / 1.2, 0, 1)) * Math.PI / 180; }
+  get maxZ() { return 3.2; }
+  pitch() { const z = this.cam.z; return (57 - 17 * clamp((z - 1) / 1.2, 0, 1) - 21 * clamp((z - 2.2) / 1.0, 0, 1)) * Math.PI / 180; }
   placeCamera() {
     const cam = this.cam, C = this.camera, z = cam.z, tx = cam.x + this.w / 2 / z, ty = cam.y + (this.h - (this.padB || 0)) / 2 / z;
     const th = this.HG ? this.heightAt(tx, ty) : 0; this.tgtH += (Math.max(th, WL3) - this.tgtH) * 0.15;
@@ -643,7 +685,7 @@ class Renderer3D extends Renderer {
     return null;
   }
   pumpGeos(ms) { const t0 = performance.now(); while (this.geoQ.length && performance.now() - t0 < ms) { const j = this.geoQ.shift(); this.geoBusy.delete(j.key); if (j.bld) { this.bldGeo(j.d, j.col); continue; } if (!this.geos.has(j.key)) this.geos.set(j.key, G3.build(M3.build(j.d, j.col, j.frame, j.up | 0), { metres: true })); } return this.geoQ.length; }
-  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 8, 10]) this.geoFor(d, col, f, 0); }
+  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16]) this.geoFor(d, col, f, 0); }
   inst(key, geo, mats) {
     let u = this.units.get(key);
     if (!u || u.cap < u.n + 1) {
@@ -716,6 +758,13 @@ class Renderer3D extends Renderer {
     if (sc.right !== ext) { sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 100; sc.far = 6000; sc.updateProjectionMatrix(); }
     const fogC = this.skyHor.clone().multiplyScalar(0.55 + 0.45 * L); if (env.weather === 'fog') fogC.lerp(new T.Color(0.78, 0.8, 0.82), wa); if (env.weather === 'rain') fogC.multiplyScalar(1 - 0.35 * wa);
     this.scene.fog.color.copy(fogC); this.scene.background = fogC;
+    if (this.skyDome) {
+      const su = this.skyDome.material.uniforms, zen = this.map.biome === 'snow' ? new T.Color(0.3, 0.4, 0.58) : new T.Color(0.2, 0.38, 0.72);
+      zen.multiplyScalar(0.25 + 0.75 * L); if (env.weather === 'rain' || env.weather === 'fog') zen.lerp(fogC, wa * 0.8);
+      su.uZen.value.copy(zen); su.uHor.value.copy(fogC); su.uSunCol.value.copy(sunCol).multiplyScalar(L > 0.6 ? 1 : 0.25); su.uCov.value = env.weather === 'clear' ? 0.35 : 0.85;
+      this.skyDome.position.copy(this.camera.position); this.skyDome.scale.setScalar(this.camera.far * 0.9);
+    }
+    if (this.mist) { const mistA = (0.05 + 0.22 * clamp((1 - L) * 2, 0, 1) + (env.weather === 'fog' ? 0.35 * wa : 0) + (env.p > 0.94 || env.p < 0.1 ? 0.15 : 0)); for (const m of this.mist) { m.position.x += m.userData.v * rdt; if (m.position.x > MAP_W + 300) m.position.x = -300; m.material.opacity = mistA * m.userData.a; } }
     const fogK = env.weather === 'fog' ? 1 - 0.65 * wa : env.weather === 'rain' ? 1 - 0.3 * wa : 1;
     this.scene.fog.near = this.D * 0.9 * fogK; this.scene.fog.far = (this.D * 2.8 + 1200) * fogK;
     this.gl.toneMappingExposure = (0.55 + 0.35 * L) * (1 - 0.15 * wa) + this.flash * 0.6;
@@ -762,7 +811,7 @@ class Renderer3D extends Renderer {
       // unit: pose frame as in the 2D renderer
       let frame = 0;
       if (e.atkT > 0) frame = e.atkT > 0.2 ? 8 : e.atkT > 0.1 ? 9 : 0;
-      else if (e.moving) frame = 1 + (((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 9 : 7.5) + e.id * 0.37) | 0) % 6);
+      else if (e.moving) { const st = ((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 18 : 15) + e.id * 0.37) | 0) % 12; frame = st & 1 ? 11 + (st >> 1) : 1 + (st >> 1); }
       else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = 7;
       const up3 = e.eqv | 0, uk = upLook(e.d, up3);
       let geo = this.geoFor(e.d, col, frame, uk), fk = frame;
@@ -787,7 +836,7 @@ class Renderer3D extends Renderer {
       if (!e.sq) { if (sel) G.push(['ring', e.rx, e.ry, e.r * 1.5, S.me === e.owner ? '#8fd3ff' : '#ff5a4a', 0.95, 2]); else if (e.d.hero) G.push(['ring', e.rx, e.ry, e.r * 1.35, col, 0.75, 1.6]); }
       // battalion standard
       const q = e.sq ? SQ.get(e.sq) : null;
-      if (q && q.b === e) {
+      if (q && q.b === e && e.d.n > 1) {
         const race = RACES[e.d.race] ? e.d.race : 'hum', fk2 = race + col; let L2 = flagsByKey.get(fk2); if (!L2) { L2 = []; flagsByKey.set(fk2, L2); }
         const ph = e.d.sub === 'cav' ? 64 : 50, big = (up3 | 0) & 8 ? 1.25 : 1, bx = e.rx - Math.cos(e._yaw) * 4, by = e.ry - Math.sin(e._yaw) * 4;
         L2.push([bx, gh + ph, by, big, race, col]);
@@ -846,7 +895,7 @@ class Renderer3D extends Renderer {
     // ground marks: this frame's + those queued by main.js
     this.gN = 0; this.gFlush(G); this.gFlush(this.gq); this.gq = [];
     const gg = this.gMesh.geometry; gg.setDrawRange(0, this.gN); gg.attributes.position.needsUpdate = true; gg.attributes.color.needsUpdate = true;
-    if (this.postOn) this.renderPost(env); else this.gl.render(this.scene, this.camera);
+    if (this.postOn && this.w > 8 && this.h > 8) { try { this.renderPost(env); this.postErr = 0; } catch (err) { this.gl.setRenderTarget(null); this.gl.render(this.scene, this.camera); if (++this.postErr > 3) { this.postOn = false; console.warn('post-processing disabled', err); } } } else this.gl.render(this.scene, this.camera);
     // 2D overlay: bars and names
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, this.cv.width, this.cv.height); c.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawBars(S, SQ);
@@ -908,7 +957,7 @@ class Renderer3D extends Renderer {
   poleGeo() { let g = this.geos.get('pole'); if (!g) { g = G3.build([R3.cap([0, 0, 0], [0, 58, 0], 0.9, R3.MAT('#3b2c1f', { pat: 'wood' })), R3.sph(0, 59, 0, 1.6, R3.MAT('#d4a73c', { pat: 'metal', spec: 1 }))], { seg: 1 }); this.geos.set('pole', g); } return g; }
   flagGeo() { let g = this.geos.get('flagG'); if (!g) { g = new THREE.PlaneGeometry(16, 16, 8, 1).translate(8, 8, 0); this.geos.set('flagG', g); } return g; }
   addCorpse(e, now, up) {
-    if (e.d.kind === 'b') {
+    if (e.d.kind === 'b' || e.d.sub === 'siege') {
       const h0 = this.gz(e.rx, e.ry);
       for (let k = 0; k < 22; k++) this.emit3({ x: e.rx + (Math.random() - 0.5) * e.r * 1.4, y: e.ry + (Math.random() - 0.5) * e.r, h: h0 + Math.random() * e.r, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, vh: 20 + Math.random() * 20, life: 2 + Math.random() * 2, t: 0, k: 'smoke', s: 8 + e.r * 0.15 });
       for (let k = 0; k < 20; k++) this.emit3({ x: e.rx, y: e.ry, h: h0 + e.r * 0.5, vx: (Math.random() - 0.5) * 140, vy: (Math.random() - 0.5) * 140, vh: 40 + Math.random() * 80, life: 0.6, t: 0, k: 'fire', s: 3 + Math.random() * 3 });

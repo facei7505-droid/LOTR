@@ -240,7 +240,7 @@ cv.addEventListener('pointermove', e => {
   if (gesture.t === 'pinch' && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()];
     const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    const z = clamp(gesture.z0 * d / Math.max(10, gesture.d0), 0.3, 2.2);
+    const z = clamp(gesture.z0 * d / Math.max(10, gesture.d0), 0.3, R.maxZ || 2.2);
     if (R.is3D) { R.zoomAt(mx, my, z); if (gesture.lmx !== undefined) R.panBy(gesture.lmx, gesture.lmy, mx, my); gesture.lmx = mx; gesture.lmy = my; return; }
     const cam0 = gesture.cam; const wx = cam0.x + gesture.mx / cam0.z, wy = cam0.y + gesture.my / cam0.z;
     R.cam.z = z; R.clampCam();
@@ -271,7 +271,7 @@ function endPtr(e) {
 cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 cv.addEventListener('wheel', e => {
   if (!V) return; e.preventDefault();
-  R.zoomAt(e.clientX, e.clientY, clamp(R.cam.z * Math.exp(-e.deltaY * 0.0015), 0.3, 2.2));
+  R.zoomAt(e.clientX, e.clientY, clamp(R.cam.z * Math.exp(-e.deltaY * 0.0015), 0.3, R.maxZ || 2.2));
 }, { passive: false });
 const keys = new Set();
 window.addEventListener('keydown', e => {
@@ -299,7 +299,7 @@ mini.addEventListener('pointercancel', () => miniDown = false);
 
 // ---------- HUD: BFME-style palette (round map + command ring), spell book, builders ----------
 const CLS_TIP = { inf: 'силён против копейщиков', spear: 'бьёт конницу', arch: 'бьёт пехоту издалека', cav: 'топчет стрелков', siege: 'ломает здания' };
-const BLD_DESC = { farm: 'Золото +3/с и +12 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Нужна, чтобы открыть клинки, броню и огненные стрелы', fort: 'Герои, строители и улучшения крепости', tower: 'Сама стреляет по врагам' };
+const BLD_DESC = { farm: 'Золото +3/с и +12 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Осадные машины; нужна, чтобы открыть клинки, броню и огненные стрелы', fort: 'Герои, строители и улучшения крепости', tower: 'Сама стреляет по врагам' };
 const short = s => { const w = String(s).split(/[ ,]/)[0]; return w.length > 8 ? w.slice(0, 7) + '.' : w; };
 function myFort() { return V.ents.find(x => x.owner === V.me && x.d.sub === 'fort'); }
 function myWorkers() { return V.ents.filter(e => e.owner === V.me && e.d.worker); }

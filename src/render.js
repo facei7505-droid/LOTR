@@ -1299,7 +1299,7 @@ class Renderer {
     if (e.buffGlow) { c.save(); c.globalCompositeOperation = 'lighter'; ell(c, e.rx, e.ry - 2, e.r * 1.3, e.r * 0.55, 'rgba(255,200,90,0.16)'); c.restore(); }
     if (e.d.hero) this.addLight(e.rx, e.ry - 20, 90, 0.55, false);
     const q = e.sq && this.SQ ? this.SQ.get(e.sq) : null;
-    if (q && q.b === e) this.drawBanner(e, col, now, sc, e.eqv | 0);
+    if (q && q.b === e && e.d.n > 1) this.drawBanner(e, col, now, sc, e.eqv | 0);
   }
   // battalion standard carried above the formation (torch-lit at night)
   drawBanner(e, col, now, sc, up) {

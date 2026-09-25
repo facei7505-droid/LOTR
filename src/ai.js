@@ -84,7 +84,9 @@ class AI {
       if (p.gold >= cost) g.cmd(this.pi, { c: 'hero', b: fort.id, h: hk }); else saving = true;
     }
     // train
-    for (const b of this.mine(e => e.d.kind === 'b' && e.built >= 1 && e.d.trains && e.d.sub !== 'fort')) {
+    const fgB = this.mine(e => e.d.forge && e.built >= 1)[0];
+    if (fgB && !fgB.queue.length && this.t > 330 && this.mine(e => e.d.sub === 'siege').length < 2 && p.gold > DEF[p.race + '_siege'].cost + 400) g.cmd(this.pi, { c: 'train', b: fgB.id, u: p.race + '_siege' });
+    for (const b of this.mine(e => e.d.kind === 'b' && e.built >= 1 && e.d.trains && e.d.sub !== 'fort' && !e.d.forge)) {
       if (b.queue.length >= 2) continue;
       const opts = b.d.trains; let u = opts[0];
       if (opts.length > 1) u = this.r() < 0.6 ? opts[0] : opts[1];

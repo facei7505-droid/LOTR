@@ -178,7 +178,7 @@ class Game {
     s.lvl = L; s.rank = L - 1;
     const mem = this.sqMembers(s);
     for (const m of mem) { m.maxhp *= f; m.hp *= f; m.rank = L - 1; m.lvl = L; }
-    if (L >= LEADER_LVL && !mem.some(m => m.leader)) this.sqPromote(s, mem);
+    if (L >= LEADER_LVL && s.d.n > 1 && !mem.some(m => m.leader)) this.sqPromote(s, mem);
     if (announce && this.players[s.owner] && !this.players[s.owner].ai) this.note(s.owner, s.d.name + ': батальон достиг ' + L + ' уровня' + (L === LEADER_LVL ? ' — появился лидер!' : ''), s.x, s.y);
     if (announce) for (const m of mem) this.addFx('lvl', m.x, m.y, m.x, m.y, 0, 0.8);
   }
@@ -826,7 +826,7 @@ class Game {
       if (s.want !== undefined && Math.abs(s.want - s.ang) > 1e-3) s.ang = turnAng(s.ang, s.want, 2.4 * dt);
       const P = this.players[s.owner];
       if (s.flagCd > 0) s.flagCd -= dt;
-      if ((s.lvl || 1) >= LEADER_LVL && !s.d.summon) {
+      if ((s.lvl || 1) >= LEADER_LVL && !s.d.summon && s.d.n > 1) {
         const lead = mem.find(m => m.leader);
         if (!lead) { s.leadT = (s.leadT || 0) + dt; if (s.leadT > 30) this.sqPromote(s, mem); }
         else if (mem.length < s.d.n) { s.revT = (s.revT || 0) + dt; if (s.revT > (eng ? 16 : 8)) { s.revT = 0; this.sqRevive(s, mem, 1); } }
@@ -958,6 +958,12 @@ class Game {
     const pu = this.players[e.owner], eq = e.sq ? this.eqOf(e) : null, fire = e.d.proj && ((e.d.kind === 'b' && pu && pu.up.arrows) || (eq && eq.arrows));
     if (eq && eq.blades) dmg *= 1.25;
     if (fire) dmg *= 1.3;
+    if (e.d.splash) {
+      const tx = t.x, ty = t.y, fly = Math.max(0.7, Math.hypot(tx - e.x, ty - e.y) / 420), owner = e.owner, R = e.d.splash, tid = t.id;
+      this.addFx('boulder', e.x, e.y - 14, tx, ty, 0, fly);
+      this.pending.push({ at: this.t + fly, fn: () => { for (const o of this.unitsIn(tx, ty, R, o => this.enemy(owner, o.owner))) this.damage(e, o, dmg * (o.id === tid ? 1 : 0.55), false); this.addFx('boom', tx, ty, tx, ty, R, 0.6).c = 'quake'; } });
+      return;
+    }
     if (e.d.proj) {
       const dd = Math.hypot(t.x - e.x, t.y - e.y);
       const fly = Math.max(0.12, dd / 560);

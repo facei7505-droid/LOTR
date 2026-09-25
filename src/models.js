@@ -207,6 +207,23 @@ const M3 = (() => {
       p.bx += dx; p.by += dy; p.bz += dz;
     }
   }
+  // siege catapult: chassis on four wheels, A-frame, throwing arm with counterweight; the arm swings on the attack frames
+  function catapult(race, pose, P, team) {
+    const wood = MAT(race === 'und' ? '#cdc4aa' : race === 'des' ? '#9a6a3a' : race === 'elf' ? '#8a6a42' : '#6b4a2e', { pat: 'wood', ns: 30 }), iron = MAT('#4a4d52', { pat: 'metal', spec: 0.8, shin: 40 }), tm = MAT(team, { pat: 'cloth' });
+    const spin = pose.walk || 0;
+    for (const s2 of [1, -1]) {
+      P.push(cap([-1.1, 0.5, s2 * 0.5], [1.1, 0.5, s2 * 0.5], 0.08, wood));
+      for (const wx of [-0.75, 0.75]) { P.push(ell(wx, 0.42, s2 * 0.66, 0.42, 0.42, 0.05, wood), sph(wx, 0.42, s2 * 0.7, 0.07, iron)); for (let k = 0; k < 2; k++) { const a = spin + k * 1.571; P.push(cap([wx + Math.cos(a) * 0.38, 0.42 + Math.sin(a) * 0.38, s2 * 0.66], [wx - Math.cos(a) * 0.38, 0.42 - Math.sin(a) * 0.38, s2 * 0.66], 0.025, wood)); } }
+      P.push(cap([0.35, 0.5, s2 * 0.5], [0.05, 1.45, s2 * 0.32], 0.06, wood), cap([-0.35, 0.5, s2 * 0.5], [0.05, 1.45, s2 * 0.32], 0.06, wood));
+    }
+    for (const x of [-0.9, 0, 0.9]) P.push(cap([x, 0.5, -0.5], [x, 0.5, 0.5], 0.06, wood));
+    P.push(cap([0.05, 1.45, -0.36], [0.05, 1.45, 0.36], 0.05, iron));
+    const at = pose.atk || 0, ang = at > 0.8 ? 1.25 : at > 0.3 ? 0.7 : at < 0 ? 3.55 : 3.4, dx = Math.cos(ang), dy = Math.sin(ang), pv = [0.05, 1.45, 0];
+    const tip = [pv[0] + dx * 1.75, pv[1] + dy * 1.75, 0]; P.push(cap(pv, tip, 0.065, wood), sph(tip[0], tip[1], 0, 0.18, wood));
+    if (at <= 0.3) P.push(sph(tip[0], tip[1] + 0.12, 0, 0.15, MAT('#8a847a', { pat: 'rock' })));
+    const cw = [pv[0] - dx * 0.5, pv[1] - dy * 0.5, 0]; P.push(R3.box(cw[0], cw[1], cw[2], 0.22, 0.22, 0.28, iron));
+    P.push(cap([-1.05, 0.5, 0], [-1.05, 1.75, 0], 0.03, wood), ell(-1.18, 1.62, 0, 0.16, 0.12, 0.012, tm));
+  }
   // desert war chariot: a horse in front, a two-wheeled car and a standing warrior
   function chariot(L, pose, P, team) {
     const n0 = P.length; beast('horse', pose, P, '#c8a878', team); shiftP(P, n0, 0.95, 0, 0);
@@ -219,7 +236,7 @@ const M3 = (() => {
   }
   // ---------- build a model for a unit type ----------
   function build(d, colorHex, frame, up) {
-    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame === 7 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 ? { atk: 0.55 } : { atk: 0 };
+    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 ? { atk: 0.55 } : { atk: 0 };
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
     else if (d.sub === 'wolf') beast('wolf', pose, P, '#6f675b', null);
@@ -228,10 +245,11 @@ const M3 = (() => {
     else if (d.sub === 'ghoul') human({ race: 'hum', team: [0.25, 0.3, 0.34], skin: '#b9c4c8', arm: 'mail', steel: '#5a6168', w: 'sword', helm: 'none', hair: '#2a2a2a' }, pose, P);
     else if (d.hero) human(Object.assign({ race: d.race, team }, HERO3[d.key]), pose, P);
     else {
-      const L = Object.assign({ race: d.race, team }, LOOK[d.race][d.sub]);
+      const L = Object.assign({ race: d.race, team }, LOOK[d.race][d.sub] || {});
       if (up & 2 && L.arm !== 'leather' && L.arm !== 'apron') { L.arm = 'plate'; L.steel = '#c3cad1'; }
       if (up & 1) L.glow = 1;
-      if (d.sub === 'cav' && d.race === 'des') chariot(L, pose, P, team);
+      if (d.sub === 'siege') catapult(d.race, pose, P, team);
+      else if (d.sub === 'cav' && d.race === 'des') chariot(L, pose, P, team);
       else if (d.sub === 'cav') {
         const kind = { hum: 'horse', elf: 'deer', dwf: 'boar', orc: 'warg', und: 'nightmare' }[d.race], coat = { hum: '#4a3020', elf: '#9a6c40', dwf: '#3b2e28', orc: '#5e5a54', und: '#1d1b20' }[d.race];
         const top = beast(kind, pose, P, coat, d.race === 'hum' || d.race === 'elf' || d.race === 'und' ? team : null);
