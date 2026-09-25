@@ -106,13 +106,25 @@ const BLD_NAMES = {
 };
 const BUILD_ORDER = ['farm', 'barr', 'range', 'stable', 'forge', 'tower'];
 
-// ---------- forge upgrades (per player, BFME-style) ----------
+// ---------- upgrades (BFME2-style) ----------
+// equipment: unlocked once in the barracks/range (at: building), then bought for each battalion (eq: price per battalion)
+// citadel: researched in the citadel, works at once
 const UPGRADES = [
-  { k: 'blades', cost: 600, time: 40, glyph: '⚔', desc: '+25% урона пехоте, копейщикам и коннице' },
-  { k: 'armor', cost: 700, time: 45, glyph: '⛨', desc: '+15% брони всем батальонам' },
-  { k: 'arrows', cost: 550, time: 35, glyph: '➹', desc: '+30% урона стрелкам и башням, горящие стрелы' },
-  { k: 'banner', cost: 500, time: 30, glyph: '⚑', desc: 'Батальоны вне боя лечатся и восполняют павших' },
+  { k: 'blades', at: 'barr', forge: 1, cost: 450, time: 35, eq: 130, cls: ['inf', 'spear', 'cav'], glyph: '⚔', desc: 'Батальон пехоты, копейщиков или конницы: +25% урона' },
+  { k: 'armor', at: 'barr', forge: 1, cost: 500, time: 40, eq: 150, cls: ['inf', 'spear', 'arch', 'cav'], glyph: '⛨', desc: 'Батальон: +20% брони, бойцы в латах' },
+  { k: 'arrows', at: 'range', forge: 1, cost: 400, time: 30, eq: 110, cls: ['arch'], glyph: '➹', desc: 'Стрелки: +30% урона, горящие стрелы. Башни и цитадель получают их сразу' },
+  { k: 'banner', at: 'barr', cost: 350, time: 30, eq: 90, cls: ['inf', 'spear', 'arch', 'cav'], glyph: '⚑', desc: 'Знаменосец: батальон вне боя лечится и восполняет павших' },
+  { k: 'walls', at: 'fort', cost: 700, time: 40, glyph: '▦', desc: 'Цитадель: +50% прочности и +15% брони' },
+  { k: 'archers', at: 'fort', cost: 600, time: 35, glyph: '➶', desc: 'Цитадель стреляет сразу по трём целям, дальность +20%' },
+  { k: 'catapult', at: 'fort', cost: 900, time: 50, glyph: '☄', desc: 'Требушет на стене мечет камни в скопления врагов' },
+  { k: 'treasury', at: 'fort', cost: 500, time: 30, glyph: '⛃', desc: '+3 золота в секунду' },
+  { k: 'infirmary', at: 'fort', cost: 450, time: 30, glyph: '✚', desc: 'Ваши воины рядом с цитаделью быстро лечатся' },
 ];
+const FORT_UP_NAMES = { walls: 'Каменные стены', archers: 'Лучники на стенах', catapult: 'Требушет', treasury: 'Казна', infirmary: 'Лазарет' };
+// battalion levels 1..10: experience needed to leave level L; every level +4% damage and health; a leader appears at LEADER_LVL
+const SQ_XP = [0, 5, 12, 21, 32, 45, 60, 78, 98, 120];
+const SQ_MAX_LVL = 10, LEADER_LVL = 3, FLAG_CD = 60;
+const upName = (race, k) => ((UPGRADE_NAMES[race] || {})[k]) || FORT_UP_NAMES[k] || k;
 const UPGRADE_NAMES = {
   hum: { blades: 'Кованые клинки', armor: 'Тяжёлая броня', arrows: 'Огненные стрелы', banner: 'Знамёна полков' },
   elf: { blades: 'Клинки из мифрила', armor: 'Эльфийские латы', arrows: 'Серебряные стрелы', banner: 'Штандарты рощи' },
@@ -121,7 +133,7 @@ const UPGRADE_NAMES = {
   und: { blades: 'Проклятые клинки', armor: 'Могильная броня', arrows: 'Ядовитые стрелы', banner: 'Знамёна мёртвых' },
   des: { blades: 'Бронзовые хопеши', armor: 'Чешуйчатые доспехи', arrows: 'Стрелы Сета', banner: 'Штандарты Ра' },
 };
-const UP_BIT = { blades: 1, armor: 2, arrows: 4, banner: 8 };
+const UP_BIT = { blades: 1, armor: 2, arrows: 4, banner: 8, walls: 16, archers: 32, catapult: 64, treasury: 128, infirmary: 256 };
 const UPG = {}; for (const u of UPGRADES) UPG[u.k] = u;
 
 // ---------- maps ----------
@@ -267,7 +279,7 @@ for (const sk of Object.keys(SUMMONS)) addType(Object.assign({ key: sk, race: sk
 for (const ck of Object.keys(CREEPS)) addType(Object.assign({ key: ck, race: ck === 'bandit' ? 'hum' : 'orc', kind: 'u', sub: ck, creep: true, pop: 0, n: 1 }, CREEPS[ck]));
 
 const SKILL_GLYPH = { aura: '✺', dash: '➶', aoe: '✹', strike: '⚔', heal: '✚', buff: '▲', debuff: '▼', summon: '♣', volley: '☄' };
-const FX_KINDS = ['arrow', 'bolt', 'javelin', 'holy', 'leaf', 'rune', 'shadow', 'hammer', 'fireball', 'boom', 'heal', 'buff', 'debuff', 'dash', 'mark', 'summon', 'star', 'lvl', 'farrow'];
+const FX_KINDS = ['arrow', 'bolt', 'javelin', 'holy', 'leaf', 'rune', 'shadow', 'hammer', 'fireball', 'boom', 'heal', 'buff', 'debuff', 'dash', 'mark', 'summon', 'star', 'lvl', 'farrow', 'boulder'];
 const FX_IDX = {}; FX_KINDS.forEach((k, i) => FX_IDX[k] = i);
 const FX_COLORS = { holy: '#fff1b0', fire: '#ff8a3a', nature: '#8fdc5a', roots: '#6aa84f', quake: '#c28b52', hammer: '#cfd8e0', shadow: '#a36bff', star: '#bfe3ff', def: '#ffd27a' };
 

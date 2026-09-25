@@ -26,14 +26,16 @@ function makeLocalView(g, me) {
     get(id) { const e = g.byId.get(id); return e && !e.dead ? e : null; },
     player(i) { const p = g.players[i]; if (!p) return null; const pi = g.popInfo(i); return { gold: p.gold, used: pi.used, cap: pi.cap, alive: p.alive, income: g.income(p), race: p.race, team: p.team, name: p.name, pts: p.pts, plvl: p.plvl, pxpF: (p.pxp - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)) / (powerNeed(p.plvl) - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)), spells: p.spells, scd: p.scd, up: p.up }; },
     heroes(pi) { const p = g.players[pi]; return ['h1', 'h2'].map(hk => { const s = p.heroes[hk]; const h = s.id ? g.byId.get(s.id) : null; return { hk, id: h ? h.id : 0, lvl: h ? h.lvl : (s.lvl || 1), xp: h ? h.xp / (150 * h.lvl) : 0, recruited: s.recruited, auto: !!s.auto, scd: h ? h.scd.slice() : [0, 0, 0, 0], d: DEF[p.race + '_' + hk] }; }); },
+    sqInfo(id) { const s = g.squads.get(id); return s ? { lvl: s.lvl || 1, xp: g.sqXpF(s) / 99, cd: Math.max(0, s.flagCd || 0) } : null; },
     queue(bid) { const b = g.byId.get(bid); if (!b || !b.queue.length) return null; const q = b.queue[0]; if (q.up) return { n: b.queue.length, prog: q.t / UPG[q.up].time, ti: -1, up: q.up, items: [] }; return { n: b.queue.length, prog: q.t / DEF[q.u].time, ti: DEF[q.u].ti, items: b.queue.map(x => x.u) }; },
     send(c) { g.cmd(me, c); },
     canPlace(key, x, y) { return g.canPlace(me, key, x, y); },
     teamOf(i) { return g.players[i] ? g.players[i].team : -1; },
     nplayers: g.players.length,
     prep(alpha) {
-      this.time = g.t + alpha * TICK; this.fx = g.fx; this.ents = g.ents; this.over = g.over; this.outposts = g.outposts; this.gameT = g.t; this.ups = g.players.map(p => upBits(p.up));
-      for (const e of g.ents) { e.rx = e.px + (e.x - e.px) * alpha; e.ry = e.py + (e.y - e.py) * alpha; e.atkT = e.atk; e.stunned = e.stun > 0; e.buffGlow = e.buffs.length > 0; }
+      this.time = g.t + alpha * TICK; this.fx = g.fx; this.ents = g.ents; this.over = g.over; this.outposts = g.outposts; this.relic = g.relic; this.gameT = g.t; this.ups = g.players.map(p => upBits(p.up));
+      const sqb = new Map(); for (const s of g.squads.values()) if (s.eq) sqb.set(s.id, upBits(s.eq));
+      for (const e of g.ents) { e.rx = e.px + (e.x - e.px) * alpha; e.ry = e.py + (e.y - e.py) * alpha; e.atkT = e.atk; e.stunned = e.stun > 0; e.buffGlow = e.buffs.length > 0; e.eqv = e.sq ? sqb.get(e.sq) || 0 : 0; }
     },
   };
   return v;
@@ -56,6 +58,7 @@ function makeClientView(me, players, seed, mapType) {
       if (!out.length) return ['h1', 'h2'].map(hk => ({ hk, id: 0, lvl: 1, xp: 0, recruited: false, scd: [0, 0, 0, 0], d: DEF[players[pi].race + '_' + hk] }));
       return out;
     },
+    sqInfo(id) { const i = this.sqi && this.sqi.get(id), m = this.ents.find(e => e.sq === id); return { lvl: m ? m.lvl || 1 : 1, xp: i ? i.xp : 0, cd: i ? i.cd : 0 }; },
     queue(bid) { const q = this.qs.get(bid); if (!q) return null; return q[2] >= 100 ? { n: q[0], prog: q[1] / 99, ti: -1, up: UPGRADES[q[2] - 100].k, items: [] } : { n: q[0], prog: q[1] / 99, ti: q[2], items: [] }; },
     send(c) { this.seq++; this.outbox.push([this.seq, c]); if (this.outbox.length > 12) this.outbox.shift(); Net.set({ cmd: { l: this.outbox } }); },
     canPlace(key, x, y) { return Game.prototype.canPlace.call({ map: makeMap(seed, mapType), ents: this.ents, enemy: (a, b) => a !== b && players[a] && players[b] && players[a].team !== players[b].team }, me, key, x, y); },
@@ -66,20 +69,21 @@ function makeClientView(me, players, seed, mapType) {
       if (this.lastRecv) this.interval = clamp(now - this.lastRecv, 0.05, 0.4) * 0.3 + this.interval * 0.7;
       this.lastRecv = now; this.lastSnapT = sn.t;
       const list = unpackEnts(sn.u || '');
-      const seen = new Set();
+      const seen = new Set(), se = new Map(); this.sqi = new Map(); for (let k = 0; k + 3 < (sn.se || []).length; k += 4) { se.set(sn.se[k], sn.se[k + 1]); this.sqi.set(sn.se[k], { cd: sn.se[k + 2], xp: sn.se[k + 3] / 99 }); }
       for (const s of list) {
         const d = TYPES[s.ti]; if (!d) continue;
         seen.add(s.id);
         let e = ents.get(s.id);
         if (!e) { e = { id: s.id, d, r: d.r, owner: s.owner, x: s.x, y: s.y, rx: s.x, ry: s.y, fx0: s.x, fy0: s.y, maxhp: d.hp, hp: d.hp, face: 1, lvl: 1, rank: 0 }; ents.set(s.id, e); }
-        e.sq = s.sq || 0;
+        e.sq = s.sq || 0; e.eqv = e.sq ? se.get(e.sq) || 0 : 0;
         e.fx0 = e.rx; e.fy0 = e.ry; e.x = s.x; e.y = s.y; e.t0 = now;
         e.hp = s.hp * e.maxhp;
         if (d.kind === 'b') { e.built = s.ex / 99; }
-        else { e.built = 1; e.atkT = (s.ex & 1) ? 0.3 : 0; e.moving = !!(s.ex & 2); e.hd = (((s.ex >> 2) & 1) | (((s.ex >> 10) & 3) << 1)) * Math.PI / 4; e.face = Math.cos(e.hd) < -0.01 ? -1 : 1; e.stunned = !!(s.ex & 8); e.rank = (s.ex >> 4) & 3; const lv = (s.ex >> 6) & 15; if (d.hero && lv > e.lvl && e.lvl) { /* level up */ } e.lvl = lv || 1; }
+        else { e.built = 1; e.atkT = (s.ex & 1) ? 0.3 : 0; e.moving = !!(s.ex & 2); e.hd = (((s.ex >> 2) & 1) | (((s.ex >> 10) & 3) << 1)) * Math.PI / 4; e.face = Math.cos(e.hd) < -0.01 ? -1 : 1; e.stunned = !!(s.ex & 8); const lv = (s.ex >> 6) & 15; e.leader = e.sq ? (s.ex & 16 ? 1 : 0) : 0; e.rank = e.sq ? Math.max(0, lv - 1) : (s.ex >> 4) & 3; if (d.hero && lv > e.lvl && e.lvl) { /* level up */ } e.lvl = lv || 1; }
       }
       for (const id of [...ents.keys()]) if (!seen.has(id)) ents.delete(id);
       this.ents = [...ents.values()];
+      this.relic = sn.rl ? { x: sn.rl[0], y: sn.rl[1], prog: sn.rl[2] / 99, cap: sn.rl[3], contested: !!sn.rl[4] } : null;
       this.pl = sn.pl || []; this.hs = sn.hs || []; this.ups = this.pl.map(p => p[8] | 0); this.gameT = sn.t / 100;
       const op = sn.op || []; for (let k = 0, i = 0; k + 3 < op.length && i < this.outposts.length; k += 4, i++) { const o = this.outposts[i]; o.owner = op[k]; o.prog = op[k + 1] / 99; o.cap = op[k + 2]; o.contested = !!op[k + 3]; }
       this.qs = new Map(); const q = sn.q || []; for (let k = 0; k < q.length; k += 4) this.qs.set(q[k], [q[k + 1], q[k + 2], q[k + 3]]);
@@ -113,7 +117,7 @@ function expandSq(ids) {
 }
 // compact command payload: battalions by id, single units (heroes, spirits) by entity id
 function selCmd() { const ids = [], s = new Set(); for (const e of mySel()) { if (e.d.kind !== 'u') continue; if (e.sq) s.add(e.sq); else ids.push(e.id); } return { ids, s: [...s] }; }
-function selSquads() { const m = new Map(); for (const e of mySel()) if (e.sq) { let q = m.get(e.sq); if (!q) { q = { id: e.sq, d: e.d, mem: [], rank: e.rank || 0 }; m.set(e.sq, q); } q.mem.push(e); } return [...m.values()]; }
+function selSquads() { const m = new Map(); for (const e of mySel()) if (e.sq) { let q = m.get(e.sq); if (!q) { q = { id: e.sq, d: e.d, mem: [], rank: e.rank || 0, eqv: e.eqv | 0 }; m.set(e.sq, q); } q.mem.push(e); } return [...m.values()]; }
 function selEnts() { const out = []; for (const id of UI.sel) { const e = V.get(id); if (e) out.push(e); } return out; }
 function mySel() { return selEnts().filter(e => e.owner === V.me); }
 function setSel(ids) { UI.sel = new Set(ids); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; ringSig = ''; UI.buildOpen = ids.length > 0 && ids.every(id => { const e = V.get(id); return e && e.d.worker; }); }
@@ -295,7 +299,7 @@ mini.addEventListener('pointercancel', () => miniDown = false);
 
 // ---------- HUD: BFME-style palette (round map + command ring), spell book, builders ----------
 const CLS_TIP = { inf: 'силён против копейщиков', spear: 'бьёт конницу', arch: 'бьёт пехоту издалека', cav: 'топчет стрелков', siege: 'ломает здания' };
-const BLD_DESC = { farm: 'Золото +3/с и +12 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Улучшения для всей армии', tower: 'Сама стреляет по врагам' };
+const BLD_DESC = { farm: 'Золото +3/с и +12 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Нужна, чтобы открыть клинки, броню и огненные стрелы', fort: 'Герои, строители и улучшения крепости', tower: 'Сама стреляет по врагам' };
 const short = s => { const w = String(s).split(/[ ,]/)[0]; return w.length > 8 ? w.slice(0, 7) + '.' : w; };
 function myFort() { return V.ents.find(x => x.owner === V.me && x.d.sub === 'fort'); }
 function myWorkers() { return V.ents.filter(e => e.owner === V.me && e.d.worker); }
@@ -371,44 +375,52 @@ function ringModel() {
     M.name = d.name; M.sub = bld.built < 1 ? 'Строится… ' + Math.round(bld.built * 100) + '%' : 'Прочность ' + Math.ceil(bld.hp) + ' / ' + Math.round(bld.maxhp) + (BLD_DESC[d.sub] ? ' · ' + BLD_DESC[d.sub] : '');
     M.core = { img: iconFor(d, V.me), hp: bld.built < 1 ? bld.built : bld.hp / bld.maxhp, hc: bld.built < 1 ? '#9fd0ff' : null };
     if (bld.built >= 1) {
-      if (d.forge) for (const U of UPGRADES) { const up = P.up || {}, busy = q && q.up === U.k; add(up[U.k] || busy ? 'noop' : 'research', U.k, { g: U.glyph, cap: short(UPGRADE_NAMES[race][U.k]), cost: up[U.k] ? '✔' : busy ? '' : U.cost, cls: up[U.k] ? 'done' : !busy && P.gold < U.cost ? 'off' : '', prog: busy ? q.prog : null, name: UPGRADE_NAMES[race][U.k], desc: U.desc }); }
       if (d.trains) for (const u of d.trains) {
         if (u === 'hero') { for (const hs of V.heroes(V.me)) heroSlot(hs, 'hero'); continue; }
         const ud = DEF[u], inq = q && q.ti === ud.ti;
         add('train', u, { img: iconFor(ud, V.me), cap: short(ud.name), cost: ud.cost, cls: P.gold < ud.cost || P.used + ud.pop * ud.n > P.cap ? 'off' : '', prog: inq ? q.prog : null, count: inq ? q.n : 0, name: ud.name + (ud.n > 1 ? ' ×' + ud.n : ''), desc: unitDesc(ud) });
       }
+      const hasForge = V.ents.some(e => e.owner === V.me && e.d.forge && e.built >= 1);
+      for (const U of UPGRADES) { if (U.at !== d.sub) continue; const up = P.up || {}, busy = q && q.up === U.k, noF = U.forge && !hasForge; add(up[U.k] || busy ? 'noop' : 'research', U.k, { g: U.glyph, cap: short(upName(race, U.k)), cost: up[U.k] ? '✔' : busy ? '' : U.cost, cls: up[U.k] ? 'done' : !busy && (P.gold < U.cost || noF) ? 'off' : '', prog: busy ? q.prog : null, name: upName(race, U.k) + (U.eq && !up[U.k] ? ' — открыть' : ''), desc: (U.eq ? (up[U.k] ? 'Открыто. Покупайте батальонам: ' : 'Открыть снаряжение. Потом каждому батальону за ' + U.eq + ' зол.: ') : '') + U.desc + (noF ? ' · Нужна кузница' : '') }); }
       if (q) add('cancelq', '', { g: '↶', cap: 'Отмена', name: 'Отменить последний заказ' });
       if (d.trains) add('rally', '', { g: '⚑', cap: 'Сбор', cls: cm && cm.t === 'rally' ? 'on' : '', name: 'Точка сбора' });
     }
-    if (bld.built < 1 || bld.hp < bld.maxhp) add('sendworkers', bld.id, { g: '⚒', cap: 'Строит.', name: 'Прислать строителей', desc: 'Ближайший свободный строитель придёт работать' });
-    add('desel', '', { g: '✖', cap: 'Снять' });
+    if (bld.built < 1 || (bld.hp < bld.maxhp && d.sub !== 'fort')) add('sendworkers', bld.id, { g: '⚒', cap: 'Строит.', name: 'Прислать строителей', desc: 'Ближайший свободный строитель придёт работать' });
   } else if (workers) {
     const w = workers[0];
     M.name = workers.length === 1 ? w.d.name : 'Строители ×' + workers.length; M.sub = w.order && w.order.t === 'build' ? 'Работает на стройке' : 'Выберите здание справа или нажмите на стройку'; M.core = { img: iconFor(w.d, V.me), hp: w.hp / w.maxhp, cnt: workers.length > 1 ? workers.length : 0 };
     add('buildopen', '', { g: '⌂', cap: 'Строить', cls: UI.buildOpen ? 'on' : '', name: 'Выбрать здание' });
     add('repair', '', { g: '⚒', cap: 'Ремонт', name: 'Починить здание', desc: 'Строитель восстанавливает прочность' });
     add('nextworker', '', { g: '⟳', cap: 'Другой', name: 'Следующий строитель' });
-    add('stop', '', { g: '■', cap: 'Стоп' }); add('desel', '', { g: '✖', cap: 'Снять' });
   } else if (hero) {
     const hi = V.heroes(V.me).find(h => h.id === hero.id) || { lvl: 1, scd: [0, 0, 0, 0], hk: 'h1' };
     M.name = hero.d.name; M.sub = 'Уровень ' + hi.lvl + ' · здоровье ' + Math.ceil(hero.hp) + ' / ' + Math.round(hero.maxhp); M.core = { img: iconFor(hero.d, V.me), hp: hero.hp / hero.maxhp, cnt: hi.lvl };
     hero.d.skills.forEach((sk, si) => { const locked = hi.lvl < sk.lvl, cd = hi.scd[si], pas = sk.type === 'aura'; add('skill', si, { g: SKILL_GLYPH[sk.type], cap: short(sk.name), cls: [locked ? 'lock' : '', pas ? 'pas' : '', !locked && !pas && cd <= 0 ? 'ready' : '', cm && cm.t === 'skill' && cm.s === si ? 'on' : ''].join(' '), cd: !locked && cd > 0 ? cd : 0, cdMax: sk.cd || 1, lvl: locked ? sk.lvl : 0, name: sk.name + ' (ур. ' + sk.lvl + ')', desc: sk.desc }); });
     add('autocast', hi.hk, { g: hi.auto ? '⟳' : '☝', cap: hi.auto ? 'Авто' : 'Вручную', cls: hi.auto ? 'on' : '', name: 'Автоприменение навыков' });
-    add('hold', '', { g: '⛨', cap: 'Стоять' }); add('retreat', '', { g: '↩', cap: 'Назад' }); add('stop', '', { g: '■', cap: 'Стоп' });
+    add('hold', '', { g: '⛨', cap: 'Стоять' }); add('retreat', '', { g: '↩', cap: 'Назад' });
   } else if (units.length) {
     const sqs = selSquads(), singles = units.filter(u => !u.sq);
     const counts = {}; for (const q of sqs) counts[q.d.key] = (counts[q.d.key] || 0) + 1; for (const u of singles) counts[u.d.key] = (counts[u.d.key] || 0) + 1;
     const keys = Object.keys(counts), dom = keys.sort((a, b) => counts[b] - counts[a])[0];
     let hp = 0, mx = 0; for (const u of units) { hp += u.hp; mx += u.maxhp; }
-    if (sqs.length === 1 && !singles.length) { const q = sqs[0]; M.name = q.d.name + ' · ' + q.mem.length + '/' + q.d.n + (q.rank ? ' ' + '★'.repeat(q.rank) : ''); M.sub = unitDesc(q.d); }
+    if (sqs.length === 1 && !singles.length) { const q = sqs[0], si = V.sqInfo(q.id) || { lvl: 1, xp: 0 }; M.name = q.d.name + ' · ' + q.mem.length + '/' + q.d.n + ' · ур. ' + si.lvl + (q.mem.some(m => m.leader) ? ' · лидер' : ''); M.sub = (si.lvl < SQ_MAX_LVL ? 'Опыт ' + Math.round(si.xp * 100) + '% до ур. ' + (si.lvl + 1) + (si.lvl < LEADER_LVL ? ' · на ур. ' + LEADER_LVL + ' появится лидер' : '') : 'Высший уровень') + ' · ' + unitDesc(q.d); }
     else { M.name = (sqs.length ? 'Батальонов: ' + sqs.length : 'Отряд') + (singles.length ? ' + ' + singles.length : ''); M.sub = 'Бойцов ' + units.length + ' · двойное касание — все такие'; }
     M.core = { img: iconFor(DEF[dom], V.me), hp: hp / mx, cnt: sqs.length + singles.length > 1 ? sqs.length + singles.length : 0 };
     add('march', '', { g: UI.marchMode ? '➜' : '⚔', cap: UI.marchMode ? 'Марш' : 'Атака', cls: UI.marchMode ? 'on' : '', name: UI.marchMode ? 'Марш: идти, не отвлекаясь' : 'В атаку: бить всех по пути' });
-    add('hold', '', { g: '⛨', cap: 'Строй', name: 'Держать строй' }); add('stop', '', { g: '■', cap: 'Стоп' }); add('retreat', '', { g: '↩', cap: 'Назад', name: 'Отступить к цитадели' });
+    add('hold', '', { g: '⛨', cap: 'Стоять', name: 'Стоять на месте и держать строй' }); add('retreat', '', { g: '↩', cap: 'Назад', name: 'Отступить к цитадели' });
+    const led = sqs.filter(q => q.mem.some(m => m.leader));
+    if (led.length) { const cds = led.map(q => (V.sqInfo(q.id) || {}).cd || 0), ready = cds.some(c => c <= 0), cd = ready ? 0 : Math.min(...cds); add('flag', '', { g: '✠', cap: 'Знамя', cls: ready ? 'ready' : '', cd, cdMax: FLAG_CD, name: 'Поднять знамя', desc: 'Лидер возвращает в строй до 3 павших, батальон: +20% урона и +10% брони на 12 с, лечение' }); }
+    // equipment for the selected battalions (unlocked in barracks / range)
+    const eqSq = sqs.filter(q => !q.d.summon && !q.d.creep && !q.d.worker);
+    for (const U of UPGRADES) {
+      if (!U.eq || !(P.up || {})[U.k]) continue;
+      const fit = eqSq.filter(q => U.cls.includes(q.d.cls)); if (!fit.length) continue;
+      const need = fit.filter(q => !(q.eqv & UP_BIT[U.k])), nm = upName(race, U.k);
+      add(need.length ? 'equip' : 'noop', U.k, { g: U.glyph, cap: short(nm), cost: need.length ? U.eq * need.length : '✔', cls: need.length ? (P.gold < U.eq ? 'off' : '') : 'done', name: nm + (need.length ? ' — купить' : ' — есть'), desc: U.desc + (need.length > 1 ? ' · ' + U.eq + ' зол. за батальон' : '') });
+    }
     const worn = sqs.filter(q => q.mem.length < q.d.n);
     if (worn.length) { const cost = worn.reduce((a, q) => a + Math.ceil(q.d.cost / q.d.n * (q.d.n - q.mem.length) * 0.8), 0); const need = worn.reduce((a, q) => a + (q.d.n - q.mem.length) * q.d.pop, 0); add('refill', '', { g: '✚', cap: 'Пополн.', cost, cls: P.gold < cost || P.used + need > P.cap ? 'off' : '', name: 'Пополнить батальоны', desc: 'Рядом со своими зданиями' }); }
     if (keys.length > 1) for (const k of keys.slice(0, 2)) add('only', k, { img: iconFor(DEF[k], V.me), count: counts[k], name: 'Оставить только: ' + DEF[k].name });
-    add('desel', '', { g: '✖', cap: 'Снять' });
   } else if (sel.length) {
     const e = sel[0], pl = V.player(e.owner);
     M.name = e.d.name; M.sub = (pl ? pl.name + ' · ' + RACES[pl.race].short : e.owner === NEUTRAL ? 'Дикие' : '') + ' · здоровье ' + Math.ceil(e.hp); M.core = { img: iconFor(e.d, e.owner), hp: e.hp / e.maxhp, hc: '#e0533f' };
@@ -433,7 +445,7 @@ function updateRing() {
   const sig = JSON.stringify([M.name, M.sub, M.core && [M.core.img ? M.core.img.length : M.core.g, Math.round((M.core.hp || 0) * 30), M.core.cnt], M.slots.map(s => [s.act, s.arg, s.cls, s.cost, s.count, s.cap, s.g, s.img ? 1 : 0, s.prog !== null && s.prog !== undefined ? Math.round(s.prog * 24) : -1, s.cd ? Math.ceil(s.cd) : 0, s.lvl])]);
   if (sig === ringSig) return; ringSig = sig;
   $('selname').textContent = M.name; $('selsub').textContent = M.sub;
-  const n = Math.max(8, M.slots.length), rf = n > 8 ? 39 : 37.5;
+  const n = Math.max(4, M.slots.length), rf = n > 8 ? 39 : 37.5;
   let h = '';
   if (M.core) {
     const c = M.core;
@@ -442,7 +454,7 @@ function updateRing() {
   for (let i = 0; i < n; i++) {
     const a = -Math.PI / 2 + i / n * Math.PI * 2, x = 50 + Math.cos(a) * rf, y = 50 + Math.sin(a) * rf, s = M.slots[i];
     const pos = 'left:' + x.toFixed(2) + '%;top:' + y.toFixed(2) + '%';
-    if (!s) { h += '<span class="slot empty" style="' + pos + '"></span>'; continue; }
+    if (!s) continue;
     h += '<button class="slot ' + (s.cls || '') + '" data-i="' + i + '" style="' + pos + '" aria-label="' + escapeHtml(s.name || s.cap || '') + '">' +
       (s.img ? '<img src="' + s.img + '" alt="">' : '<span class="g">' + s.g + '</span>') + (s.cap && !s.img ? '<span class="cap">' + s.cap + '</span>' : '') +
       (s.prog !== null && s.prog !== undefined ? '<i class="pr" style="--p:' + clamp(s.prog, 0, 1).toFixed(3) + '"></i>' : '') +
@@ -475,7 +487,9 @@ function doAct(act, arg) {
     case 'cancelmode': UI.cmode = null; UI.ghost = null; hint(''); buildSig = ''; break;
     case 'train': { const bld = sel.find(x => x.d.kind === 'b'); if (bld) V.send({ c: 'train', b: bld.id, u: arg }); if (P.gold < DEF[arg].cost) toast('Не хватает золота'); else if (P.used + DEF[arg].pop * DEF[arg].n > P.cap) toast('Лимит армии — постройте фермы'); break; }
     case 'hero': { const bld = sel.find(x => x.d.sub === 'fort'); if (bld) V.send({ c: 'hero', b: bld.id, h: arg }); break; }
-    case 'research': { const bld = sel.find(x => x.d.forge); const U = UPG[arg]; if (!bld || !U) break; if (P.gold < U.cost) { toast('Нужно ' + U.cost + ' золота'); break; } V.send({ c: 'research', b: bld.id, k: arg }); break; }
+    case 'flag': { const ids = selSquads().filter(q => q.mem.some(m => m.leader)).map(q => q.id); if (ids.length) { V.send({ c: 'flag', s: ids }); Snd.play('horn'); ringSig = ''; } break; }
+    case 'equip': { const U = UPG[arg]; const sq = selSquads().filter(q => U && U.cls.includes(q.d.cls) && !(q.eqv & UP_BIT[U.k])); if (!sq.length) break; if (P.gold < U.eq) { toast('Нужно ' + U.eq + ' золота'); break; } V.send({ c: 'equip', s: sq.map(q => q.id), k: arg }); Snd.play('anvil'); ringSig = ''; break; }
+    case 'research': { const U = UPG[arg]; const bld = U && sel.find(x => x.d.sub === U.at); if (!bld || !U) break; if (U.forge && !V.ents.some(e => e.owner === V.me && e.d.forge && e.built >= 1)) { toast('Сначала постройте кузницу'); break; } if (P.gold < U.cost) { toast('Нужно ' + U.cost + ' золота'); break; } V.send({ c: 'research', b: bld.id, k: arg }); break; }
     case 'cancelq': { const bld = sel.find(x => x.d.kind === 'b'); if (bld) V.send({ c: 'cancel', b: bld.id }); break; }
     case 'rally': { const bld = sel.find(x => x.d.kind === 'b'); if (bld) { UI.cmode = { t: 'rally', b: bld.id }; hint('Нажмите на карту — точка сбора'); } break; }
     case 'skill': { const h = focusHero(); if (h) useSkill(h, +arg); break; }
@@ -996,7 +1010,7 @@ function trackDeaths() {
   const cur = new Map();
   for (const e of V.ents) cur.set(e.id, e);
   for (const [id, e] of prevIds) if (!cur.has(id)) {
-    R.addCorpse(e, V.time, V.ups ? V.ups[e.owner] : 0);
+    R.addCorpse(e, V.time, e.eqv | 0);
     if (e.d.kind === 'b' || e.d.hero) { R.shake = Math.max(R.shake, e.d.sub === 'fort' ? 1 : 0.4); if (inScreen(e)) Snd.play('boom'); }
     else if (inScreen(e) && Math.random() < 0.3) Snd.play('death', 0.5, panOf(e));
     UI.sel.delete(id);
@@ -1063,7 +1077,7 @@ function frame(now) {
         if (g.over !== -1) { attract = null; startAttract(); return; }
         attract.view.prep(attract.acc / TICK);
         R.cam.x += dt * 12; if (R.cam.x > MAP_W - R.w / R.cam.z) R.cam.x = 0; R.clampCam();
-        R.draw({ ents: g.ents, fx: g.fx, me: -1, sel: new Set(), time: attract.view.time, outposts: g.outposts, gameT: g.t, ups: attract.view.ups });
+        R.draw({ ents: g.ents, fx: g.fx, me: -1, sel: new Set(), time: attract.view.time, outposts: g.outposts, relic: g.relic, gameT: g.t, ups: attract.view.ups });
       }
       return;
     }
@@ -1097,7 +1111,7 @@ function frame(now) {
     if (game && game.notes.length >= 30 && noteIdx >= 30) noteIdx = game.notes.length - 1;
     trackDeaths(); fxSounds(); battleSounds(dt);
     // ghost/skill range
-    const S = { ents: V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, gameT: V.gameT, ups: V.ups };
+    const S = { ents: V.ents, fx: V.fx, me: V.me, sel: UI.sel, time: V.time, ghost: UI.ghost, outposts: V.outposts, relic: V.relic, gameT: V.gameT, ups: V.ups };
     if (R.is3D) drawOverlay(now / 1000);
     R.draw(S);
     if (!R.is3D) drawOverlay(now / 1000);

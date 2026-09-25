@@ -17,7 +17,7 @@ class Game {
     this.dyn = new Uint8Array(this.map.NW * this.map.NH); // cells blocked by buildings
     this.t = 0; this.nextId = 1; this.nextSq = 1;
     this.ents = []; this.byId = new Map(); this.squads = new Map();
-    this.proj = []; this.fx = []; this.fxSeq = 1; this.pending = [];
+    this.proj = []; this.fx = []; this.fxSeq = 1; this.pending = []; this.relic = null; this.relicT = 170;
     this.notes = []; // {p, text, t}
     this.over = -1; // winning team
     this.popMax = cfg.popMax || (cfg.online ? 60 : 150);
@@ -52,17 +52,18 @@ class Game {
   }
   // ---- save / load (local games) ----
   serialize() {
-    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'lastHit'];
+    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'leader', 'lastHit'];
     return { v: 2, cfg: { seed: this.seed, mapType: this.mapType, popMax: this.popMax, players: this.cfg.players }, t: this.t, nextId: this.nextId, nextSq: this.nextSq, fxSeq: this.fxSeq,
       players: this.players.map(p => ({ gold: p.gold, alive: p.alive, heroes: p.heroes, kills: p.kills, lost: p.lost, pxp: p.pxp, plvl: p.plvl, pts: p.pts, spells: p.spells, scd: p.scd, fort: p.fort, up: p.up, ai: p.ai, diff: p.diff })),
       ents: this.ents.filter(e => !e.dead).map(e => { const o = { key: e.d.key }; for (const k of KEYS) if (e[k] !== undefined && e[k] !== null) o[k] = e[k]; return o; }),
-      squads: [...this.squads.values()].map(q => ({ id: q.id, owner: q.owner, key: q.key, mem: q.mem, x: q.x, y: q.y, tx: q.tx, ty: q.ty, ang: q.ang, want: q.want, turnTo: q.turnTo, mode: q.mode, tid: q.tid, kills: q.kills, rank: q.rank, path: q.path, fightT: q.fightT })),
-      outposts: this.outposts, camps: this.camps,
+      squads: [...this.squads.values()].map(q => ({ id: q.id, owner: q.owner, key: q.key, mem: q.mem, x: q.x, y: q.y, tx: q.tx, ty: q.ty, ang: q.ang, want: q.want, turnTo: q.turnTo, mode: q.mode, tid: q.tid, kills: q.kills, rank: q.rank, path: q.path, fightT: q.fightT, eq: q.eq, lvl: q.lvl, xp: q.xp, flagCd: q.flagCd, leadT: q.leadT })),
+      outposts: this.outposts, camps: this.camps, relic: this.relic, relicT: this.relicT,
       proj: this.proj.map(pr => ({ tid: pr.tid, src: pr.src, own: pr.own, dmg: pr.dmg, left: pr.left, key: pr.sd && pr.sd.key })) };
   }
   static load(S) {
     const g = new Game(Object.assign({}, S.cfg, { restore: true }));
     g.t = S.t; g.fxSeq = S.fxSeq || 1; g.rand = mkRng((g.seed * 7919 + Math.floor(S.t * 20)) >>> 0);
+    g.relic = S.relic || null; g.relicT = S.relicT === undefined ? 170 : S.relicT;
     S.players.forEach((q, i) => { if (g.players[i]) Object.assign(g.players[i], q); });
     for (const o of S.ents) {
       if (!DEF[o.key]) continue;
@@ -155,7 +156,7 @@ class Game {
   }
   spawnSquad(key, owner, x, y, ang, count) {
     const d = DEF[key];
-    const s = { id: this.nextSq++, owner, d, key, mem: [], x, y, tx: x, ty: y, ang, turnTo: ang, mode: 'idle', tid: 0, kills: 0, rank: 0, cnt: 0, eng: false, trail: [{ x, y }], tbase: 0 };
+    const s = { id: this.nextSq++, owner, d, key, mem: [], x, y, tx: x, ty: y, ang, turnTo: ang, mode: 'idle', tid: 0, kills: 0, rank: 0, lvl: 1, xp: 0, flagCd: 0, cnt: 0, eng: false, trail: [{ x, y }], tbase: 0 };
     this.squads.set(s.id, s);
     const n = count || d.n;
     for (let i = 0; i < n; i++) {
@@ -165,6 +166,38 @@ class Game {
     }
     s.cnt = n;
     return s;
+  }
+  // battalion experience: level up (+4% per level), a leader at LEADER_LVL
+  sqXp(s, v) {
+    s.xp = (s.xp || 0) + v; let L = s.lvl || 1;
+    while (L < SQ_MAX_LVL && s.xp >= SQ_XP[L]) L++;
+    if (L > (s.lvl || 1)) this.sqSetLvl(s, L, true);
+  }
+  sqSetLvl(s, L, announce) {
+    const old = s.lvl || 1, f = (1 + 0.04 * (L - 1)) / (1 + 0.04 * (old - 1));
+    s.lvl = L; s.rank = L - 1;
+    const mem = this.sqMembers(s);
+    for (const m of mem) { m.maxhp *= f; m.hp *= f; m.rank = L - 1; m.lvl = L; }
+    if (L >= LEADER_LVL && !mem.some(m => m.leader)) this.sqPromote(s, mem);
+    if (announce && this.players[s.owner] && !this.players[s.owner].ai) this.note(s.owner, s.d.name + ': батальон достиг ' + L + ' уровня' + (L === LEADER_LVL ? ' — появился лидер!' : ''), s.x, s.y);
+    if (announce) for (const m of mem) this.addFx('lvl', m.x, m.y, m.x, m.y, 0, 0.8);
+  }
+  // the standard bearer becomes the battalion's leader: tougher, hits harder, raises the fallen
+  sqPromote(s, mem) {
+    mem = mem || this.sqMembers(s); if (!mem.length) return;
+    const e = mem.reduce((a, b) => (a.slot <= b.slot ? a : b));
+    e.leader = 1; e.maxhp *= 2.2; e.hp = e.maxhp; s.leadT = 0;
+    this.addFx('buff', e.x, e.y, e.x, e.y, 30, 1.2);
+  }
+  sqRevive(s, mem, n) {
+    let done = 0; const lead = mem.find(m => m.leader) || mem[0]; if (!lead) return 0;
+    for (let k = 0; k < n && mem.length + done < s.d.n; k++) {
+      const pop = this.popInfo(s.owner); if (pop.used + s.d.pop > pop.cap) break;
+      const a = this.rand() * 6.28, e = this.spawn(s.key, s.owner, lead.x + Math.cos(a) * 14, lead.y + Math.sin(a) * 14);
+      e.sq = s.id; e.slot = mem.length + done; e.rank = s.rank; e.lvl = s.lvl || 1; e.maxhp *= 1 + 0.04 * e.rank; e.hp = e.maxhp; s.mem.push(e.id); done++;
+      this.addFx('summon', e.x, e.y, e.x, e.y, 16, 0.8);
+    }
+    return done;
   }
   sqMembers(s) { const out = []; for (const id of s.mem) { const e = this.byId.get(id); if (e && !e.dead) out.push(e); } return out; }
   sqRecenter(s, mem) {
@@ -253,11 +286,11 @@ class Game {
   // ---- stats ----
   statAdd(e, s) { let v = e.aura[s] || 0; for (const b of e.buffs) if (b.s === s) v += b.v; return v; }
   mult(e, s) { return Math.max(0.2, 1 + this.statAdd(e, s)); }
-  rankMul(e) { return 1 + 0.15 * e.rank + (e.d.hero ? 0.08 * (e.lvl - 1) : 0); }
+  rankMul(e) { return (1 + 0.04 * e.rank + (e.d.hero ? 0.08 * (e.lvl - 1) : 0)) * (e.leader ? 1.6 : 1); }
   income(p) {
     if (!p.alive) return 0;
     let farms = 0; for (const e of this.ents) if (e.owner === p.i && e.d.sub === 'farm' && e.built >= 1 && !e.dead) farms++;
-    let inc = 6 + 3 * Math.min(farms, 10) + 4 * this.outposts.filter(o => o.owner === p.i).length;
+    let inc = 6 + 3 * Math.min(farms, 10) + 4 * this.outposts.filter(o => o.owner === p.i).length + (p.up.treasury ? 3 : 0);
     if (p.ai) inc *= [0.75, 1, 1.35][p.diff] || 1;
     return inc;
   }
@@ -292,7 +325,8 @@ class Game {
     if (skill && tgt.d.kind === 'b') a *= 0.5;
     if (skill && tgt.sq) a *= 0.6; // battalions soak hero skills; ultimates still break them
     let arm = (tgt.d.armor || 0) + this.statAdd(tgt, 'armor');
-    if (tgt.sq) { const pt = this.players[tgt.owner]; if (pt && pt.up.armor) arm += 0.15; }
+    if (tgt.sq) { const q = this.eqOf(tgt); if (q && q.armor) arm += 0.2; }
+    if (tgt.d.sub === 'fort') { const pt = this.players[tgt.owner]; if (pt && pt.up.walls) arm += 0.15; }
     arm = clamp(arm, 0, 0.8);
     a *= 1 - arm;
     tgt.hp -= a; tgt.lastHit = this.t;
@@ -318,8 +352,7 @@ class Game {
       const s = src.sq ? this.squads.get(src.sq) : null;
       if (s) {
         s.kills += e.d.kind === 'b' ? 3 : 1;
-        const nr = s.kills >= 28 ? 2 : s.kills >= 9 ? 1 : 0;
-        if (nr > s.rank) { const f = (1 + 0.15 * nr) / (1 + 0.15 * s.rank); s.rank = nr; for (const m of this.sqMembers(s)) { m.maxhp *= f; m.hp *= f; m.rank = nr; } this.note(s.owner, s.d.name + ': батальон стал ветеранским ' + '★'.repeat(nr), s.x, s.y); }
+        this.sqXp(s, e.d.kind === 'b' ? 4 : e.d.hero ? 6 : 1);
       } else if (src.d && !src.d.hero && src.d.kind === 'u' && !src.dead) { src.kills++; const nr = src.kills >= 6 ? 2 : src.kills >= 2 ? 1 : 0; if (nr > src.rank) { const f = (1 + 0.15 * nr) / (1 + 0.15 * src.rank); src.maxhp *= f; src.hp *= f; src.rank = nr; } }
     }
     if (e.d.hero && p) { const hs = p.heroes[e.d.key.split('_')[1]]; if (hs) { hs.dead = true; hs.id = 0; hs.lvl = e.lvl; } this.note(e.owner, 'Герой ' + e.d.heroName + ' пал! Воскресите его в цитадели.'); }
@@ -428,7 +461,7 @@ class Game {
           const a = Math.atan2(s.y - bld.y, s.x - bld.x);
           for (let k = 0; k < missing; k++) {
             const e = this.spawn(s.key, pi, bld.x + Math.cos(a + (k - missing / 2) * 0.15) * (bld.r + 14), bld.y + Math.sin(a + (k - missing / 2) * 0.15) * (bld.r + 14));
-            e.sq = s.id; e.slot = mem.length + k; e.rank = s.rank; if (s.rank) { e.maxhp *= 1 + 0.15 * s.rank; e.hp = e.maxhp; }
+            e.sq = s.id; e.slot = mem.length + k; e.rank = s.rank; e.lvl = s.lvl || 1; if (s.rank) { e.maxhp *= 1 + 0.04 * s.rank; e.hp = e.maxhp; }
             s.mem.push(e.id);
             this.addFx('summon', e.x, e.y, e.x, e.y, 16, 0.6);
           }
@@ -439,9 +472,36 @@ class Game {
       }
       case 'research': {
         const b = own(c.b), U = UPG[c.k];
-        if (!b || !b.d.forge || b.built < 1 || !U || p.up[U.k] || p.gold < U.cost || b.queue.length >= 4) return;
+        if (!b || b.built < 1 || !U || b.d.sub !== U.at || p.up[U.k] || p.gold < U.cost || b.queue.length >= 4) return;
+        if (U.forge && !this.ents.some(e => e.owner === pi && !e.dead && e.d.forge && e.built >= 1)) { if (!p.ai) this.note(pi, 'Сначала постройте кузницу'); return; }
         if (this.ents.some(e => e.owner === pi && !e.dead && e.queue.some(q => q.up === U.k))) return;
         p.gold -= U.cost; b.queue.push({ up: U.k, t: 0, cost: U.cost }); return;
+      }
+      case 'flag': {
+        let n = 0;
+        for (const sid of (c.s || []).slice(0, 60)) {
+          const s = this.squads.get(sid); if (!s || s.owner !== pi || s.flagCd > 0) continue;
+          const mem = this.sqMembers(s), lead = mem.find(m => m.leader); if (!lead) continue;
+          s.flagCd = FLAG_CD; n++;
+          this.sqRevive(s, mem, 3);
+          for (const m of this.sqMembers(s)) { m.buffs = m.buffs.filter(b => b.src !== 'flag'); m.buffs.push({ s: 'dmg', v: 0.2, until: this.t + 12, src: 'flag' }, { s: 'armor', v: 0.1, until: this.t + 12, src: 'flag' }); if (m.hp < m.maxhp) this.heal(m, m.maxhp * 0.25); }
+          this.addFx('buff', lead.x, lead.y, lead.x, lead.y, 90, 1.2);
+        }
+        if (n && !p.ai) this.note(pi, 'Знамя поднято! Павшие встают в строй');
+        return;
+      }
+      case 'equip': {
+        const U = UPG[c.k]; if (!U || !U.eq || !p.up[U.k]) return;
+        let n = 0, poor = false;
+        for (const sid of (c.s || []).slice(0, 60)) {
+          const s = this.squads.get(sid);
+          if (!s || s.owner !== pi || (s.eq && s.eq[U.k]) || !U.cls.includes(s.d.cls) || s.d.summon || s.d.worker || s.d.creep) continue;
+          if (p.gold < U.eq) { poor = true; break; }
+          p.gold -= U.eq; s.eq = Object.assign({}, s.eq, { [U.k]: 1 }); n++;
+          for (const m of this.sqMembers(s)) this.addFx('buff', m.x, m.y, m.x, m.y, 14, 0.7);
+        }
+        if (!p.ai) { if (n) this.note(pi, upName(p.race, U.k) + ': снаряжено батальонов — ' + n); else if (poor) this.note(pi, 'Не хватает золота на снаряжение'); }
+        return;
       }
       case 'train': {
         const b = own(c.b); if (!b || b.d.kind !== 'b' || b.built < 1 || !b.d.trains || !b.d.trains.includes(c.u)) return;
@@ -542,7 +602,7 @@ class Game {
     const foes = R => this.unitsIn(x, y, R, o => this.enemy(pi, o.owner));
     const src = { d: { cls: 'hero' }, owner: pi };
     const buff = (list, pairs, dur, tag) => { for (const o of list) for (const [s2, v] of pairs) { o.buffs = o.buffs.filter(b => !(b.s === s2 && b.src === tag)); o.buffs.push({ s: s2, v, until: this.t + dur, src: tag }); } };
-    const summonSq = (key, n, rank, life) => { for (let i = 0; i < n; i++) { const a = i * 2.4, q = this.spawnSquad(key, pi, clamp(x + Math.cos(a) * 50 * i, 30, MAP_W - 30), clamp(y + Math.sin(a) * 40 * i, 30, MAP_H - 30), 0); q.rank = rank; for (const m of this.sqMembers(q)) { m.life = life || S.dur; m.rank = rank; m.maxhp = m.hp = m.d.hp * (1 + 0.15 * rank); this.addFx('summon', m.x, m.y, m.x, m.y, 18, 0.8); } } };
+    const summonSq = (key, n, rank, life) => { for (let i = 0; i < n; i++) { const a = i * 2.4, q = this.spawnSquad(key, pi, clamp(x + Math.cos(a) * 50 * i, 30, MAP_W - 30), clamp(y + Math.sin(a) * 40 * i, 30, MAP_H - 30), 0); q.rank = rank; q.lvl = rank + 1; for (const m of this.sqMembers(q)) { m.life = life || S.dur; m.rank = rank; m.lvl = rank + 1; m.maxhp = m.hp = m.d.hp * (1 + 0.04 * rank); this.addFx('summon', m.x, m.y, m.x, m.y, 18, 0.8); } } };
     const summonOne = (key, n, life) => { for (let i = 0; i < n; i++) { const a = i / n * 6.28, e = this.spawn(key, pi, clamp(x + Math.cos(a) * 60, 30, MAP_W - 30), clamp(y + Math.sin(a) * 45, 30, MAP_H - 30)); e.life = life; this.addFx('summon', e.x, e.y, e.x, e.y, 30, 0.9); } };
     switch (k) {
       case 'heal': for (const o of allies(S.radius)) this.heal(o, S.heal); this.addFx('heal', x, y, x, y, S.radius, 1.2); break;
@@ -746,7 +806,7 @@ class Game {
     }
     this.buildGrid();
     this.separate();
-    this.updOutposts(dt);
+    this.updOutposts(dt); this.updRelic(dt);
     for (const p of this.players) for (const k in p.scd) if (p.scd[k] > 0) p.scd[k] -= dt;
     if (this.ents.some(e => e.dead)) {
       this.ents = this.ents.filter(e => { if (e.dead) { this.byId.delete(e.id); if (e.d.kind === 'b') this.markBld(e, -1); return false; } return true; });
@@ -765,12 +825,18 @@ class Game {
       if (eng) s.fightT = this.t;
       if (s.want !== undefined && Math.abs(s.want - s.ang) > 1e-3) s.ang = turnAng(s.ang, s.want, 2.4 * dt);
       const P = this.players[s.owner];
-      if (P && P.up.banner && !eng && this.t - (s.fightT || 0) > 6) {
+      if (s.flagCd > 0) s.flagCd -= dt;
+      if ((s.lvl || 1) >= LEADER_LVL && !s.d.summon) {
+        const lead = mem.find(m => m.leader);
+        if (!lead) { s.leadT = (s.leadT || 0) + dt; if (s.leadT > 30) this.sqPromote(s, mem); }
+        else if (mem.length < s.d.n) { s.revT = (s.revT || 0) + dt; if (s.revT > (eng ? 16 : 8)) { s.revT = 0; this.sqRevive(s, mem, 1); } }
+      }
+      if (s.eq && s.eq.banner && !eng && this.t - (s.fightT || 0) > 6) {
         for (const m of mem) if (m.hp < m.maxhp) m.hp = Math.min(m.maxhp, m.hp + m.maxhp * 0.02 * dt);
         s.regenT = (s.regenT || 0) + dt;
         if (s.regenT > 15 && mem.length < s.d.n) {
           s.regenT = 0; const pop = this.popInfo(s.owner);
-          if (pop.used + s.d.pop <= pop.cap) { const b = mem[0], e = this.spawn(s.key, s.owner, b.x, b.y); e.sq = s.id; e.slot = mem.length; e.rank = s.rank; if (s.rank) { e.maxhp *= 1 + 0.15 * s.rank; e.hp = e.maxhp; } s.mem.push(e.id); this.addFx('summon', e.x, e.y, e.x, e.y, 16, 0.6); }
+          if (pop.used + s.d.pop <= pop.cap) { const b = mem[0], e = this.spawn(s.key, s.owner, b.x, b.y); e.sq = s.id; e.slot = mem.length; e.rank = s.rank; e.lvl = s.lvl || 1; if (s.rank) { e.maxhp *= 1 + 0.04 * s.rank; e.hp = e.maxhp; } s.mem.push(e.id); this.addFx('summon', e.x, e.y, e.x, e.y, 16, 0.6); }
         }
       }
       s.vx = 0; s.vy = 0;
@@ -794,6 +860,41 @@ class Game {
       const tl = s.trail[s.trail.length - 1];
       if (!tl || Math.hypot(tl.x - s.x, tl.y - s.y) > 36) { s.trail.push({ x: s.x, y: s.y }); if (s.trail.length > 150) { s.trail.shift(); s.tbase++; } }
     }
+  }
+  // ancient relic: appears every few minutes in the middle of the field; hold it alone for 8 s to claim gold and a war cry
+  updRelic(dt) {
+    const alive = this.players.filter(p => p.alive).length; if (alive < 2) return;
+    if (!this.relic) {
+      this.relicT -= dt; if (this.relicT > 0) return;
+      this.relicT = 230;
+      let spot = null;
+      for (let k = 0; k < 40 && !spot; k++) {
+        const x = MAP_W * (0.3 + this.rand() * 0.4), y = MAP_H * (0.25 + this.rand() * 0.5);
+        if (this.blockedAt(x, y) || this.map.water(x, y) || this.outposts.some(o => Math.hypot(o.x - x, o.y - y) < 260) || this.ents.some(e => e.d.kind === 'b' && Math.hypot(e.x - x, e.y - y) < 300)) continue;
+        spot = { x, y };
+      }
+      if (!spot) return;
+      this.relic = { x: Math.round(spot.x), y: Math.round(spot.y), prog: 0, cap: -1, t0: this.t, contested: false };
+      for (const p of this.players) if (p.alive) this.note(p.i, 'Появилась древняя реликвия! Удержите её 8 секунд', spot.x, spot.y);
+      this.addFx('lvl', spot.x, spot.y, spot.x, spot.y, 0, 2);
+      return;
+    }
+    const R = this.relic;
+    if (this.t - R.t0 > 150) { this.relic = null; this.relicT = 120; return; }
+    const teams = new Map();
+    this.near(R.x, R.y, 110, e => { if (e.dead || e.d.kind !== 'u' || e.owner === NEUTRAL || !this.players[e.owner] || Math.hypot(e.x - R.x, e.y - R.y) > 110) return; const t = this.players[e.owner].team; if (!teams.has(t)) teams.set(t, new Map()); const m = teams.get(t); m.set(e.owner, (m.get(e.owner) || 0) + 1); });
+    R.contested = teams.size > 1;
+    if (teams.size !== 1) { R.prog = Math.max(0, R.prog - dt / 16); return; }
+    const [team, byP] = [...teams.entries()][0]; let best = -1, bn = 0; for (const [pi, n] of byP) if (n > bn) { bn = n; best = pi; }
+    if (R.cap < 0 || this.players[R.cap].team !== team) { R.cap = best; R.prog = Math.max(0, R.prog - dt / 4); if (R.prog > 0) return; }
+    R.prog += dt / 8;
+    if (R.prog < 1) return;
+    const p = this.players[R.cap];
+    p.gold += 400; this.addPxp(p, 30);
+    for (const e of this.ents) if (!e.dead && e.owner === p.i && e.d.kind === 'u') { e.buffs = e.buffs.filter(b => b.src !== 'relic'); e.buffs.push({ s: 'dmg', v: 0.25, until: this.t + 90, src: 'relic' }, { s: 'spd', v: 0.15, until: this.t + 90, src: 'relic' }); }
+    this.addFx('boom', R.x, R.y, R.x, R.y, 120, 1).c = 'holy'; this.addFx('buff', R.x, R.y, R.x, R.y, 200, 1.4);
+    for (const q of this.players) if (q.alive) this.note(q.i, q.i === p.i ? 'Реликвия ваша: +400 золота, армия +25% урона и +15% скорости на 90 с!' : p.name + ' забрал реликвию', R.x, R.y);
+    this.relic = null; this.relicT = 230;
   }
   updOutposts(dt) {
     for (const op of this.outposts) {
@@ -848,12 +949,14 @@ class Game {
     if (s > 0.3) e.hd = Math.atan2(uy, ux);
     if (Math.abs(dx) > 1 && s > 0.3) e.face = dx > 0 ? 1 : -1;
   }
+  sqXpF(s) { const L = s.lvl || 1; if (L >= SQ_MAX_LVL) return 99; const a = SQ_XP[L - 1] || 0, b = SQ_XP[L]; return Math.round(clamp(((s.xp || 0) - a) / (b - a), 0, 1) * 99); }
+  eqOf(e) { const s = e.sq ? this.squads.get(e.sq) : null; return s ? s.eq : null; }
   attack(e, t) {
     e.atk = 0.3; e.hd = Math.atan2(t.y - e.y, t.x - e.x);
     if (Math.abs(t.x - e.x) > 1) e.face = t.x > e.x ? 1 : -1;
     let dmg = e.d.dmg * this.mult(e, 'dmg') * this.rankMul(e);
-    const pu = this.players[e.owner], fire = pu && pu.up.arrows && e.d.proj && (e.d.cls === 'arch' || e.d.kind === 'b');
-    if (pu && pu.up.blades && (e.d.cls === 'inf' || e.d.cls === 'spear' || e.d.cls === 'cav') && !e.d.summon) dmg *= 1.25;
+    const pu = this.players[e.owner], eq = e.sq ? this.eqOf(e) : null, fire = e.d.proj && ((e.d.kind === 'b' && pu && pu.up.arrows) || (eq && eq.arrows));
+    if (eq && eq.blades) dmg *= 1.25;
     if (fire) dmg *= 1.3;
     if (e.d.proj) {
       const dd = Math.hypot(t.x - e.x, t.y - e.y);
@@ -1015,18 +1118,36 @@ class Game {
       return;
     }
     if (bw && b.hp < b.maxhp && b.d.sub !== 'fort' && this.t - (b.lastHit || -99) > 3) b.hp = Math.min(b.maxhp, b.hp + Math.min(b.maxhp * 0.008, 12) * bw * dt); // builders repair between assaults; the citadel cannot be patched up
+    const P = this.players[b.owner], fortUp = b.d.sub === 'fort' && P ? P.up : {};
     if (b.d.shoot) {
       b.cd -= dt;
       if (b.cd <= 0) {
-        const t = this.findEnemy(b, b.d.range, true) || this.findEnemy(b, b.d.range * 0.6, false);
-        if (t) { this.attack(b, t); b.cd = b.d.rate; } else b.cd = 0.3;
+        const R = b.d.range * (fortUp.archers ? 1.2 : 1);
+        const t = this.findEnemy(b, R, true) || this.findEnemy(b, R * 0.6, false);
+        if (t) {
+          this.attack(b, t); b.cd = b.d.rate;
+          if (fortUp.archers) this.unitsIn(b.x, b.y, R, o => o !== t && this.enemy(b.owner, o.owner) && o.d.kind === 'u').sort((a2, b2) => Math.hypot(a2.x - b.x, a2.y - b.y) - Math.hypot(b2.x - b.x, b2.y - b.y)).slice(0, 2).forEach(o => this.attack(b, o));
+        } else b.cd = 0.3;
       }
     }
+    if (fortUp.catapult) {
+      b.catT = (b.catT || 0) - dt;
+      if (b.catT <= 0) {
+        const foes = this.unitsIn(b.x, b.y, 560, o => this.enemy(b.owner, o.owner) && o.d.kind === 'u' && Math.hypot(o.x - b.x, o.y - b.y) > b.r + 40);
+        if (foes.length) {
+          let best = foes[0], bn = 0; for (const f of foes.slice(0, 24)) { let n = 0; for (const o of foes) if (Math.hypot(o.x - f.x, o.y - f.y) < 70) n++; if (n > bn) { bn = n; best = f; } }
+          const tx = best.x, ty = best.y, owner = b.owner, src = { d: { cls: 'siege' }, owner };
+          this.addFx('boulder', b.x, b.y - b.r, tx, ty, 0, 1.2); b.catT = 6;
+          this.pending.push({ at: this.t + 1.2, fn: () => { for (const o of this.unitsIn(tx, ty, 75, o => this.enemy(owner, o.owner))) { this.damage(src, o, 110, true); if (o.d.kind === 'u' && !o.dead && !o.d.hero) this.knock(o, tx, ty, 18); } this.addFx('boom', tx, ty, tx, ty, 70, 0.6).c = 'quake'; } });
+        } else b.catT = 1;
+      }
+    }
+    if (fortUp.infirmary) { b.infT = (b.infT || 0) - dt; if (b.infT <= 0) { b.infT = 0.5; for (const o of this.unitsIn(b.x, b.y, 380, o => o.owner === b.owner && o.d.kind === 'u' && o.hp < o.maxhp)) this.heal(o, o.maxhp * 0.015); } }
     if (b.queue.length) {
       const q = b.queue[0]; const d = q.up ? null : DEF[q.u];
       q.t += dt;
       if (q.up) {
-        if (q.t >= UPG[q.up].time) { b.queue.shift(); const p = this.players[b.owner]; p.up[q.up] = 1; this.note(b.owner, UPGRADE_NAMES[p.race][q.up] + ': улучшение готово!', b.x, b.y); this.addFx('lvl', b.x, b.y, b.x, b.y, 0, 1.4); }
+        if (q.t >= UPG[q.up].time) { b.queue.shift(); const p = this.players[b.owner]; p.up[q.up] = 1; if (q.up === 'walls') { const add = b.maxhp * 0.5; b.maxhp += add; b.hp += add; } this.note(b.owner, upName(p.race, q.up) + (UPG[q.up].eq ? ': снаряжение открыто — покупайте его батальонам' : ': улучшение готово!'), b.x, b.y); this.addFx('lvl', b.x, b.y, b.x, b.y, 0, 1.4); }
         return;
       }
       if (q.t >= d.time) {
@@ -1116,7 +1237,7 @@ class Game {
       if (e.dead) continue;
       let ex;
       if (e.d.kind === 'b') ex = Math.round(e.built * 99);
-      else { const dir = ((Math.round((e.hd !== undefined ? e.hd : e.face < 0 ? Math.PI : 0) / (Math.PI / 4)) % 8) + 8) % 8; ex = (e.atk > 0 ? 1 : 0) | (e.moving ? 2 : 0) | ((dir & 1) << 2) | (e.stun > 0 ? 8 : 0) | (e.rank << 4) | (e.lvl << 6) | ((dir >> 1) << 10); }
+      else { const dir = ((Math.round((e.hd !== undefined ? e.hd : e.face < 0 ? Math.PI : 0) / (Math.PI / 4)) % 8) + 8) % 8; ex = (e.atk > 0 ? 1 : 0) | (e.moving ? 2 : 0) | ((dir & 1) << 2) | (e.stun > 0 ? 8 : 0) | (e.sq ? (e.leader ? 16 : 0) : (Math.min(3, e.rank) << 4)) | (Math.min(15, e.lvl) << 6) | ((dir >> 1) << 10); }
       u.push(e.id, e.d.ti, e.owner, Math.round(e.x), Math.round(e.y), Math.ceil(e.hp / e.maxhp * 99), ex, e.sq || 0);
     }
     const fx = [];
@@ -1139,6 +1260,8 @@ class Game {
     const q = [];
     for (const e of this.ents) if (e.d.kind === 'b' && e.queue.length) { const q0 = e.queue[0], tm = q0.up ? UPG[q0.up].time : DEF[q0.u].time; q.push(e.id, e.queue.length, Math.round(q0.t / tm * 99), q0.up ? 100 + UPGRADES.findIndex(u => u.k === q0.up) : DEF[q0.u].ti); }
     const notes = this.notes.filter(n => this.t - n.t < 3 && this.players[n.p] && this.players[n.p].remote).slice(-4).map(n => [n.p, n.text, Math.round(n.t * 10), n.x, n.y]);
-    return { t: Math.round(this.t * 100), u, fx, pl, hs, q, op, n: notes, o: this.over };
+    const se = []; for (const s of this.squads.values()) if (s.eq || (s.lvl || 1) > 1 || s.xp) se.push(s.id, s.eq ? Object.keys(s.eq).reduce((m, k) => m | (UP_BIT[k] || 0), 0) : 0, Math.max(0, Math.ceil(s.flagCd || 0)), this.sqXpF(s));
+    const rl = this.relic ? [this.relic.x, this.relic.y, Math.round(this.relic.prog * 99), this.relic.cap, this.relic.contested ? 1 : 0] : null;
+    return { t: Math.round(this.t * 100), u, fx, pl, hs, q, op, se, rl, n: notes, o: this.over };
   }
 }

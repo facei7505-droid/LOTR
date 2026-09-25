@@ -54,11 +54,26 @@ class AI {
     // builders: keep a small crew, and let idle ones help finish construction
     const fortB = g.byId.get(p.fort), workers = this.mine(e => e.d.worker);
     const wantW = this.t > 200 ? 3 : 2;
-    if (fortB && workers.length < wantW && !fortB.queue.some(q => q.u.endsWith('_worker')) && p.gold >= DEF[p.race + '_worker'].cost) g.cmd(this.pi, { c: 'train', b: fortB.id, u: p.race + '_worker' });
+    if (fortB && workers.length < wantW && !fortB.queue.some(q => q.u && q.u.endsWith('_worker')) && p.gold >= DEF[p.race + '_worker'].cost) g.cmd(this.pi, { c: 'train', b: fortB.id, u: p.race + '_worker' });
     for (const w of workers) if (!w.order) { const site = this.mine(e => e.d.kind === 'b' && e.built < 1)[0]; if (site) g.cmd(this.pi, { c: 'work', t: site.id, ids: [w.id] }); }
-    // forge upgrades
-    const fg = this.mine(e => e.d.forge && e.built >= 1)[0];
-    if (fg && !fg.queue.length) { const U = UPGRADES.find(u => !p.up[u.k]); if (U && p.gold > U.cost + 350) g.cmd(this.pi, { c: 'research', b: fg.id, k: U.k }); }
+    // upgrades: equipment in barracks/range (needs a forge), citadel improvements
+    const hasForge = this.mine(e => e.d.forge && e.built >= 1).length > 0;
+    for (const U of UPGRADES) {
+      if (p.up[U.k] || (U.forge && !hasForge) || p.gold < U.cost + (U.at === 'fort' ? 500 : 350) || this.t < (U.at === 'fort' ? 240 : 150)) continue;
+      const b = this.mine(e => e.d.sub === U.at && e.built >= 1 && !e.queue.length)[0];
+      if (b && !this.mine(e => e.d.kind === 'b' && e.queue.some(q => q.up === U.k)).length) { g.cmd(this.pi, { c: 'research', b: b.id, k: U.k }); break; }
+    }
+    // battalion leaders raise the standard when their men fall
+    for (const s of g.squads.values()) if (s.owner === this.pi && s.eng && !(s.flagCd > 0) && s.mem.length < s.d.n * 0.6 && (s.lvl || 1) >= LEADER_LVL) { g.cmd(this.pi, { c: 'flag', s: [s.id] }); break; }
+    // buy equipment for full, battle-ready battalions
+    if (this.t > (this.eqT || 0) && p.gold > 450) {
+      this.eqT = this.t + 4;
+      for (const s of g.squads.values()) {
+        if (s.owner !== this.pi || s.d.summon || s.mem.length < s.d.n * 0.6) continue;
+        const U = UPGRADES.find(u => u.eq && p.up[u.k] && u.cls.includes(s.d.cls) && !(s.eq && s.eq[u.k]) && p.gold > u.eq + 350);
+        if (U) { g.cmd(this.pi, { c: 'equip', s: [s.id], k: U.k }); break; }
+      }
+    }
     // heroes
     const fort = g.byId.get(p.fort);
     let saving = false;
@@ -95,7 +110,9 @@ class AI {
       return;
     }
     const idleSq = sqs.filter(q => q.mode === 'idle' && !q.eng), idleH = heroes.filter(h => !h.order && !h.tgt);
-    if (((soldiers >= this.wave && this.t - this.lastAttack > 20) || (soldiers >= 40 && this.t - this.lastAttack > 150)) && this.t > 150) {
+    const rl = g.relic;
+    if (rl && soldiers >= 12 && this.relicGo !== rl.t0 && (this.lastAttack <= 0 || this.t - this.lastAttack > 90)) { this.relicGo = rl.t0; const near = sqs.filter(q => !q.eng).sort((a, b) => Math.hypot(a.x - rl.x, a.y - rl.y) - Math.hypot(b.x - rl.x, b.y - rl.y)).slice(0, Math.min(3, Math.ceil(sqs.length * 0.4))); order(near, [], rl.x, rl.y); }
+    if (((soldiers >= this.wave && this.t - this.lastAttack > 20) || (soldiers >= 40 && this.t - this.lastAttack > 150) || (soldiers >= 24 && this.t - this.lastAttack > 240)) && this.t > 150) {
       this.lastAttack = this.t; this.wave = Math.min(g.popMax * 0.55, this.wave + 10);
       const tgt = this.pickTarget();
       if (tgt) order(sqs, heroes, tgt.x, tgt.y);

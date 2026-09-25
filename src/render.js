@@ -804,6 +804,8 @@ function dirOf(e) {
   if (a === undefined) { if (e._px !== undefined) { const dx = e.rx - e._px, dy = e.ry - e._py; if (dx * dx + dy * dy > 0.04) e._hd = Math.atan2(dy, dx); } e._px = e.rx; e._py = e.ry; a = e._hd !== undefined ? e._hd : e.face < 0 ? Math.PI : 0; }
   return ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
 }
+// battalion level badge (gold disc with the level)
+function lvlBadge(c, x, y, L, s) { s = s || 1; c.beginPath(); c.arc(x, y, 6.5 * s, 0, 7); c.fillStyle = L >= LEADER_LVL ? '#e6c25a' : '#b9a07a'; c.fill(); c.lineWidth = 1.2; c.strokeStyle = 'rgba(20,14,6,0.85)'; c.stroke(); c.font = '700 ' + Math.round(9 * s) + 'px "Fira Sans Condensed", sans-serif'; c.textAlign = 'center'; c.fillStyle = '#1b1408'; c.fillText(L, x, y + 3.2 * s); }
 function unitScale(d) { return d.hero ? 1.12 : d.sub === 'treant' ? 1.05 : d.sub === 'troll' ? 1 : 0.8; }
 function convexHull(pts) {
   if (pts.length < 3) return pts.slice();
@@ -1043,6 +1045,16 @@ class Renderer {
       if (op.contested) { c.font = '700 16px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#ffdd55'; c.fillText('⚔', op.x, op.y - 72); }
       this.addLight(op.x, op.y - 30, 90, 0.5, true);
     }
+    // ancient relic: glowing golden standing stone
+    if (S.relic && inView(S.relic.x, S.relic.y)) {
+      const R = S.relic, pc = R.cap >= 0 ? TEAM_COLORS[R.cap] : '#ffd46a';
+      ell(c, R.x, R.y, 110, 60, 'rgba(255,212,106,0.07)', 'rgba(255,212,106,0.55)', 1.6);
+      c.drawImage(shadowSprite(), R.x - 22, R.y - 8, 44, 16);
+      poly(c, [R.x - 9, R.y, R.x - 6, R.y - 46, R.x, R.y - 54, R.x + 6, R.y - 46, R.x + 9, R.y], lg(c, R.x - 9, R.x + 9, '#c9a04a', -0.4, 0.4));
+      c.save(); c.globalCompositeOperation = 'lighter'; const gl = 0.5 + 0.3 * Math.sin(now * 3); ell(c, R.x, R.y - 30, 16, 26, 'rgba(255,220,120,' + (0.25 * gl).toFixed(2) + ')'); c.restore();
+      if (R.prog > 0) { c.beginPath(); c.ellipse(R.x, R.y, 40, 22, 0, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * R.prog); c.strokeStyle = pc; c.lineWidth = 4; c.stroke(); }
+      this.addLight(R.x, R.y - 20, 140, 0.9, true);
+    }
     // battalions: banner bearer, total health, selection
     const SQ = new Map();
     for (const e of S.ents) {
@@ -1111,7 +1123,7 @@ class Renderer {
       c.fillStyle = f > 0.5 ? mix(TEAM_COLORS[q.owner] || '#888', '#7fe07a', 0.55) : f > 0.25 ? '#e0b640' : '#d9432f'; c.fillRect(b.rx - w / 2, y, w * f, 3);
       for (let k = 1; k < n; k++) { c.fillStyle = 'rgba(8,8,6,0.55)'; c.fillRect(b.rx - w / 2 + w * k / n - 0.3, y, 0.6, 3); }
       if (q.sel || !full) { c.font = '600 9px "Fira Sans Condensed", sans-serif'; c.textAlign = 'center'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.fillStyle = full ? '#f3ead2' : '#ffcf7a'; const t = q.mem.length + '/' + n; c.strokeText(t, b.rx + w / 2 + 9, y + 4); c.fillText(t, b.rx + w / 2 + 9, y + 4); }
-      if (q.rank) { c.fillStyle = '#e6c25a'; for (let k = 0; k < q.rank; k++) { c.beginPath(); c.arc(b.rx - (q.rank - 1) * 3 + k * 6, y - 4, 1.8, 0, 7); c.fill(); } }
+      if (q.rank) lvlBadge(c, b.rx - w / 2 - 7, y + 1.5, q.rank + 1, 0.8);
     }
     for (const e of S.ents) {
       if (!inView(e.rx, e.ry) || e.sq) continue;
@@ -1247,7 +1259,7 @@ class Renderer {
     if (e.atkT > 0) frame = e.atkT > 0.2 ? 8 : e.atkT > 0.1 ? 9 : 0;
     else if (e.moving) frame = 1 + (((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 9 : 7.5) + e.id * 0.37) | 0) % 6);
     else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = 7;
-    const s = unitSprite(e.d, col, frame, this.cam.z * this.dpr * sc < 1.3, S.ups ? S.ups[e.owner] : 0);
+    const s = unitSprite(e.d, col, frame, this.cam.z * this.dpr * sc < 1.3, e.eqv | 0);
     if (e.lhp !== undefined && e.hp < e.lhp - 0.5) { e.hitT = now; if (Math.random() < 0.5 && e.d.sub !== 'treant') for (let k = 0; k < 2; k++) this.emit({ x: e.rx + (Math.random() - 0.5) * 6, y: e.ry - 13 * sc, vx: (Math.random() - 0.5) * 50, vy: -25 - Math.random() * 30, life: 0.4, t: 0, k: 'blood', s: 1.3 }); }
     e.lhp = e.hp;
     const jolt = e.hitT && now - e.hitT < 0.12 ? (Math.random() - 0.5) * 2.2 : 0;
@@ -1256,7 +1268,7 @@ class Renderer {
     const breathe = e.moving || e.atkT > 0 ? 1 : 1 + Math.sin(now * 2.2 + e.id) * 0.014;
     const wet = this.map.water(e.rx, e.ry) === 1;
     // 3D-baked figure facing one of 8 directions; the flat 2D sprite is only a stand-in while it bakes
-    const dir = dirOf(e), up3 = S.ups ? S.ups[e.owner] : 0;
+    const dir = dirOf(e), up3 = e.eqv | 0;
     let s3 = unit3(e.d, col, frame, dir, up3);
     if (!s3 && frame) s3 = SPR3.get(unit3Key(e.d, col, 0, dir, up3)) || null;
     for (let k2 = 1; k2 <= 4 && !s3; k2++) s3 = SPR3.get(unit3Key(e.d, col, 0, (dir + k2) % 8, up3)) || SPR3.get(unit3Key(e.d, col, 0, (dir + 8 - k2) % 8, up3)) || null;
@@ -1287,7 +1299,7 @@ class Renderer {
     if (e.buffGlow) { c.save(); c.globalCompositeOperation = 'lighter'; ell(c, e.rx, e.ry - 2, e.r * 1.3, e.r * 0.55, 'rgba(255,200,90,0.16)'); c.restore(); }
     if (e.d.hero) this.addLight(e.rx, e.ry - 20, 90, 0.55, false);
     const q = e.sq && this.SQ ? this.SQ.get(e.sq) : null;
-    if (q && q.b === e) this.drawBanner(e, col, now, sc, S.ups ? S.ups[e.owner] : 0);
+    if (q && q.b === e) this.drawBanner(e, col, now, sc, e.eqv | 0);
   }
   // battalion standard carried above the formation (torch-lit at night)
   drawBanner(e, col, now, sc, up) {
@@ -1380,6 +1392,7 @@ class Renderer {
           if (f.k === 'hammer') { c.save(); c.translate(x, y); c.rotate(now * 18); rrect(c, -6, -3.5, 12, 7, 1.5, metal(c, -6, 6, '#a8afb6')); c.restore(); }
           break;
         }
+        case 'boulder': { if (a > 1) break; const x = f.x + (f.x2 - f.x) * a, y = f.y + (f.y2 - f.y) * a - Math.sin(a * Math.PI) * 160; ell(c, x, y, 6, 5.5, lg(c, x - 6, x + 6, '#8a847a', -0.5, 0.3)); break; }
         case 'star': {
           if (a > 1) break;
           const x = f.x + (f.x2 - f.x) * a, y = f.y + (f.y2 - f.y) * a;
@@ -1442,6 +1455,7 @@ class Renderer {
       else { const s = e.d.hero ? 5 : 2.6; c.fillRect(x - s / 2, y - s / 2, s, s); }
     }
     if (S.outposts) for (const op of S.outposts) { const [x, y] = P(op.x, op.y); c.beginPath(); c.arc(x, y, 4.5, 0, 7); c.fillStyle = op.owner >= 0 ? TEAM_COLORS[op.owner] : '#e8e0cc'; c.fill(); c.strokeStyle = '#000'; c.lineWidth = 1; c.stroke(); }
+    if (S.relic) { const [x, y] = P(S.relic.x, S.relic.y), pl = 0.6 + 0.4 * Math.sin(performance.now() / 200); c.beginPath(); c.arc(x, y, 5 + pl * 2, 0, 7); c.fillStyle = '#ffd46a'; c.fill(); c.strokeStyle = '#5a3a08'; c.lineWidth = 1.2; c.stroke(); }
     if (S.alerts) { const t = performance.now() / 1000; for (const al of S.alerts) { const a = (t - al.t) / 3; if (a > 1) continue; const [x, y] = P(al.x, al.y); c.beginPath(); c.arc(x, y, 4 + a * 14, 0, 7); c.strokeStyle = 'rgba(255,70,50,' + (1 - a) + ')'; c.lineWidth = 2; c.stroke(); } }
     const cam = this.cam, [cx, cy] = P(cam.x, cam.y);
     c.strokeStyle = '#fff'; c.lineWidth = 1.4;

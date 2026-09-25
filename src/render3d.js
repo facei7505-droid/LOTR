@@ -693,7 +693,7 @@ class Renderer3D extends Renderer {
       if (e.atkT > 0) frame = e.atkT > 0.2 ? 8 : e.atkT > 0.1 ? 9 : 0;
       else if (e.moving) frame = 1 + (((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 9 : 7.5) + e.id * 0.37) | 0) % 6);
       else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = 7;
-      const up3 = S.ups ? S.ups[e.owner] : 0, uk = upLook(e.d, up3);
+      const up3 = e.eqv | 0, uk = upLook(e.d, up3);
       let geo = this.geoFor(e.d, col, frame, uk), fk = frame;
       if (!geo) { geo = this.geoFor(e.d, col, 0, uk); fk = 0; }
       if (!geo) continue;
@@ -705,7 +705,8 @@ class Renderer3D extends Renderer {
       e.lhp = e.hp;
       const bob = e.moving ? Math.abs(Math.sin(now * 10 + e.id)) * 0.8 : 0;
       const tilt = e.stunned ? [Math.sin(now * 10) * 0.08, Math.cos(now * 9) * 0.08] : e.hitT && now - e.hitT < 0.12 ? [0.08, 0] : null;
-      this.put(unit3Key(e.d, col, fk, 0, uk), geo, e.rx, gh + bob, e.ry, -e._yaw, PPM, tilt);
+      this.put(unit3Key(e.d, col, fk, 0, uk), geo, e.rx, gh + bob, e.ry, -e._yaw, PPM * (e.leader ? 1.2 : 1), tilt);
+      if (e.leader) G.push(['ring', e.rx, e.ry, e.r * 1.35, '#ffd46a', 0.75, 1.6]);
       if (this.map.water(e.rx, e.ry) === 1) { const ph = (now * 1.8 + e.id * 0.37) % 1; if (e.id % 3 === 0) G.push(['ring', e.rx, e.ry, e.r * (1.1 + ph * 0.9), '#e1f0f0', 0.5 * (1 - ph), 1.2]); if (e.moving && Math.random() < 0.06) this.emit3({ x: e.rx, y: e.ry, h: WL3 + 1, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, vh: 20, life: 0.4, t: 0, k: 'splash', s: 2 }); }
       if (e.d.worker && e.atkT > 0.22 && Math.random() < 0.5) for (let k = 0; k < 3; k++) this.emit3({ x: e.rx + Math.cos(e._yaw) * 10, y: e.ry + Math.sin(e._yaw) * 10, h: gh + 10, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, vh: 30 + Math.random() * 40, life: 0.35, t: 0, k: 'spark', s: 1.2 });
       if (e.moving && (e.d.sub === 'cav' || e.d.sub === 'troll') && Math.random() < 0.2) this.emit3({ x: e.rx, y: e.ry, h: gh + 3, vx: 0, vy: 0, vh: 6, life: 0.9, t: 0, k: 'dust', s: 4 });
@@ -744,6 +745,16 @@ class Renderer3D extends Renderer {
       if ((op.prog > 0 && op.prog < 1) || (op.owner >= 0 && op.prog < 1)) G.push(['arc', op.x, op.y, 52, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * op.prog, op.cap >= 0 && op.owner < 0 ? TEAM_COLORS[op.cap] : oc, 0.95, 4]);
       this.addLight(op.x, op.y, 90, 0.5 * clamp((1 - env.light) * 2, 0, 1), true);
     });
+    // ancient relic: golden standing stone with a pillar of light
+    if (S.relic) {
+      const R = S.relic, h0 = this.gz(R.x, R.y), pc = R.cap >= 0 ? TEAM_COLORS[R.cap] : '#ffd46a';
+      let g = this.geos.get('relic'); if (!g) { const { MAT, box, frus, sph } = R3, gold = MAT('#d9b44a', { pat: 'metal', spec: 1 }), st = MAT('#8f887c', { pat: 'stone' }); g = G3.build([frus(0, -4, 0, 30, 26, 6, st), box(0, 26, 0, 7, 26, 5, gold), frus(0, 52, 0, 7, 0, 12, gold), sph(0, 40, 5.5, 3.5, MAT('#fff2b0', { emit: 1.5 }))], { seg: 1 }); this.geos.set('relic', g); }
+      this.put('relic', g, R.x, h0, R.y, Math.sin(now * 0.4) * 0.3, 1, null);
+      G.push(['ring', R.x, R.y, 110, '#ffd46a', 0.55, 2], ['disc', R.x, R.y, 110, '#ffd46a', 0.05]);
+      if (R.prog > 0) G.push(['arc', R.x, R.y, 44, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * R.prog, pc, 0.95, 4]);
+      if (Math.random() < 0.7) this.emit3({ x: R.x + (Math.random() - 0.5) * 14, y: R.y + (Math.random() - 0.5) * 14, h: h0 + 20, vx: 0, vy: 0, vh: 80, life: 1.4, t: 0, k: 'magic', col: '255,215,120', s: 3 });
+      this.addLight(R.x, R.y, 160, 1.2, true);
+    }
     // camp fires
     this.map.camps.forEach(cp => { const fx = cp[0], fy = cp[1], h0 = this.heightAt(fx, fy); if (Math.random() < 0.6) this.emit3({ x: fx + (Math.random() - 0.5) * 6, y: fy + (Math.random() - 0.5) * 6, h: h0 + 4, vx: 0, vy: 0, vh: 26, life: 0.6, t: 0, k: 'fire', s: 4 + Math.random() * 3 }); if (Math.random() < 0.2) this.emit3({ x: fx, y: fy, h: h0 + 14, vx: (Math.random() - 0.5) * 6, vy: 0, vh: 24, life: 2, t: 0, k: 'smoke', s: 4 }); this.addLight(fx, fy, 150, 0.9, true); });
     // placement ghost
@@ -813,6 +824,7 @@ class Renderer3D extends Renderer {
           this.addLight(x, y, RR * 7, 0.9, f.k === 'fireball' || f.k === 'rune');
           break;
         }
+        case 'boulder': { if (a > 1) break; const g = this.geos.get('boulder') || (this.geos.set('boulder', G3.build([R3.sph(0, 0, 0, 6, R3.MAT('#8a847a', { pat: 'rock' }))], { seg: 1 })), this.geos.get('boulder')); const x = f.x + (f.x2 - f.x) * a, y = f.y + (f.y2 - f.y) * a, h = this.heightAt(f.x, f.y) * (1 - a) + this.heightAt(f.x2, f.y2) * a + 60 * (1 - a) + Math.sin(a * Math.PI) * 220; this.put('boulder', g, x, h, y, a * 9, 1, [a * 7, 0]); if (Math.random() < 0.5) this.emit3({ x, y, h, vx: 0, vy: 0, vh: 0, life: 0.5, t: 0, k: 'dust', s: 3 }); break; }
         case 'star': { if (a > 1) break; const x = f.x + (f.x2 - f.x) * a, y = f.y + (f.y2 - f.y) * a + 30 * a, h = this.heightAt(x, y) + (1 - a) * 300; this.emit3({ x, y, h, vx: 0, vy: 0, vh: 0, life: 0.2, t: 0, k: 'magic', col: '190,227,255', s: 3.5 }); this.addLight(x, y, 50, 0.7, false); break; }
         case 'boom': {
           const cc = col || '#ffd27a', r = f.p * (0.35 + 0.65 * Math.min(1, a * 1.6)), h0 = this.heightAt(f.x, f.y);
@@ -877,7 +889,7 @@ class Renderer3D extends Renderer {
       c.fillStyle = f > 0.5 ? mix(TEAM_COLORS[q.owner] || '#888', '#7fe07a', 0.55) : f > 0.25 ? '#e0b640' : '#d9432f'; c.fillRect(x - w / 2, y, w * f, 4);
       for (let k = 1; k < n; k++) { c.fillStyle = 'rgba(8,8,6,0.55)'; c.fillRect(x - w / 2 + w * k / n - 0.3, y, 0.6, 4); }
       if (q.sel || !full) { c.font = '600 10px "Fira Sans Condensed", sans-serif'; c.textAlign = 'center'; c.lineWidth = 2.5; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.fillStyle = full ? '#f3ead2' : '#ffcf7a'; const t = q.mem.length + '/' + n; c.strokeText(t, x + w / 2 + 10, y + 5); c.fillText(t, x + w / 2 + 10, y + 5); }
-      if (q.rank) { c.fillStyle = '#e6c25a'; for (let k = 0; k < q.rank; k++) { c.beginPath(); c.arc(x - (q.rank - 1) * 3.5 + k * 7, y - 5, 2, 0, 7); c.fill(); } }
+      if (q.rank) lvlBadge(c, x - w / 2 - 9, y + 2, q.rank + 1);
     }
     for (const e of S.ents) {
       if (e.sq) continue;

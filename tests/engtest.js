@@ -1,8 +1,8 @@
 // Engine regression checks (node): commands, builders, spell book, heroes, camps, save/load, network snapshots.
 const fs = require('fs'), path = require('path');
 const code = ['data', 'engine', 'map', 'ai', 'net'].map(f => fs.readFileSync(path.resolve(__dirname, '../src/' + f + '.js'), 'utf8')).join('\n');
-const E = new Function('window', code + '; return { Game, AI, DEF, SPELLS, SPELL_ORDER, UPGRADES, packSnap, unpackEnts, NEUTRAL, TIER_COST };')({});
-const { Game, AI, DEF, SPELLS, SPELL_ORDER, UPGRADES, packSnap, unpackEnts, NEUTRAL } = E;
+const E = new Function('window', code + '; return { Game, AI, DEF, SPELLS, SPELL_ORDER, UPGRADES, packSnap, unpackEnts, NEUTRAL, TIER_COST, UPG };')({});
+const { Game, AI, DEF, SPELLS, SPELL_ORDER, UPGRADES, packSnap, unpackEnts, NEUTRAL } = E, UPG_T = E.UPG;
 let fails = 0;
 const ok = (cond, msg) => { if (!cond) { fails++; console.log('FAIL', msg); } };
 const sane = (g, tag) => { for (const e of g.ents) if (!isFinite(e.x) || !isFinite(e.y) || !isFinite(e.hp) || !isFinite(e.maxhp)) { ok(false, tag + ' NaN ' + e.d.key); return; } };
@@ -36,10 +36,14 @@ for (const race of ['hum', 'elf', 'dwf', 'orc', 'und', 'des']) for (const mapTyp
   ok(g.squads.size >= 4, tag + ' battalions trained (' + g.squads.size + ')');
   ok(g.ents.filter(e => e.owner === 0 && e.d.worker).length === 3, tag + ' third builder trained');
   const hero = g.byId.get(p.heroes.h1.id); ok(!!hero, tag + ' hero hired');
-  // forge upgrades
-  const forge = g.ents.find(e => e.owner === 0 && e.d.forge);
-  for (const U of UPGRADES) { g.cmd(0, { c: 'research', b: forge.id, k: U.k }); step(g, U.time + 1); }
-  ok(Object.keys(p.up).length === 4, tag + ' all upgrades researched');
+  // upgrades: equipment unlocked in barracks/range, citadel improvements in the citadel
+  const fhp0 = fort.maxhp, inc0 = g.income(p);
+  for (const U of UPGRADES) { const b = g.ents.find(e => e.owner === 0 && e.d.sub === U.at && e.built >= 1); g.cmd(0, { c: 'research', b: b.id, k: U.k }); step(g, U.time + 1); }
+  ok(Object.keys(p.up).length === UPGRADES.length, tag + ' all upgrades researched (' + Object.keys(p.up) + ')');
+  ok(fort.maxhp > fhp0 * 1.4 && g.income(p) === inc0 + 3, tag + ' citadel walls and treasury work');
+  // equipment is bought per battalion
+  const eqSq = [...g.squads.values()].find(q => q.owner === 0 && q.d.sub === 'inf');
+  if (eqSq) { const gold0 = p.gold; g.cmd(0, { c: 'equip', s: [eqSq.id], k: 'blades' }); g.cmd(0, { c: 'equip', s: [eqSq.id], k: 'arrows' }); ok(eqSq.eq && eqSq.eq.blades && !eqSq.eq.arrows && p.gold === gold0 - UPG_T.blades.eq, tag + ' battalion equipped with blades only'); }
   // spell book: learn everything and cast each power
   p.pts = 50;
   for (const k of SPELL_ORDER) g.cmd(0, { c: 'learn', k });
