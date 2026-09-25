@@ -55,7 +55,7 @@ class Game {
   }
   // ---- save / load (local games) ----
   serialize() {
-    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'leader', 'ang', 'lastHit'];
+    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'leader', 'ang', 'items', 'lastHit'];
     return { v: 2, cfg: { seed: this.seed, mapType: this.mapType, popMax: this.popMax, players: this.cfg.players }, t: this.t, nextId: this.nextId, nextSq: this.nextSq, fxSeq: this.fxSeq,
       players: this.players.map(p => ({ gold: p.gold, alive: p.alive, heroes: p.heroes, kills: p.kills, lost: p.lost, pxp: p.pxp, plvl: p.plvl, pts: p.pts, spells: p.spells, scd: p.scd, fort: p.fort, up: p.up, ai: p.ai, diff: p.diff })),
       ents: this.ents.filter(e => !e.dead).map(e => { const o = { key: e.d.key }; for (const k of KEYS) if (e[k] !== undefined && e[k] !== null) o[k] = e[k]; return o; }),
@@ -94,7 +94,7 @@ class Game {
         if (c.ids.some(id => { const e = this.byId.get(id); return e && !e.dead; })) continue;
         c.alive = false; c.respawn = this.t + 240;
         const p = this.players[c.lastOwner];
-        if (p && p.alive) { p.gold += 400; this.addPxp(p, 15); this.note(p.i, 'Лагерь разбит! Найдено сокровище: +400 золота', c.x, c.y); this.addFx('lvl', c.x, c.y, c.x, c.y, 0, 1.4); }
+        if (p && p.alive) { p.gold += 400; this.addPxp(p, 15); this.note(p.i, 'Лагерь разбит! Найдено сокровище: +400 золота', c.x, c.y); this.giveArtifact(p, c.x, c.y); this.addFx('lvl', c.x, c.y, c.x, c.y, 0, 1.4); }
       } else if (this.t >= c.respawn) {
         let busy = false; this.near(c.x, c.y, 520, e => { if (!e.dead && e.owner !== NEUTRAL && e.d.kind === 'u' && Math.hypot(e.x - c.x, e.y - c.y) < 520) busy = true; });
         if (!busy) this.spawnCamp(c);
@@ -287,7 +287,7 @@ class Game {
   }
 
   // ---- stats ----
-  statAdd(e, s) { let v = e.aura[s] || 0; for (const b of e.buffs) if (b.s === s) v += b.v; if (e.sq) { const q = this.squads.get(e.sq), st = q && q.stance && STANCES[q.stance]; if (st && st[s]) v += st[s]; } return v; }
+  statAdd(e, s) { let v = e.aura[s] || 0; for (const b of e.buffs) if (b.s === s) v += b.v; if (e.items) for (const k of e.items) { const a = ART[k]; if (a && a.s === s) v += a.v; } if (e.sq) { const q = this.squads.get(e.sq), st = q && q.stance && STANCES[q.stance]; if (st && st[s]) v += st[s]; } return v; }
   mult(e, s) { return Math.max(0.2, 1 + this.statAdd(e, s)); }
   rankMul(e) { return (1 + 0.04 * e.rank + (e.d.hero ? 0.08 * (e.lvl - 1) : 0)) * (e.leader ? 1.6 : 1); }
   income(p) {
@@ -360,6 +360,17 @@ class Game {
     }
     if (e.d.hero && p) { const hs = p.heroes[e.d.key.split('_')[1]]; if (hs) { hs.dead = true; hs.id = 0; hs.lvl = e.lvl; } this.note(e.owner, 'Герой ' + e.d.heroName + ' пал! Воскресите его в цитадели.'); }
     if (e.d.sub === 'fort' && p && p.alive) this.eliminate(p, src);
+  }
+  // a found artifact goes to the player's hero nearest to the spot (with a free slot)
+  giveArtifact(p, x, y) {
+    let best = null, bd = 1e9;
+    for (const hk of Object.keys(p.heroes)) { const hs = p.heroes[hk], h = hs.id ? this.byId.get(hs.id) : null; if (!h || h.dead || (h.items || []).length >= 3) continue; const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = { h, hs }; } }
+    if (!best) return;
+    const own = best.h.items || [], left = ARTIFACTS.filter(a => !own.includes(a.k)); if (!left.length) return;
+    const a = left[Math.floor(this.rand() * left.length)];
+    best.h.items = own.concat(a.k); best.hs.items = best.h.items.slice();
+    this.addFx('lvl', best.h.x, best.h.y, best.h.x, best.h.y, 0, 1.4);
+    if (!p.ai) this.note(p.i, best.h.d.heroName + ' получает артефакт: ' + a.name + ' (' + a.desc + ')', best.h.x, best.h.y);
   }
   giveXp(h, v) {
     if (h.lvl >= 10) return;
@@ -938,7 +949,7 @@ class Game {
     R.prog += dt / 8;
     if (R.prog < 1) return;
     const p = this.players[R.cap];
-    p.gold += 400; this.addPxp(p, 30);
+    p.gold += 400; this.addPxp(p, 30); this.giveArtifact(p, R.x, R.y);
     for (const e of this.ents) if (!e.dead && e.owner === p.i && e.d.kind === 'u') { e.buffs = e.buffs.filter(b => b.src !== 'relic'); e.buffs.push({ s: 'dmg', v: 0.25, until: this.t + 90, src: 'relic' }, { s: 'spd', v: 0.15, until: this.t + 90, src: 'relic' }); }
     this.addFx('boom', R.x, R.y, R.x, R.y, 120, 1).c = 'holy'; this.addFx('buff', R.x, R.y, R.x, R.y, 200, 1.4);
     for (const q of this.players) if (q.alive) this.note(q.i, q.i === p.i ? 'Реликвия ваша: +400 золота, армия +25% урона и +15% скорости на 90 с!' : p.name + ' забрал реликвию', R.x, R.y);
@@ -1092,7 +1103,8 @@ class Game {
     e.ox = e.x; e.oy = e.y;
     if (e.owner === NEUTRAL && !e.tgt && e.hp < e.maxhp && this.t - (e.lastHit || -99) > 5) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * 0.05 * dt);
     if (e.life > 0) { e.life -= dt; if (e.life <= 0) { this.kill(e, null); return; } }
-    for (let i = 0; i < 4; i++) if (e.scd[i] > 0) e.scd[i] -= dt;
+    for (let i = 0; i < 4; i++) if (e.scd[i] > 0) e.scd[i] -= dt * (1 + (e.items ? this.statAdd(e, 'cdr') : 0));
+    if (e.items && e.hp < e.maxhp) { const rg = this.statAdd(e, 'regen'); if (rg) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * rg * dt); }
     e.cd -= dt; if (e.atk > 0) e.atk -= dt; if (e.knockT > 0) e.knockT -= dt;
     if (e.d.hero && e.hp < e.maxhp && this.t - (e.lastHit || 0) > 6) e.hp = Math.min(e.maxhp, e.hp + e.maxhp * 0.01 * dt);
     if (e.stun > 0) { e.stun -= dt; e.moving = 0; return; }
@@ -1282,7 +1294,7 @@ class Game {
         } else if (d.hero) {
           const u = this.spawn(q.u, b.owner, b.x + Math.cos(a) * (b.r + 16), b.y + Math.sin(a) * (b.r + 16));
           u.order = { t: 'amove', x: rp.x + (this.rand() - 0.5) * 50, y: rp.y + (this.rand() - 0.5) * 50 };
-          const hk = q.u.split('_')[1]; const hs = p.heroes[hk]; hs.id = u.id; hs.dead = false;
+          const hk = q.u.split('_')[1]; const hs = p.heroes[hk]; hs.id = u.id; hs.dead = false; u.items = (hs.items || []).slice();
           if (hs.recruited) { u.lvl = hs.lvl || 1; const f = 1 + 0.08 * (u.lvl - 1); u.maxhp = u.hp = d.hp * f; }
           u.auto = !!hs.auto; hs.recruited = true; this.note(b.owner, 'Герой ' + d.heroName + ' готов к бою!');
         } else {
@@ -1375,7 +1387,7 @@ class Game {
     for (const p of this.players) for (const hk of Object.keys(p.heroes)) {
       const s = p.heroes[hk]; const h = s.id ? this.byId.get(s.id) : null;
       hs.push(p.i, hk === 'h1' ? 1 : 2, h ? h.id : 0, h ? h.lvl : (s.lvl || 1), h ? Math.round(h.xp / (150 * h.lvl) * 99) : 0, s.recruited ? 1 : 0, s.auto ? 1 : 0,
-        ...(h ? h.scd.map(c => Math.max(0, Math.ceil(c * 10))) : [0, 0, 0, 0]));
+        ...(h ? h.scd.map(c => Math.max(0, Math.ceil(c * 10))) : [0, 0, 0, 0]), (h ? h.items || [] : s.items || []).reduce((m, k) => m | (1 << ART[k].i), 0));
     }
     const q = [];
     for (const e of this.ents) if (e.d.kind === 'b' && e.queue.length) { const q0 = e.queue[0], tm = q0.up ? UPG[q0.up].time : DEF[q0.u].time; q.push(e.id, e.queue.length, Math.round(q0.t / tm * 99), q0.up ? 100 + UPGRADES.findIndex(u => u.k === q0.up) : DEF[q0.u].ti); }

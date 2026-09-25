@@ -142,6 +142,16 @@ const STANCES = {
   wall: { name: 'Стена щитов', g: '⛨', dmg: -0.1, spd: -0.3, armor: 0.2, desc: '+20% брони, −10% урона, −30% скорости' },
 };
 const STANCE_KEYS = ['norm', 'charge', 'wall'];
+// hero artifacts (Warcraft III-style): found in camp treasures and relics, up to 3 per hero, kept through death
+const ARTIFACTS = [
+  { k: 'ring', name: 'Кольцо ярости', g: '◉', s: 'dmg', v: 0.2, desc: '+20% урона' },
+  { k: 'mail', name: 'Мифриловая кольчуга', g: '⛨', s: 'armor', v: 0.15, desc: '+15% брони' },
+  { k: 'boots', name: 'Сапоги странника', g: '➶', s: 'spd', v: 0.2, desc: '+20% скорости' },
+  { k: 'feather', name: 'Перо феникса', g: '✧', s: 'aspd', v: 0.2, desc: '+20% скорости атаки' },
+  { k: 'amulet', name: 'Амулет жизни', g: '✚', s: 'regen', v: 0.02, desc: 'лечит 2% здоровья в секунду' },
+  { k: 'crown', name: 'Корона мудреца', g: '♛', s: 'cdr', v: 0.25, desc: 'навыки перезаряжаются на 25% быстрее' },
+];
+const ART = {}; ARTIFACTS.forEach((a, i) => { a.i = i; ART[a.k] = a; });
 const upName = (race, k) => ((UPGRADE_NAMES[race] || {})[k]) || FORT_UP_NAMES[k] || k;
 const UPGRADE_NAMES = {
   hum: { blades: 'Кованые клинки', armor: 'Тяжёлая броня', arrows: 'Огненные стрелы', banner: 'Знамёна полков' },

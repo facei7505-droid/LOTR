@@ -1185,7 +1185,7 @@ class Renderer3D extends Renderer {
       c.fillStyle = 'rgba(8,8,6,0.7)'; c.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
       c.fillStyle = TEAM_COLORS[e.owner] === undefined ? '#ccc' : (f > 0.5 ? mix(TEAM_COLORS[e.owner], '#7fe07a', 0.55) : f > 0.25 ? '#e0b640' : '#d9432f'); c.fillRect(x - w / 2, y, w * f, 4);
       if (e.d.kind === 'b' && e.built < 1) { c.fillStyle = '#9fd0ff'; c.fillRect(x - w / 2, y + 5, w * e.built, 2); }
-      if (e.d.hero) { c.font = '600 12px "Fira Sans Condensed", sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.fillStyle = '#f3ead2'; const t = e.d.heroName + ' · ' + e.lvl; c.strokeText(t, x, y - 5); c.fillText(t, x, y - 5); }
+      if (e.d.hero) { c.font = '600 12px "Fira Sans Condensed", sans-serif'; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.fillStyle = '#f3ead2'; const t = e.d.heroName + ' · ' + e.lvl + (e.items && e.items.length ? '  ' + e.items.map(k => ART[k].g).join('') : ''); c.strokeText(t, x, y - 5); c.fillText(t, x, y - 5); }
       else if (e.rank) { c.fillStyle = '#e6c25a'; for (let k = 0; k < e.rank; k++) { c.beginPath(); c.arc(x - (e.rank - 1) * 3.5 + k * 7, y - 5, 2, 0, 7); c.fill(); } }
     }
   }

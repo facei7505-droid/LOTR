@@ -25,7 +25,7 @@ function makeLocalView(g, me) {
     ents: g.ents,
     get(id) { const e = g.byId.get(id); return e && !e.dead ? e : null; },
     player(i) { const p = g.players[i]; if (!p) return null; const pi = g.popInfo(i); return { gold: p.gold, used: pi.used, cap: pi.cap, alive: p.alive, income: g.income(p), race: p.race, team: p.team, name: p.name, pts: p.pts, plvl: p.plvl, pxpF: (p.pxp - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)) / (powerNeed(p.plvl) - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)), spells: p.spells, scd: p.scd, up: p.up }; },
-    heroes(pi) { const p = g.players[pi]; return ['h1', 'h2'].map(hk => { const s = p.heroes[hk]; const h = s.id ? g.byId.get(s.id) : null; return { hk, id: h ? h.id : 0, lvl: h ? h.lvl : (s.lvl || 1), xp: h ? h.xp / (150 * h.lvl) : 0, recruited: s.recruited, auto: !!s.auto, scd: h ? h.scd.slice() : [0, 0, 0, 0], d: DEF[p.race + '_' + hk] }; }); },
+    heroes(pi) { const p = g.players[pi]; return ['h1', 'h2'].map(hk => { const s = p.heroes[hk]; const h = s.id ? g.byId.get(s.id) : null; return { hk, id: h ? h.id : 0, lvl: h ? h.lvl : (s.lvl || 1), xp: h ? h.xp / (150 * h.lvl) : 0, recruited: s.recruited, auto: !!s.auto, scd: h ? h.scd.slice() : [0, 0, 0, 0], items: h ? h.items || [] : s.items || [], d: DEF[p.race + '_' + hk] }; }); },
     survival() { return g.mode === 'survival' ? { wave: g.wave, waveT: g.waveT, max: g.waveMax, live: g.ents.filter(e => !e.dead && e.d.kind === 'u' && g.players[e.owner] && g.players[e.owner].horde).length } : null; },
     sqInfo(id) { const s = g.squads.get(id); return s ? { lvl: s.lvl || 1, xp: g.sqXpF(s) / 99, cd: Math.max(0, s.flagCd || 0), stance: STANCE_KEYS.indexOf(s.stance || 'norm') } : null; },
     queue(bid) { const b = g.byId.get(bid); if (!b || !b.queue.length) return null; const q = b.queue[0]; if (q.up) return { n: b.queue.length, prog: q.t / UPG[q.up].time, ti: -1, up: q.up, items: [] }; return { n: b.queue.length, prog: q.t / DEF[q.u].time, ti: DEF[q.u].ti, items: b.queue.map(x => x.u) }; },
@@ -52,10 +52,10 @@ function makeClientView(me, players, seed, mapType) {
     player(i) { const p = this.pl[i]; const P = players[i]; if (!p || !P) return null; return { gold: p[0], used: p[1], cap: p[2], alive: !!p[3], income: p[4] / 10, race: P.race, team: P.team, name: P.name, pts: p[5] | 0, pxpF: (p[6] | 0) / 99, plvl: p[7] | 0, up: Object.fromEntries(Object.keys(UP_BIT).filter(k => (p[8] | 0) & UP_BIT[k]).map(k => [k, 1])), spells: Object.fromEntries(SPELL_ORDER.filter((k, i) => (p[9] | 0) & (1 << i)).map(k => [k, 1])), scd: Object.fromEntries(SPELL_ORDER.map((k, i) => [k, p[10 + i] | 0])) }; },
     heroes(pi) {
       const out = [];
-      for (let k = 0; k < this.hs.length; k += 11) {
+      for (let k = 0; k < this.hs.length; k += 12) {
         if (this.hs[k] !== pi) continue;
         const hk = 'h' + this.hs[k + 1];
-        out.push({ hk, id: this.hs[k + 2], lvl: this.hs[k + 3], xp: this.hs[k + 4] / 99, recruited: !!this.hs[k + 5], auto: !!this.hs[k + 6], scd: this.hs.slice(k + 7, k + 11).map(x => x / 10), d: DEF[players[pi].race + '_' + hk] });
+        out.push({ hk, id: this.hs[k + 2], lvl: this.hs[k + 3], xp: this.hs[k + 4] / 99, recruited: !!this.hs[k + 5], auto: !!this.hs[k + 6], scd: this.hs.slice(k + 7, k + 11).map(x => x / 10), items: ARTIFACTS.filter(a => this.hs[k + 11] & (1 << a.i)).map(a => a.k), d: DEF[players[pi].race + '_' + hk] });
       }
       if (!out.length) return ['h1', 'h2'].map(hk => ({ hk, id: 0, lvl: 1, xp: 0, recruited: false, scd: [0, 0, 0, 0], d: DEF[players[pi].race + '_' + hk] }));
       return out;
@@ -428,7 +428,8 @@ function ringModel() {
     add('nextworker', '', { g: '⟳', cap: 'Другой', name: 'Следующий строитель' });
   } else if (hero) {
     const hi = V.heroes(V.me).find(h => h.id === hero.id) || { lvl: 1, scd: [0, 0, 0, 0], hk: 'h1' };
-    M.name = hero.d.name; M.sub = 'Уровень ' + hi.lvl + ' · здоровье ' + Math.ceil(hero.hp) + ' / ' + Math.round(hero.maxhp); M.core = { img: iconFor(hero.d, V.me), hp: hero.hp / hero.maxhp, cnt: hi.lvl };
+    const its = hi.items || hero.items || [];
+    M.name = hero.d.name; M.sub = 'Уровень ' + hi.lvl + ' · здоровье ' + Math.ceil(hero.hp) + ' / ' + Math.round(hero.maxhp) + (its.length ? ' · ' + its.map(k => ART[k].g + ' ' + ART[k].name).join(', ') : ''); M.core = { img: iconFor(hero.d, V.me), hp: hero.hp / hero.maxhp, cnt: hi.lvl };
     hero.d.skills.forEach((sk, si) => { const locked = hi.lvl < sk.lvl, cd = hi.scd[si], pas = sk.type === 'aura'; add('skill', si, { g: SKILL_GLYPH[sk.type], cap: short(sk.name), cls: [locked ? 'lock' : '', pas ? 'pas' : '', !locked && !pas && cd <= 0 ? 'ready' : '', cm && cm.t === 'skill' && cm.s === si ? 'on' : ''].join(' '), cd: !locked && cd > 0 ? cd : 0, cdMax: sk.cd || 1, lvl: locked ? sk.lvl : 0, name: sk.name + ' (ур. ' + sk.lvl + ')', desc: sk.desc }); });
     add('autocast', hi.hk, { g: hi.auto ? '⟳' : '☝', cap: hi.auto ? 'Авто' : 'Вручную', cls: hi.auto ? 'on' : '', name: 'Автоприменение навыков' });
     add('hold', '', { g: '⛨', cap: 'Стоять' }); add('retreat', '', { g: '↩', cap: 'Назад' });
