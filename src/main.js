@@ -4,13 +4,13 @@ const cv = $('cv'), mini = $('mini');
 const store = { get(k, d) { try { const v = localStorage.getItem('ak_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('ak_' + k, JSON.stringify(v)); } catch (e) {} } };
 // real-time 3D (three.js, WebGL) when available; the 2D canvas renderer stays as the fallback
 const R = (() => {
-  if (store.get('gfx', '3d') === '3d' && hasWebGL()) { try { return new Renderer3D(cv, $('gl')); } catch (e) { console.warn('3D renderer failed, using 2D', e); } }
+  if (store.get('gfx', '3d') === '3d' && hasWebGL()) { try { return new Renderer3D(cv, $('gl'), store.get('q3', -1)); } catch (e) { console.warn('3D renderer failed, using 2D', e); } }
   $('gl').hidden = true; return new Renderer(cv);
 })();
 
 // ---------- sound (audio.js) ----------
 MQ.room = store.get('room', 'public');
-Snd.on = store.get('snd', true); Snd.musicOn = store.get('music', true);
+Snd.on = store.get('snd', true); Snd.musicOn = store.get('music', true); Snd.vol = store.get('vol', 1); Snd.mvol = store.get('mvol', 0.8);
 R.onThunder = () => Snd.play('thunder', 0.9);
 const upBits = up => Object.keys(up || {}).reduce((m, k) => m | (UP_BIT[k] || 0), 0);
 
@@ -26,7 +26,7 @@ function makeLocalView(g, me) {
     get(id) { const e = g.byId.get(id); return e && !e.dead ? e : null; },
     player(i) { const p = g.players[i]; if (!p) return null; const pi = g.popInfo(i); return { gold: p.gold, used: pi.used, cap: pi.cap, alive: p.alive, income: g.income(p), race: p.race, team: p.team, name: p.name, pts: p.pts, plvl: p.plvl, pxpF: (p.pxp - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)) / (powerNeed(p.plvl) - (p.plvl > 1 ? powerNeed(p.plvl - 1) : 0)), spells: p.spells, scd: p.scd, up: p.up }; },
     heroes(pi) { const p = g.players[pi]; return ['h1', 'h2'].map(hk => { const s = p.heroes[hk]; const h = s.id ? g.byId.get(s.id) : null; return { hk, id: h ? h.id : 0, lvl: h ? h.lvl : (s.lvl || 1), xp: h ? h.xp / (150 * h.lvl) : 0, recruited: s.recruited, auto: !!s.auto, scd: h ? h.scd.slice() : [0, 0, 0, 0], d: DEF[p.race + '_' + hk] }; }); },
-    sqInfo(id) { const s = g.squads.get(id); return s ? { lvl: s.lvl || 1, xp: g.sqXpF(s) / 99, cd: Math.max(0, s.flagCd || 0) } : null; },
+    sqInfo(id) { const s = g.squads.get(id); return s ? { lvl: s.lvl || 1, xp: g.sqXpF(s) / 99, cd: Math.max(0, s.flagCd || 0), stance: STANCE_KEYS.indexOf(s.stance || 'norm') } : null; },
     queue(bid) { const b = g.byId.get(bid); if (!b || !b.queue.length) return null; const q = b.queue[0]; if (q.up) return { n: b.queue.length, prog: q.t / UPG[q.up].time, ti: -1, up: q.up, items: [] }; return { n: b.queue.length, prog: q.t / DEF[q.u].time, ti: DEF[q.u].ti, items: b.queue.map(x => x.u) }; },
     send(c) { g.cmd(me, c); },
     canPlace(key, x, y) { return g.canPlace(me, key, x, y); },
@@ -58,7 +58,7 @@ function makeClientView(me, players, seed, mapType) {
       if (!out.length) return ['h1', 'h2'].map(hk => ({ hk, id: 0, lvl: 1, xp: 0, recruited: false, scd: [0, 0, 0, 0], d: DEF[players[pi].race + '_' + hk] }));
       return out;
     },
-    sqInfo(id) { const i = this.sqi && this.sqi.get(id), m = this.ents.find(e => e.sq === id); return { lvl: m ? m.lvl || 1 : 1, xp: i ? i.xp : 0, cd: i ? i.cd : 0 }; },
+    sqInfo(id) { const i = this.sqi && this.sqi.get(id), m = this.ents.find(e => e.sq === id); return { lvl: m ? m.lvl || 1 : 1, xp: i ? i.xp : 0, cd: i ? i.cd : 0, stance: i ? i.stance : 0 }; },
     queue(bid) { const q = this.qs.get(bid); if (!q) return null; return q[2] >= 100 ? { n: q[0], prog: q[1] / 99, ti: -1, up: UPGRADES[q[2] - 100].k, items: [] } : { n: q[0], prog: q[1] / 99, ti: q[2], items: [] }; },
     send(c) { this.seq++; this.outbox.push([this.seq, c]); if (this.outbox.length > 12) this.outbox.shift(); Net.set({ cmd: { l: this.outbox } }); },
     canPlace(key, x, y) { return Game.prototype.canPlace.call({ map: makeMap(seed, mapType), ents: this.ents, enemy: (a, b) => a !== b && players[a] && players[b] && players[a].team !== players[b].team }, me, key, x, y); },
@@ -69,7 +69,7 @@ function makeClientView(me, players, seed, mapType) {
       if (this.lastRecv) this.interval = clamp(now - this.lastRecv, 0.05, 0.4) * 0.3 + this.interval * 0.7;
       this.lastRecv = now; this.lastSnapT = sn.t;
       const list = unpackEnts(sn.u || '');
-      const seen = new Set(), se = new Map(); this.sqi = new Map(); for (let k = 0; k + 3 < (sn.se || []).length; k += 4) { se.set(sn.se[k], sn.se[k + 1]); this.sqi.set(sn.se[k], { cd: sn.se[k + 2], xp: sn.se[k + 3] / 99 }); }
+      const seen = new Set(), se = new Map(); this.sqi = new Map(); for (let k = 0; k + 4 < (sn.se || []).length; k += 5) { se.set(sn.se[k], sn.se[k + 1]); this.sqi.set(sn.se[k], { cd: sn.se[k + 2], xp: sn.se[k + 3] / 99, stance: sn.se[k + 4] | 0 }); }
       for (const s of list) {
         const d = TYPES[s.ti]; if (!d) continue;
         seen.add(s.id);
@@ -408,6 +408,8 @@ function ringModel() {
     M.core = { img: iconFor(DEF[dom], V.me), hp: hp / mx, cnt: sqs.length + singles.length > 1 ? sqs.length + singles.length : 0 };
     add('march', '', { g: UI.marchMode ? '➜' : '⚔', cap: UI.marchMode ? 'Марш' : 'Атака', cls: UI.marchMode ? 'on' : '', name: UI.marchMode ? 'Марш: идти, не отвлекаясь' : 'В атаку: бить всех по пути' });
     add('hold', '', { g: '⛨', cap: 'Стоять', name: 'Стоять на месте и держать строй' }); add('retreat', '', { g: '↩', cap: 'Назад', name: 'Отступить к цитадели' });
+    const stSq = sqs.filter(q => q.d.n > 1 && !q.d.summon);
+    if (stSq.length) { const cur = STANCE_KEYS[(V.sqInfo(stSq[0].id) || {}).stance || 0], nx = STANCE_KEYS[(STANCE_KEYS.indexOf(cur) + 1) % 3], S0 = STANCES[cur]; add('stance', nx, { g: S0.g, cap: S0.name.split(' ')[0], cls: cur !== 'norm' ? 'on' : '', name: 'Стойка: ' + S0.name + ' → нажмите: ' + STANCES[nx].name, desc: S0.desc + ' · следующая: ' + STANCES[nx].name + ' (' + STANCES[nx].desc + ')' }); }
     const led = sqs.filter(q => q.mem.some(m => m.leader));
     if (led.length) { const cds = led.map(q => (V.sqInfo(q.id) || {}).cd || 0), ready = cds.some(c => c <= 0), cd = ready ? 0 : Math.min(...cds); add('flag', '', { g: '✠', cap: 'Знамя', cls: ready ? 'ready' : '', cd, cdMax: FLAG_CD, name: 'Поднять знамя', desc: 'Лидер возвращает в строй до 3 павших, батальон: +20% урона и +10% брони на 12 с, лечение' }); }
     // equipment for the selected battalions (unlocked in barracks / range)
@@ -487,6 +489,7 @@ function doAct(act, arg) {
     case 'cancelmode': UI.cmode = null; UI.ghost = null; hint(''); buildSig = ''; break;
     case 'train': { const bld = sel.find(x => x.d.kind === 'b'); if (bld) V.send({ c: 'train', b: bld.id, u: arg }); if (P.gold < DEF[arg].cost) toast('Не хватает золота'); else if (P.used + DEF[arg].pop * DEF[arg].n > P.cap) toast('Лимит армии — постройте фермы'); break; }
     case 'hero': { const bld = sel.find(x => x.d.sub === 'fort'); if (bld) V.send({ c: 'hero', b: bld.id, h: arg }); break; }
+    case 'stance': { const ids = selSquads().filter(q => q.d.n > 1).map(q => q.id); if (ids.length) { V.send({ c: 'stance', s: ids, k: arg }); toast('Стойка: ' + STANCES[arg].name); Snd.play('click'); ringSig = ''; } break; }
     case 'flag': { const ids = selSquads().filter(q => q.mem.some(m => m.leader)).map(q => q.id); if (ids.length) { V.send({ c: 'flag', s: ids }); Snd.play('horn'); ringSig = ''; } break; }
     case 'equip': { const U = UPG[arg]; const sq = selSquads().filter(q => U && U.cls.includes(q.d.cls) && !(q.eqv & UP_BIT[U.k])); if (!sq.length) break; if (P.gold < U.eq) { toast('Нужно ' + U.eq + ' золота'); break; } V.send({ c: 'equip', s: sq.map(q => q.id), k: arg }); Snd.play('anvil'); ringSig = ''; break; }
     case 'research': { const U = UPG[arg]; const bld = U && sel.find(x => x.d.sub === U.at); if (!bld || !U) break; if (U.forge && !V.ents.some(e => e.owner === V.me && e.d.forge && e.built >= 1)) { toast('Сначала постройте кузницу'); break; } if (P.gold < U.cost) { toast('Нужно ' + U.cost + ' золота'); break; } V.send({ c: 'research', b: bld.id, k: arg }); break; }
@@ -698,7 +701,7 @@ function menuMain() {
   show('<div class="card"><h1 class="logo">Пепельные Королевства<small>СТРАТЕГИЯ ЭПОХИ ЛЕГЕНД</small></h1>' +
     '<p class="lead">Шесть народов, двенадцать легендарных героев — от Короля Артура и Тора до Анубиса и Мордреда. Стройте крепость, ведите в бой батальоны под знамёнами, держите переправы через реку, прокачивайте героев и сокрушите цитадель врага.</p>' +
     (function () { const sv = store.get('save', null); return sv && sv.game ? '<div class="btns" style="margin-bottom:8px"><button class="big" data-a="load">Продолжить битву<small class="bsub">' + RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t) + '</small></button></div>' : ''; })() +
-    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="gfx">Графика: ' + (R.is3D ? '3D' : '2D') + '</button></div></div>');
+    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button><button class="big alt" data-a="settings">Настройки</button></div></div>');
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)'];
@@ -707,6 +710,49 @@ function menuSkirm() {
     '<h3>Сложность</h3><div class="seg">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, i) => '<button data-a="diff" data-v="' + i + '" class="' + (setup.diff === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="map" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '"' + (m.desc ? ' title="' + m.desc + '"' : '') + '>' + m.name + '</button>').join('') + '</div>' +
     '<div class="btns" style="margin-top:16px"><button class="big" data-a="go">В бой!</button></div></div>');
+}
+function menuSettings(back) {
+  const q = R.is3D ? R.q : store.get('q3', -1), seg = (act, cur, opts) => '<div class="seg">' + opts.map(([v, t]) => '<button data-a="' + act + '" data-v="' + v + '" class="' + (String(cur) === String(v) ? 'on' : '') + '">' + t + '</button>').join('') + '</div>';
+  const rng = (id, v, min, max, step) => '<input type="range" class="rng" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + v + '">';
+  show('<div class="card"><button class="x" data-a="' + (back || 'main') + '" aria-label="Назад">✖</button><h2>Настройки</h2>' +
+    '<h3>Графика</h3>' + seg('gfxset', R.is3D ? '3d' : '2d', [['3d', 'Реалистичная 3D'], ['2d', 'Лёгкая 2D']]) +
+    (R.is3D ? '<h3>Качество 3D</h3>' + seg('qset', q, [[0, 'Низкое'], [1, 'Среднее'], [2, 'Высокое'], [3, 'Ультра']]) + '<p class="note">Ультра — тени 4K, густая трава, двойная чёткость. На телефоне лучше «Низкое».</p>' : '') +
+    '<h3>Звук</h3>' + seg('sndset', Snd.on ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<label class="rl">Эффекты ' + rng('vol', Snd.vol, 0, 1, 0.05) + '</label><label class="rl">Музыка ' + rng('mvol', Snd.mvol, 0, 1, 0.05) + '</label>' +
+    '<h3>Камера</h3><label class="rl">Скорость прокрутки ' + rng('camSpd', store.get('camSpd', 1), 0.4, 2.5, 0.1) + '</label>' +
+    '<h3>Интерфейс</h3>' + seg('fpsset', store.get('fps', false) ? 1 : 0, [[1, 'Показывать FPS'], [0, 'Скрыть FPS']]) +
+    '<div class="btns" style="margin-top:12px"><button class="big alt" data-a="tipsreset">Снова показывать подсказки</button></div></div>');
+}
+let fpsAcc = 0, fpsN = 0;
+function fpsTick(dt) { const el = $('fps'); if (!el) return; el.hidden = !store.get('fps', false); if (el.hidden) return; fpsAcc += dt; fpsN++; if (fpsAcc >= 0.5) { el.textContent = Math.round(fpsN / fpsAcc) + ' FPS'; fpsAcc = 0; fpsN = 0; } }
+// ---------- chat (online: lobby and battle) ----------
+const chat = { seq: 0, mine: [], seen: new Map() };
+function chatRoom(pr) { return lobby.gid && pr && (pr.join === lobby.gid || (pr.lob && pr.lob.gid === lobby.gid)); }
+function sendChat(text) {
+  text = String(text || '').trim().slice(0, 120); if (!text || !Net.ready) return;
+  chat.seq++; chat.mine.push([chat.seq, text]); if (chat.mine.length > 6) chat.mine.shift();
+  Net.set({ chat: chat.mine.slice() }); chatLine(setup.name || 'Вы', text, true);
+}
+function pollChat() {
+  for (const p of Net.peers) {
+    if (p.sameTab || !p.presence || !Array.isArray(p.presence.chat) || !chatRoom(p.presence)) continue;
+    const list = p.presence.chat.filter(it => Array.isArray(it) && typeof it[0] === 'number' && typeof it[1] === 'string');
+    if (!chat.seen.has(p.peer)) { chat.seen.set(p.peer, list.reduce((m, it) => Math.max(m, it[0]), 0)); continue; } // skip history from before we met
+    let last = chat.seen.get(p.peer);
+    for (const [s, t] of list) if (s > last) { chatLine(String(p.presence.nm || 'Игрок').slice(0, 16), t.slice(0, 120)); last = s; }
+    chat.seen.set(p.peer, last);
+  }
+}
+function chatLine(name, text, mine) {
+  const box = $('chatlog'); if (!box) return;
+  const el = document.createElement('div'); el.className = 'cl' + (mine ? ' me' : '');
+  const b = document.createElement('b'); b.textContent = name + ': '; el.appendChild(b); el.appendChild(document.createTextNode(text));
+  box.appendChild(el); while (box.children.length > 6) box.firstChild.remove();
+  setTimeout(() => el.classList.add('old'), 9000);
+  const lob = $('lobchat'); if (lob) { const l2 = el.cloneNode(true); lob.appendChild(l2); while (lob.children.length > 8) lob.firstChild.remove(); lob.scrollTop = 1e6; }
+  if (!mine) Snd.play('click');
+}
+function openChat() {
+  const w = $('chatbox'); if (!w) return; w.hidden = !w.hidden; if (!w.hidden) { const i = $('chatin'); i.value = ''; setTimeout(() => i.focus(), 30); }
 }
 function menuHelp() {
   let h = '<div class="card help"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Как играть</h2>' +
@@ -717,7 +763,11 @@ function menuHelp() {
     '<p><b>Книга сил ✦</b> (над картой): за убийства, аванпосты и лагеря дают очки. Изучайте силы по древу — от лечения и золота до ультимативной силы народа. Изученные силы стоят колонкой слева.</p>' +
     '<p><b>Батальоны:</b> как в Battle for Middle-earth, воины нанимаются отрядами по 5–12 бойцов со знаменосцем. Батальон ходит строем, дерётся вместе и растёт в ветераны (★). Потрёпанный батальон можно <b>пополнить</b> рядом со своими зданиями.</p>' +
     '<p><b>Карты:</b> «Речная долина» — река с мостами (вброд медленно) и остров в центре; «Горный перевал» — скалы и узкие проходы; «Снежные холмы» — замёрзшие озёра и густой ельник. Войска сами обходят скалы, леса и здания.</p>' +
-    '<p><b>Кузница:</b> постройте её, чтобы улучшить всю армию: клинки, броню, огненные стрелы и знамёна (батальоны лечатся и восполняют павших). Улучшения видны на бойцах.</p>' +
+    '<p><b>Снаряжение:</b> в казарме откройте клинки, броню и знаменосца, на стрельбище — огненные стрелы (нужна кузница). Потом покупайте их каждому батальону в его круге команд. В кузнице строятся катапульты.</p>' +
+    '<p><b>Цитадель:</b> в ней улучшаются стены, лучники на стенах, требушет, казна и лазарет.</p>' +
+    '<p><b>Уровни и лидеры:</b> батальоны растут до 10 уровня (+4% за уровень). На 3 уровне появляется лидер — он поднимает павших, а навык «Знамя» мгновенно возвращает троих.</p>' +
+    '<p><b>Тактика:</b> стойки «Натиск» и «Стена щитов», удар в ближнем бою во фланг +15%, в тыл +30%. Конница на скаку топчет пехоту и стрелков, но копейщики останавливают её.</p>' +
+    '<p><b>Реликвии:</b> каждые несколько минут в центре карты появляется реликвия — удержите её 8 секунд ради золота и боевого клича.</p>' +
     '<p><b>Лагеря:</b> на карте живут волки, разбойники и тролли. Разбейте лагерь — заберёте сундук с золотом. Через несколько минут лагерь снова занимают.</p>' +
     '<p><b>Мир:</b> день сменяется ночью (в темноте светят факелы и костры), бывают дождь, туман и снегопад. Павшие остаются на поле, взрывы оставляют воронки, армии протаптывают дороги.</p>' +
     '<p><b>Сохранение:</b> битва сохраняется сама раз в минуту и при сворачивании; «Продолжить битву» — в главном меню.</p>' +
@@ -745,7 +795,7 @@ function menuPause() {
     '<button class="big alt" data-a="sound">Звук: ' + (Snd.on ? 'вкл' : 'выкл') + '</button>' +
     '<button class="big alt" data-a="music">Музыка: ' + (Snd.musicOn ? 'вкл' : 'выкл') + '</button>' +
     (mode === 'local' ? '<button class="big alt" data-a="speed">Скорость: ' + (speed === 1 ? 'обычная' : '×' + speed) + '</button>' : '') +
-    '<button class="big alt" data-a="gfx">Графика: ' + (R.is3D ? '3D' : '2D') + '</button>' +
+    '<button class="big alt" data-a="settings2">Настройки</button>' +
     '<button class="big alt" data-a="help2">Герои и навыки</button><button class="big alt" data-a="quit">Сдаться и выйти</button></div></div>');
 }
 function endScreen(win) {
@@ -793,10 +843,12 @@ function onlineScreen() {
     h += '</div>';
     if (!isHost) h += '<h3>Ваш народ</h3>' + raceCards(setup.race, 'race');
     if (isHost) {
+      h += '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="lobmap" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '">' + m.name + '</button>').join('') + '</div>';
       h += '<div class="btns" style="margin-top:10px">' + (lobby.slots.length < 4 ? '<button class="big alt" data-a="addai">+ Добавить ИИ</button>' : '') +
         '<button class="big" data-a="start"' + (lobby.slots.length < 2 || new Set(lobby.slots.map(s => s.team)).size < 2 ? ' disabled' : '') + '>Начать битву</button></div>';
       h += '<p class="note" style="margin-top:8px">Друзья, открывшие игру, увидят ваше лобби в «Открытых играх». Нужно минимум две команды.</p>';
-    } else h += '<p class="note" style="margin-top:10px">Ждём, пока хост начнёт битву…</p>';
+    } else { const hl = ((Net.peer(lobby.hostPeer) || {}).presence || {}).lob; h += '<p class="note" style="margin-top:10px">Карта: ' + escapeHtml(hl && hl.map ? mapName(hl.map === 'random' ? 'river' : hl.map) + (hl.map === 'random' ? ' (случайная)' : '') : '—') + ' · ждём, пока хост начнёт битву…</p>'; }
+    h += '<h3>Чат</h3><div id="lobchat" class="lobchat"></div><div class="roomrow"><input type="text" id="lobin" maxlength="120" placeholder="Сообщение…"><button class="big alt" data-a="lobsend">Отпр.</button></div>';
   }
   show(h + '</div>');
 }
@@ -813,10 +865,11 @@ function hostSync() {
     if (s) { s.race = RACE_KEYS.includes(g.presence.race) ? g.presence.race : 'hum'; s.nm = String(g.presence.nm || 'Игрок').slice(0, 16); }
   }
   const h = lobby.slots[0]; h.peer = me; h.race = setup.race; h.nm = setup.name || 'Хост';
-  Net.set({ nm: setup.name || 'Хост', lob: { gid: lobby.gid, st: 0, sl: lobby.slots } });
+  Net.set({ nm: setup.name || 'Хост', lob: { gid: lobby.gid, st: 0, sl: lobby.slots, map: setup.map } });
 }
 let lobbyRenderT = 0;
 Net.onPeers(() => {
+  pollChat();
   if (lobby.role === 'host' && !lobby.started) hostSync();
   if (lobby.role === 'guest' && !lobby.started) {
     const hp = Net.peer(lobby.hostPeer);
@@ -828,7 +881,7 @@ Net.onPeers(() => {
     }
   }
   if (mode === 'menu' && $('scr').querySelector('#nick') || (mode === 'menu' && lobby.role)) {
-    const now = performance.now(); if (now - lobbyRenderT > 300 && document.activeElement && !['nick', 'room'].includes(document.activeElement.id)) { lobbyRenderT = now; onlineScreen(); }
+    const now = performance.now(); if (now - lobbyRenderT > 300 && document.activeElement && !['nick', 'room', 'lobin'].includes(document.activeElement.id)) { lobbyRenderT = now; onlineScreen(); }
   }
   if (mode === 'host') hostPeersChanged();
   if (mode === 'client') clientPeersChanged();
@@ -838,7 +891,7 @@ Net.onPeers(() => {
 let speed = 1, paused = false, loading = null;
 function beginView() {
   hideScr(); stopAttract();
-  $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
+  $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
   requestAnimationFrame(measurePads); tipsIdx = store.get('tipsDone', false) || mode !== 'local' ? 99 : 0;
   UI.sel = new Set(); UI.cmode = null; UI.ghost = null; UI.panelSig = ''; heroSig = ''; prevIds = new Map();
   R.resize();
@@ -921,13 +974,18 @@ function startClient(lob, idx) {
   V = makeClientView(idx, players, lob.seed, lob.map); mode = 'client';
   beginView();
 }
-let hostSeq = {}, snapT = 0;
+let hostSeq = {}, snapT = 0, peerT = 1;
 function hostPeersChanged() {
   if (!game) return;
   for (const p of game.players) {
     if (!p.remote) continue;
     const peer = Net.peer(p.peer);
-    if (!peer) { p.remote = false; p.ai = true; p.diff = 1; ais.push(new AI(game, p.i)); for (const q of game.players) game.note(q.i, p.name + ' отключился — его заменил ИИ'); toast(p.name + ' отключился — его заменил ИИ'); continue; }
+    if (!peer) {
+      if (!p.lostAt) { p.lostAt = performance.now(); toast(p.name + ': связь потеряна, ждём 20 секунд…'); for (const q of game.players) game.note(q.i, p.name + ': связь потеряна'); }
+      if (performance.now() - p.lostAt < 20000) continue;
+      p.remote = false; p.ai = true; p.diff = 1; ais.push(new AI(game, p.i)); for (const q of game.players) game.note(q.i, p.name + ' не вернулся — его заменил ИИ'); toast(p.name + ' не вернулся — его заменил ИИ'); continue;
+    }
+    if (p.lostAt) { p.lostAt = 0; toast(p.name + ' снова в игре'); }
     const cmd = peer.presence && peer.presence.cmd;
     if (cmd && Array.isArray(cmd.l)) {
       const last = hostSeq[p.peer] || 0; let mx = last;
@@ -938,6 +996,9 @@ function hostPeersChanged() {
 }
 function clientPeersChanged() {
   const hp = Net.peer(lobby.hostPeer);
+  if (!hp && !lobby.hostLost) { lobby.hostLost = performance.now(); toast('Связь с хостом потеряна, переподключение…'); }
+  if (hp) { if (lobby.hostLost) toast('Связь восстановлена'); lobby.hostLost = 0; }
+  if (!hp && performance.now() - lobby.hostLost < 20000) return;
   if (!hp) { if (!endShown) { endShown = true; show('<div class="card"><h2>Хост покинул игру</h2><p class="lead">Связь с хостом потеряна.</p><div class="btns"><button class="big" data-a="main">В главное меню</button></div></div>'); } return; }
   if (hp.presence && hp.presence.snap) V.ingest(hp.presence.snap, performance.now() / 1000);
 }
@@ -955,6 +1016,16 @@ $('scr').addEventListener('click', e => {
     case 'help2': { const back = mode; menuHelp(); const card = $('scr').querySelector('.card'); card.querySelectorAll('[data-a="main"]').forEach(x => { x.dataset.a = 'resume'; }); void back; break; }
     case 'online': onlineScreen(); break;
     case 'online2': Net.failed = false; onlineScreen(); break;
+    case 'settings': menuSettings('main'); break;
+    case 'settings2': menuSettings('pause'); break;
+    case 'pause': menuPause(); break;
+    case 'gfxset': if ((v === '3d') !== !!R.is3D) { store.set('gfx', v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); } break;
+    case 'qset': if (+v !== R.q) { store.set('q3', +v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Качество сменится после битвы'); break; } location.reload(); } break;
+    case 'sndset': Snd.setOn(v === '1'); store.set('snd', Snd.on); Snd.init(); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
+    case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
+    case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
+    case 'lobmap': setup.map = v; store.set('map', v); hostSync(); onlineScreen(); break;
+    case 'lobsend': { const i = $('lobin'); if (i) { sendChat(i.value); i.value = ''; } break; }
     case 'gfx': store.set('gfx', R.is3D ? '2d' : '3d'); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); break;
     case 'room': { const rv = $('room'); if (rv) { Net.setRoom(rv.value); store.set('room', Net.roomCode); } onlineScreen(); break; }
     case 'race': setup.race = v; store.set('race', v); if (lobby.role === 'guest') Net.set({ race: v }); if (lobby.role === 'host') hostSync(); if (mode === 'menu' && (lobby.role || $('nick'))) onlineScreen(); else menuSkirm(); break;
@@ -983,6 +1054,15 @@ $('scr').addEventListener('change', e => {
   const f = s.dataset.f; sl[f] = f === 'race' ? s.value : +s.value; hostSync();
 });
 $('scr').addEventListener('input', e => { if (e.target.id === 'nick') { setup.name = e.target.value.trim().slice(0, 16); store.set('name', setup.name); if (lobby.role === 'host') hostSync(); else if (Net.ready) Net.set({ nm: setup.name }); } });
+$('scr').addEventListener('input', e => {
+  const t = e.target; if (!t || t.type !== 'range') return;
+  if (t.id === 'vol' || t.id === 'mvol') { store.set(t.id, +t.value); Snd.setVol(store.get('vol', 1), store.get('mvol', 0.8)); if (t.id === 'vol') { Snd.init(); Snd.play('click'); } }
+  if (t.id === 'camSpd') store.set('camSpd', +t.value);
+});
+$('scr').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lobin') { sendChat(e.target.value); e.target.value = ''; } });
+$('bChat').addEventListener('click', () => openChat());
+$('chatbox').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { sendChat(b.dataset.q); $('chatbox').hidden = true; } if (e.target.id === 'chatsend') { sendChat($('chatin').value); $('chatbox').hidden = true; } });
+$('chatin').addEventListener('keydown', e => { if (e.key === 'Enter') { sendChat(e.target.value); $('chatbox').hidden = true; } if (e.key === 'Escape') $('chatbox').hidden = true; e.stopPropagation(); });
 $('bMenu').addEventListener('click', () => { Snd.init(); if (mode === 'local') paused = true; menuPause(); });
 function leaveGame() {
   if (mode === 'host' || mode === 'client' || lobby.role) Net.set({ lob: null, join: null, snap: null, cmd: null });
@@ -1088,7 +1168,8 @@ function frame(now) {
       if (!left || !el) { loading = null; hideScr(); paused = false; }
     }
     // keyboard pan
-    const kp = 600 * dt / R.cam.z;
+    const kp = 600 * store.get('camSpd', 1) * dt / R.cam.z;
+    fpsTick(dt);
     if (keys.has('w') || keys.has('arrowup')) R.cam.y -= kp; if (keys.has('s') || keys.has('arrowdown')) R.cam.y += kp;
     if (keys.has('a') || keys.has('arrowleft')) R.cam.x -= kp; if (keys.has('d') || keys.has('arrowright')) R.cam.x += kp;
     R.clampCam();
@@ -1101,7 +1182,7 @@ function frame(now) {
         if (n >= 12) acc = 0;
       }
       alpha = clamp(acc / TICK, 0, 1);
-      if (mode === 'host') { snapT -= dt; if (snapT <= 0) { snapT = 0.1; Net.set({ snap: packSnap(game) }); } }
+      if (mode === 'host') { snapT -= dt; if (snapT <= 0) { snapT = 0.1; Net.set({ snap: packSnap(game) }); } peerT -= dt; if (peerT <= 0) { peerT = 1; hostPeersChanged(); } }
       // local notes
       while (noteIdx < game.notes.length) { const n = game.notes[noteIdx++]; if (n.p === V.me && game.t - n.t < 2) { toast(n.text, n.x, n.y); if (n.text.includes('сокровище')) Snd.play('coins'); else if (n.text.includes('улучшение готово')) Snd.play('anvil'); } }
       if (mode === 'local' && !paused) { saveT -= dt; if (saveT <= 0) { saveT = 60; saveGame(); } }

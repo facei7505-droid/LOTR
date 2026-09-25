@@ -164,18 +164,21 @@ const PBR_SETS = {
   snow: [['snow_02', 'diff', 170], ['aerial_mud_1', 'diff', 170], ['lichen_rock', 'diff', 150]],
 };
 class Renderer3D extends Renderer {
-  constructor(cv, glcv) {
+  // quality: 0 low (phones), 1 medium, 2 high, 3 ultra
+  constructor(cv, glcv, quality) {
     super(cv);
     const T = THREE;
     this.is3D = true; this.glcv = glcv;
-    this.low = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 700;
-    const gl = this.gl = new T.WebGLRenderer({ canvas: glcv, antialias: !this.low, powerPreference: 'high-performance' });
+    const phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 700;
+    this.q = quality === undefined || quality < 0 ? (phone ? 0 : 2) : quality;
+    this.low = this.q === 0;
+    const gl = this.gl = new T.WebGLRenderer({ canvas: glcv, antialias: this.q >= 2, powerPreference: 'high-performance' });
     gl.outputColorSpace = T.SRGBColorSpace; gl.toneMapping = T.ACESFilmicToneMapping; gl.toneMappingExposure = 1.0;
     gl.shadowMap.enabled = true; gl.shadowMap.type = T.PCFSoftShadowMap;
     this.scene = new T.Scene();
     this.camera = new T.PerspectiveCamera(36, 1, 30, 30000);
     this.sun = new T.DirectionalLight(0xfff1dc, 3.0); this.sun.castShadow = true;
-    const ms = this.low ? 1024 : 2048; this.sun.shadow.mapSize.set(ms, ms); this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 1.2;
+    const ms = [1024, 2048, 2048, 4096][this.q]; this.sun.shadow.mapSize.set(ms, ms); this.sun.shadow.bias = -0.0004; this.sun.shadow.normalBias = 1.2;
     this.scene.add(this.sun, this.sun.target);
     this.hemi = new T.HemisphereLight(0xcfe0ff, 0x4a4030, 1.1); this.scene.add(this.hemi);
     this.scene.fog = new T.Fog(0xb8c4c8, 2000, 9000);
@@ -189,12 +192,13 @@ class Renderer3D extends Renderer {
     this.ray = new T.Raycaster(); this.v3 = new T.Vector3(); this.v2 = new T.Vector2();
     this.yawT = 0; this.tgtH = 0;
     this.parts3 = [];
-    this.makeParticles(); this.makeGround();
+    this.makeParticles(); this.makeGround(); this.makeBlobs();
     const dummy = new T.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); dummy.needsUpdate = true;
     this.pbrU = { tGC: { value: dummy }, tGN: { value: dummy }, tDC: { value: dummy }, tDN: { value: dummy }, tRC: { value: dummy }, tRN: { value: dummy }, uPBR: { value: 0 }, uTile: { value: new T.Vector3(300, 300, 500) }, uAvg: { value: new T.Color(0.1, 0.12, 0.06) } };
     this.texCache = new Map(); this.pbrTarget = 0;
     this.loadAtlasPhotos();
-    this.postOn = !this.low;
+    A3.onReady = () => this.refreshAssets(); A3.load();
+    this.postOn = this.q >= 1;
   }
   // photo-scanned surfaces (Poly Haven, CC0) replace the procedural detail cells: masonry, roof tiles, planks, plaster, reed thatch, rock, bark
   loadAtlasPhotos() {
@@ -262,7 +266,7 @@ class Renderer3D extends Renderer {
     if (this.world) { this.scene.remove(this.world); this.world.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
     for (const m of this.bldMesh.values()) this.scene.remove(m.mesh); this.bldMesh.clear();
     this.world = new THREE.Group(); this.scene.add(this.world); this.mist = null;
-    this.buildHeights(); this.buildTerrain3(); this.buildWater3(); this.buildTrees3(); this.buildProps3(); this.buildGrass3(); this.buildSky3();
+    this.buildHeights(); this.buildTerrain3(); this.buildWater3(); this.buildTrees3(); this.buildProps3(); this.buildGrass3(); this.buildSky3(); this.buildLife3();
     this.corpses = []; this.decals = []; this.parts3 = [];
   }
   hRaw(x, y) {
@@ -521,7 +525,7 @@ class Renderer3D extends Renderer {
   }
   buildGrass3() {
     const T = THREE, M = this.map, snow = M.biome === 'snow', high = M.biome === 'highland';
-    const n = snow ? 0 : this.low ? 9000 : 34000; if (!n) return;
+    const n = snow ? 0 : [8000, 18000, 34000, 60000][this.q]; if (!n) return;
     // one tuft: 7 bent blades with dark roots and sunlit tips
     const pos = [], col = [], r = mkRng(3);
     for (let b = 0; b < 7; b++) { const a = r() * 6.28, d = r() * 4, x = Math.cos(a) * d, z = Math.sin(a) * d, h = 4 + r() * 5, w = 1.6, lean = (r() - 0.5) * 5, la = r() * 6.28, px = Math.cos(la + 1.57) * w, pz = Math.sin(la + 1.57) * w, tx = x + Math.cos(la) * lean, tz = z + Math.sin(la) * lean;
@@ -549,7 +553,7 @@ class Renderer3D extends Renderer {
   // ---- camera: the 2D cam (top-left corner + zoom) drives a perspective rig looking at the view centre ----
   resize() {
     super.resize();
-    this.gl.setPixelRatio(this.low ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+    this.gl.setPixelRatio([1, 1, Math.min(window.devicePixelRatio || 1, 1.5), Math.min(window.devicePixelRatio || 1, 2)][this.q]);
     this.gl.setSize(this.w, this.h, false);
     this.camera.aspect = this.w / this.h;
   }
@@ -590,6 +594,14 @@ class Renderer3D extends Renderer {
   panBy(x0, y0, x1, y1) { const a = this.toWorld(x0, y0), b = this.toWorld(x1, y1); this.cam.x += a.x - b.x; this.cam.y += a.y - b.y; this.clampCam(); }
   viewQuad() { const hb = this.h - (this.padB || 0); return [this.toWorld(0, 0), this.toWorld(this.w, 0), this.toWorld(this.w, hb), this.toWorld(0, hb)]; }
   // ---- ground marks (selection, rings, pings): terrain-hugging ribbons rebuilt every frame ----
+  makeBlobs() {
+    const T = THREE, S = 64, cv = mkCanvas(S, S), c = cv.getContext('2d'), gr = c.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0.6)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.32)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.fillRect(0, 0, S, S);
+    const tex = new T.CanvasTexture(cv), geo = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.blobs = new T.InstancedMesh(geo, new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false }), 3000);
+    this.blobs.frustumCulled = false; this.blobs.renderOrder = 3; this.blobs.count = 0; this.scene.add(this.blobs); this.blobN = 0;
+  }
+  blob(x, y, h, r) { if (!this.blobs || this.blobN >= 3000) return; const m = this._bm || (this._bm = new THREE.Matrix4()); m.makeScale(r, 1, r * 0.9); m.setPosition(x, h + 0.8, y); this.blobs.setMatrixAt(this.blobN++, m); }
   makeGround() {
     const T = THREE, g = new T.BufferGeometry();
     this.gPos = new Float32Array(60000 * 3); this.gCol = new Float32Array(60000 * 4);
@@ -684,7 +696,14 @@ class Renderer3D extends Renderer {
     if (!this.geoBusy.has(key)) { this.geoBusy.add(key); this.geoQ.push({ key, d, col, frame, up }); }
     return null;
   }
-  pumpGeos(ms) { const t0 = performance.now(); while (this.geoQ.length && performance.now() - t0 < ms) { const j = this.geoQ.shift(); this.geoBusy.delete(j.key); if (j.bld) { this.bldGeo(j.d, j.col); continue; } if (!this.geos.has(j.key)) this.geos.set(j.key, G3.build(M3.build(j.d, j.col, j.frame, j.up | 0), { metres: true })); } return this.geoQ.length; }
+  pumpGeos(ms) { const t0 = performance.now(); while (this.geoQ.length && performance.now() - t0 < ms) { const j = this.geoQ.shift(); this.geoBusy.delete(j.key); if (j.bld) { this.bldGeo(j.d, j.col); continue; } if (!this.geos.has(j.key)) this.geos.set(j.key, (A3.has(j.d.key) && A3.unitGeo(j.d, j.col, j.frame)) || G3.build(M3.build(j.d, j.col, j.frame, j.up | 0), { metres: true })); } return this.geoQ.length; }
+  // downloaded glTF models arrived: drop the procedural stand-ins so they rebuild from the models
+  refreshAssets() {
+    const keys = [...Object.keys(ASSET_UNITS), ...Object.keys(ASSET_BLDS)], hit = k => keys.some(a => k.startsWith(a) || k.startsWith('b' + a));
+    for (const k of [...this.geos.keys()]) if (hit(k)) this.geos.delete(k);
+    for (const [k, u] of this.units) if (hit(k)) { this.scene.remove(u.mesh); u.mesh.dispose(); this.units.delete(k); }
+    for (const [id, bm] of this.bldMesh) if (ASSET_BLDS[bm.e.d.key]) { this.scene.remove(bm.mesh); this.bldMesh.delete(id); }
+  }
   prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16]) this.geoFor(d, col, f, 0); }
   inst(key, geo, mats) {
     let u = this.units.get(key);
@@ -704,6 +723,7 @@ class Renderer3D extends Renderer {
   }
   bldGeo(d, col) {
     const key = d.key + col; let g = this.geos.get('b' + key); if (g) return g;
+    if (A3.has(d.key)) { g = A3.bldGeo(d, col); if (g) { this.geos.set('b' + key, g); return g; } }
     const P = B3.build(d, col); const { MAT, box } = R3;
     P.push(box(0, -14, 0, d.r * 0.98, 14.5, d.r * 0.78, MAT('#5c564c', { pat: 'rock' })));
     g = G3.build(P, { seg: 1 }); this.geos.set('b' + key, g); return g;
@@ -779,6 +799,7 @@ class Renderer3D extends Renderer {
     // screen-space cull for entities
     const W = this.w, H = this.h, onScr = (x, y, m) => { const s = this.toScreen(x, y, 10); return s.z < 1 && s.x > -m && s.y > -m * 1.6 && s.x < W + m && s.y < H + m; };
     for (const u of this.units.values()) u.n = 0;
+    this.blobN = 0;
     // battalions
     const SQ = new Map();
     for (const e of S.ents) {
@@ -826,12 +847,15 @@ class Renderer3D extends Renderer {
       const bob = e.moving ? Math.abs(Math.sin(now * 10 + e.id)) * 0.8 : 0;
       const tilt = e.stunned ? [Math.sin(now * 10) * 0.08, Math.cos(now * 9) * 0.08] : e.hitT && now - e.hitT < 0.12 ? [0.08, 0] : null;
       this.put(unit3Key(e.d, col, fk, 0, uk), geo, e.rx, gh + bob, e.ry, -e._yaw, PPM * (e.leader ? 1.2 : 1), tilt);
+      this.blob(e.rx, e.ry, gh, e.r * (e.d.cls === 'cav' || e.d.cls === 'siege' ? 3.4 : 2.4));
       if (e.leader) G.push(['ring', e.rx, e.ry, e.r * 1.35, '#ffd46a', 0.75, 1.6]);
       if (this.map.water(e.rx, e.ry) === 1) { const ph = (now * 1.8 + e.id * 0.37) % 1; if (e.id % 3 === 0) G.push(['ring', e.rx, e.ry, e.r * (1.1 + ph * 0.9), '#e1f0f0', 0.5 * (1 - ph), 1.2]); if (e.moving && Math.random() < 0.06) this.emit3({ x: e.rx, y: e.ry, h: WL3 + 1, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, vh: 20, life: 0.4, t: 0, k: 'splash', s: 2 }); }
       if (e.d.worker && e.atkT > 0.22 && Math.random() < 0.5) for (let k = 0; k < 3; k++) this.emit3({ x: e.rx + Math.cos(e._yaw) * 10, y: e.ry + Math.sin(e._yaw) * 10, h: gh + 10, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, vh: 30 + Math.random() * 40, life: 0.35, t: 0, k: 'spark', s: 1.2 });
       if (e.moving && (e.d.sub === 'cav' || e.d.sub === 'troll') && Math.random() < 0.2) this.emit3({ x: e.rx, y: e.ry, h: gh + 3, vx: 0, vy: 0, vh: 6, life: 0.9, t: 0, k: 'dust', s: 4 });
       if (e.stunned) for (let k = 0; k < 3; k++) { const a = now * 5 + k * 2.1; if (Math.random() < 0.3) this.emit3({ x: e.rx + Math.cos(a) * 8, y: e.ry + Math.sin(a) * 8, h: gh + 44, vx: 0, vy: 0, vh: 0, life: 0.2, t: 0, k: 'magic', col: '255,232,106', s: 1.6 }); }
       if (e.buffGlow) G.push(['disc', e.rx, e.ry, e.r * 1.3, '#ffc85a', 0.14]);
+      if ((up3 & 1) && (e.moving || e.atkT > 0) && Math.random() < (e.atkT > 0 ? 0.25 : 0.03)) { const bc = { elf: '190,225,255', orc: '255,90,60', und: '120,255,160', des: '255,210,110', dwf: '150,200,255' }[e.d.race] || '255,230,170'; this.emit3({ x: e.rx + Math.cos(e._yaw) * 9, y: e.ry + Math.sin(e._yaw) * 9, h: gh + 20 + Math.random() * 10, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, vh: 10 + Math.random() * 20, life: 0.35, t: 0, k: 'magic', col: bc, s: 1.6 }); }
+      if (e.d.hero && HERO_FX[e.d.key]) this.heroAura(e, gh, now, G);
       if (e.d.hero) this.addLight(e.rx, e.ry, 90, 0.55 * clamp((1 - env.light) * 2, 0.15, 1), false);
       if (!e.sq) { if (sel) G.push(['ring', e.rx, e.ry, e.r * 1.5, S.me === e.owner ? '#8fd3ff' : '#ff5a4a', 0.95, 2]); else if (e.d.hero) G.push(['ring', e.rx, e.ry, e.r * 1.35, col, 0.75, 1.6]); }
       // battalion standard
@@ -887,11 +911,13 @@ class Renderer3D extends Renderer {
       G.push(['disc', g.x, g.y, g.d.r * 1.15, g.ok ? '#5adc6e' : '#e63c32', 0.25], ['ring', g.x, g.y, g.d.r * 1.15, g.ok ? '#6fe08a' : '#ff5a4a', 0.9, 2]);
     }
     this.fx3(S.fx, now, G);
+    this.stepLife(rdt, now, S, env);
     // rain and snow
     this.weather3(env, rdt, now);
     this.stepParticles(rdt);
     this.applyLights(env);
     for (const u of this.units.values()) { u.mesh.count = u.n; u.mesh.instanceMatrix.needsUpdate = true; u.mesh.visible = u.n > 0; }
+    if (this.blobs) { this.blobs.count = this.blobN; this.blobs.instanceMatrix.needsUpdate = true; }
     // ground marks: this frame's + those queued by main.js
     this.gN = 0; this.gFlush(G); this.gFlush(this.gq); this.gq = [];
     const gg = this.gMesh.geometry; gg.setDrawRange(0, this.gN); gg.attributes.position.needsUpdate = true; gg.attributes.color.needsUpdate = true;
@@ -956,6 +982,60 @@ class Renderer3D extends Renderer {
   }
   poleGeo() { let g = this.geos.get('pole'); if (!g) { g = G3.build([R3.cap([0, 0, 0], [0, 58, 0], 0.9, R3.MAT('#3b2c1f', { pat: 'wood' })), R3.sph(0, 59, 0, 1.6, R3.MAT('#d4a73c', { pat: 'metal', spec: 1 }))], { seg: 1 }); this.geos.set('pole', g); } return g; }
   flagGeo() { let g = this.geos.get('flagG'); if (!g) { g = new THREE.PlaneGeometry(16, 16, 8, 1).translate(8, 8, 0); this.geos.set('flagG', g); } return g; }
+  // each hero's signature aura: golden motes, orbiting light, crackling lightning, swirling sand, dripping souls
+  heroAura(e, gh, now, G) {
+    const [col, style, warm] = HERO_FX[e.d.key], hx = '#' + col.split(',').map(v => (+v).toString(16).padStart(2, '0')).join(''), r = e.r;
+    G.push(['ring', e.rx, e.ry, r * 1.6 + Math.sin(now * 3 + e.id) * 1.5, hx, 0.35, 1.4]);
+    this.addLight(e.rx, e.ry, 80, 0.7, !!warm);
+    const R = Math.random;
+    if (style === 'rise' && R() < 0.5) this.emit3({ x: e.rx + (R() - 0.5) * r * 2, y: e.ry + (R() - 0.5) * r * 2, h: gh + 4, vx: 0, vy: 0, vh: 30 + R() * 20, life: 0.9, t: 0, k: 'magic', col, s: 1.8 });
+    if (style === 'orbit') for (let k = 0; k < 2; k++) { const a = now * 2.6 + k * Math.PI + e.id; this.emit3({ x: e.rx + Math.cos(a) * r * 1.5, y: e.ry + Math.sin(a) * r * 1.5, h: gh + 24 + Math.sin(now * 3 + k) * 8, vx: 0, vy: 0, vh: 3, life: 0.4, t: 0, k: 'magic', col, s: 2.2 }); }
+    if (style === 'crackle' && R() < 0.22) { const a = R() * 6.28, rr = r * (0.6 + R()); for (let k = 0; k < 4; k++) this.emit3({ x: e.rx + Math.cos(a) * rr + (R() - 0.5) * 6, y: e.ry + Math.sin(a) * rr + (R() - 0.5) * 6, h: gh + 12 + k * 7 + R() * 5, vx: 0, vy: 0, vh: 0, life: 0.12, t: 0, k: 'magic', col, s: 2.4 }); }
+    if (style === 'swirl' && R() < 0.6) { const a = now * 4 + R() * 0.6, rr = r * (1.1 + R() * 0.6); this.emit3({ x: e.rx + Math.cos(a) * rr, y: e.ry + Math.sin(a) * rr, h: gh + 3 + R() * 14, vx: -Math.sin(a) * 40, vy: Math.cos(a) * 40, vh: 8, life: 0.6, t: 0, k: warm ? 'dust' : 'magic', col, s: 2.4 }); }
+    if (style === 'drip' && R() < 0.35) this.emit3({ x: e.rx + (R() - 0.5) * r * 1.6, y: e.ry + (R() - 0.5) * r * 1.6, h: gh + 30, vx: 0, vy: 0, vh: -18, life: 0.9, t: 0, k: 'magic', col, s: 2 });
+  }
+  // living world: flocks of birds circling over the field, deer grazing at forest edges (they bolt from armies)
+  buildLife3() {
+    const T = THREE, r = mkRng(this.seed * 7 + 5), M = this.map;
+    const wing = up => { const g = new T.BufferGeometry(), y = up ? 3 : -2; g.setAttribute('position', new T.Float32BufferAttribute([0, 0, 0, -3, y, -7, 2, 0, 0, 0, 0, 0, 2, 0, 0, -3, y, 7], 3)); g.computeVertexNormals(); return g; };
+    const bm = new T.MeshBasicMaterial({ color: 0x1c1a18, side: T.DoubleSide });
+    this.birdsA = new T.InstancedMesh(wing(true), bm, 60); this.birdsB = new T.InstancedMesh(wing(false), bm, 60);
+    for (const b of [this.birdsA, this.birdsB]) { b.frustumCulled = false; b.count = 0; this.world.add(b); }
+    this.flocks = []; for (let k = 0; k < (this.low ? 2 : 4); k++) this.flocks.push({ x: 400 + r() * (MAP_W - 800), y: 300 + r() * (MAP_H - 600), R: 120 + r() * 160, h: 190 + r() * 90, sp: (0.25 + r() * 0.2) * (r() < 0.5 ? -1 : 1), n: 5 + (r() * 6 | 0), ph: r() * 6.28 });
+    // deer herds near the forests
+    this.deer = []; if (M.biome === 'highland' && r() < 0.5) return;
+    const coat = M.biome === 'snow' ? '#8a7a68' : '#9a6c40';
+    this.deerGeo = [0, 1, 2, 3, 4, 5, 6].map(f => G3.build(M3.animal('deer', f, coat), { metres: true }));
+    for (let h = 0; h < 4; h++) {
+      const t = M.trees[(r() * M.trees.length) | 0]; if (!t) break;
+      for (let k = 0; k < 3 + (r() * 3 | 0); k++) { const x = clamp(t.x + (r() - 0.5) * 160, 60, MAP_W - 60), y = clamp(t.y + (r() - 0.5) * 160, 60, MAP_H - 60); if (M.water(x, y) || this.gz(x, y) > 60) continue; this.deer.push({ x, y, hx: x, hy: y, yaw: r() * 6.28, tx: x, ty: y, wait: r() * 5, flee: 0, ph: r() }); }
+    }
+  }
+  stepLife(dt, now, S, env) {
+    if (!this.flocks) return;
+    const m = this._lm || (this._lm = new THREE.Matrix4()), q = this._lq || (this._lq = new THREE.Quaternion()), e = this._le || (this._le = new THREE.Euler()), s = this._ls || (this._ls = new THREE.Vector3(1, 1, 1)), p = this._lp || (this._lp = new THREE.Vector3());
+    let na = 0, nb = 0; const night = env.light < 0.6;
+    if (!night) for (const f of this.flocks) {
+      f.ph += f.sp * dt; f.x += Math.cos(now * 0.05 + f.R) * 6 * dt; f.y += Math.sin(now * 0.04 + f.R) * 6 * dt;
+      for (let k = 0; k < f.n; k++) {
+        const a = f.ph + k * 0.45, rr = f.R + Math.sin(k * 1.7) * 30, x = f.x + Math.cos(a) * rr, y = f.y + Math.sin(a) * rr, h = f.h + Math.sin(now + k) * 12;
+        e.set(0.2 * Math.sign(f.sp), -(a + Math.PI / 2 * Math.sign(f.sp)), 0); q.setFromEuler(e); p.set(x, h, y); m.compose(p, q, s);
+        const up = Math.sin(now * 9 + k * 1.3) > 0; if (up && na < 60) this.birdsA.setMatrixAt(na++, m); else if (nb < 60) this.birdsB.setMatrixAt(nb++, m);
+      }
+    }
+    this.birdsA.count = na; this.birdsB.count = nb; this.birdsA.instanceMatrix.needsUpdate = true; this.birdsB.instanceMatrix.needsUpdate = true;
+    for (const d of this.deer) {
+      // flee from nearby soldiers, otherwise graze and amble around home
+      let fx = 0, fy = 0; if ((this.frameN + d.ph * 10 | 0) % 10 === 0) { for (const u of S.ents) if (u.d.kind === 'u' && Math.abs(u.rx - d.x) < 150 && Math.abs(u.ry - d.y) < 150) { fx += d.x - u.rx; fy += d.y - u.ry; } if (fx || fy) { const l = Math.hypot(fx, fy); d.tx = clamp(d.x + fx / l * 260, 40, MAP_W - 40); d.ty = clamp(d.y + fy / l * 260, 40, MAP_H - 40); d.flee = 3; } }
+      d.flee -= dt; d.wait -= dt;
+      const dx = d.tx - d.x, dy = d.ty - d.y, dd = Math.hypot(dx, dy), sp = d.flee > 0 ? 110 : 18;
+      let fr = 0;
+      if (dd > 3) { const st = Math.min(dd, sp * dt); d.x += dx / dd * st; d.y += dy / dd * st; d.yaw = turnAng(d.yaw, Math.atan2(dy, dx), dt * 5); fr = 1 + (((now * (d.flee > 0 ? 12 : 5) + d.ph * 6) | 0) % 6); }
+      else if (d.wait <= 0) { d.wait = 4 + Math.random() * 8; d.tx = clamp(d.hx + (Math.random() - 0.5) * 180, 40, MAP_W - 40); d.ty = clamp(d.hy + (Math.random() - 0.5) * 180, 40, MAP_H - 40); if (this.map.water(d.tx, d.ty)) { d.tx = d.x; d.ty = d.y; } }
+      const sc = this.toScreen(d.x, d.y, 10); if (sc.z > 1 || sc.x < -80 || sc.x > this.w + 80 || sc.y < -80 || sc.y > this.h + 80) continue;
+      this.put('deer' + fr, this.deerGeo[fr], d.x, this.gz(d.x, d.y), d.y, -d.yaw, PPM * 0.85, null);
+    }
+  }
   addCorpse(e, now, up) {
     if (e.d.kind === 'b' || e.d.sub === 'siege') {
       const h0 = this.gz(e.rx, e.ry);
@@ -975,13 +1055,14 @@ class Renderer3D extends Renderer {
       const col = FX_COLORS[f.c] || null;
       switch (f.k) {
         case 'arrow': case 'bolt': case 'javelin': case 'farrow': {
-          if (a > 1) { if (!f.hitDone) { f.hitDone = 1; const h = this.heightAt(f.x2, f.y2); for (let k = 0; k < 3; k++) this.emit3({ x: f.x2, y: f.y2, h: h + 6, vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.5) * 40, vh: Math.random() * 30, life: 0.3, t: 0, k: f.k === 'farrow' ? 'spark' : 'dust', s: 1.6 }); } break; }
+          const acol = { star: '210,235,255', poison: '140,255,120', sun: '255,220,110', rune: '140,200,255' }[f.c] || '255,150,50';
+          if (a > 1) { if (!f.hitDone) { f.hitDone = 1; const h = this.heightAt(f.x2, f.y2), sp = f.k === 'farrow'; for (let k = 0; k < (sp ? 7 : 3); k++) this.emit3({ x: f.x2, y: f.y2, h: h + 6, vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50, vh: Math.random() * 40, life: sp ? 0.5 : 0.3, t: 0, k: sp ? 'magic' : 'dust', col: acol, s: sp ? 2.2 : 1.6 }); if (sp && (f.c === 'fire' || f.c === 'sun' || !f.c)) for (let k = 0; k < 3; k++) this.emit3({ x: f.x2 + (Math.random() - 0.5) * 8, y: f.y2 + (Math.random() - 0.5) * 8, h: h + 2, vx: 0, vy: 0, vh: 16, life: 0.9 + Math.random() * 0.6, t: 0, k: 'fire', s: 2.5 }); if (sp && f.c === 'poison') this.emit3({ x: f.x2, y: f.y2, h: h + 4, vx: 0, vy: 0, vh: 6, life: 1.6, t: 0, k: 'magic', col: '90,200,80', s: 6 }); } break; }
           // f.y / f.y2 carry the old screen lift (-12 / -8); restore true ground points + height
           const x0 = f.x, y0 = f.y + 12, x1 = f.x2, y1 = f.y2 + 8, dist = Math.hypot(x1 - x0, y1 - y0), arc = Math.min(90, dist * 0.22);
           const h0 = this.heightAt(x0, y0) + 22, h1 = this.heightAt(x1, y1) + 14;
           const P = t => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, h0 + (h1 - h0) * t + Math.sin(t * Math.PI) * arc];
           const p = P(a), pb = P(Math.max(0, a - 0.04)), yaw = -Math.atan2(p[1] - pb[1], p[0] - pb[0]), pitch = Math.atan2(p[2] - pb[2], Math.hypot(p[0] - pb[0], p[1] - pb[1]));
-          if (f.k === 'farrow') { const silver = f.c === 'star'; this.emit3({ x: p[0], y: p[1], h: p[2], vx: 0, vy: 0, vh: 0, life: 0.25, t: 0, k: 'magic', col: silver ? '210,235,255' : '255,150,50', s: 3 }); this.addLight(p[0], p[1], 40, 0.5, !silver); }
+          if (f.k === 'farrow') { for (let k = 0; k < 2; k++) this.emit3({ x: p[0] + (Math.random() - 0.5) * 3, y: p[1] + (Math.random() - 0.5) * 3, h: p[2], vx: 0, vy: 0, vh: 4, life: 0.35, t: 0, k: 'magic', col: acol, s: 3.2 }); this.addLight(p[0], p[1], 50, 0.6, f.c === 'fire' || f.c === 'sun' || !f.c); }
           this.put('arrow', arrowGeo, p[0], p[2], p[1], yaw, f.k === 'javelin' ? 1.4 : f.k === 'bolt' ? 0.75 : 1, [0, pitch]);
           break;
         }

@@ -76,6 +76,15 @@ button:focus-visible{outline:2px solid var(--bronze2);outline-offset:2px}
 .big:disabled{opacity:.45}
 h2{font-family:var(--disp);font-size:24px;margin:0 0 10px;text-wrap:balance}
 h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--bronze2);margin:14px 0 6px}
+.chatbtn{right:calc(env(safe-area-inset-right,0px) + 56px)!important;font-size:15px}
+#chatlog{left:calc(env(safe-area-inset-left,0px) + 74px);top:calc(env(safe-area-inset-top,0px) + 8px);max-width:min(46vw,420px);display:flex;flex-direction:column;gap:3px;pointer-events:none}
+#chatlog .cl,.lobchat .cl{background:rgba(20,22,16,.82);border-left:3px solid #6fa3d8;border-radius:6px;padding:3px 8px;font-size:13px;transition:opacity 1.2s}
+#chatlog .cl.me,.lobchat .cl.me{border-left-color:var(--bronze2)} #chatlog .cl.old{opacity:0} #chatlog b,.lobchat b{color:var(--bronze2)}
+#chatbox{left:50%;top:calc(env(safe-area-inset-top,0px) + 56px);transform:translateX(-50%);width:min(92vw,480px);background:rgba(24,28,21,.96);border:1px solid #6a5a3a;border-radius:10px;padding:10px;z-index:30}
+.quickq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.quickq button{background:var(--iron2);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:13px}
+.lobchat{max-height:150px;overflow:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+#fps{left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);transform:translateX(-50%);font-size:11px;color:#cfe3b0;background:rgba(0,0,0,.45);padding:1px 6px;border-radius:5px;pointer-events:none}
+.rl{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:14px}.rng{flex:1;accent-color:var(--bronze2)}
 .roomrow{display:flex;gap:8px;align-items:center}.roomrow input{flex:1}.roomrow .big{min-height:38px;font-size:15px;flex:0 0 auto}
 .races{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .race{border:1px solid var(--line);border-radius:10px;background:var(--iron2);padding:8px;text-align:left;display:flex;flex-direction:column;gap:4px}
@@ -257,6 +266,11 @@ input[type=text]{width:100%;box-sizing:border-box;font-size:16px}
   <canvas id="cv"></canvas>
   <div id="quick" class="hud" hidden></div>
   <button id="bMenu" class="hud orbbtn" hidden aria-label="Меню">☰</button>
+  <button id="bChat" class="hud orbbtn chatbtn" hidden aria-label="Чат">✉</button>
+  <div id="chatlog" class="hud"></div>
+  <div id="chatbox" class="hud" hidden><div class="roomrow"><input type="text" id="chatin" maxlength="120" placeholder="Сообщение союзникам и врагам…"><button class="big" id="chatsend">Отпр.</button></div>
+    <div class="quickq"><button data-q="Атакую!">Атакую!</button><button data-q="Нужна помощь!">Нужна помощь!</button><button data-q="Отступаем!">Отступаем!</button><button data-q="Держим переправу">Держим переправу</button><button data-q="Хорошая битва!">Хорошая битва!</button></div></div>
+  <div id="fps" class="hud" hidden></div>
   <div id="spells" class="hud" hidden></div>
   <div id="toasts" class="hud"></div>
   <div id="hint" class="hud" hidden></div>

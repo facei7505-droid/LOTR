@@ -76,6 +76,8 @@ const M3 = (() => {
     P.push(ell(0, base + 1.0 * S, 0, 0.15 * B, 0.028 * S, 0.185 * B, leather));
     if (o.arm === 'plate' || o.arm === 'bronze') P.push(ell(ch[0] + 0.02, ch[1] + 0.03, 0, 0.16 * B, 0.2 * S, 0.21 * B, o.arm === 'bronze' ? armour : steel, [-1, 0, 0, 0.02]));
     if (o.cape) P.push(ell(-0.16 * B + lean * 0.2, base + 1.02 * S, 0, 0.05, 0.5 * S, 0.24 * B, MAT(o.cape, { pat: 'cloth' })));
+    // heavy armour: a crest in the team colour and a short tabard cape
+    if (o.plume && !o.robe) { P.push(ell(-0.03 + lean * 0.5, base + 1.645 * S + 0.16, 0, 0.13, 0.07, 0.025, MAT(o.team, { pat: 'fur' }))); if (!o.cape) P.push(ell(-0.15 * B + lean * 0.2, base + 1.05 * S, 0, 0.04, 0.38 * S, 0.2 * B, MAT(o.team, { pat: 'cloth' }))); }
     if (o.quiver) { P.push(cap([-0.16, base + 1.05 * S, -0.06], [-0.2, base + 1.5 * S, 0.06], 0.05, leather)); P.push(sph(-0.21, base + 1.55 * S, 0.07, 0.035, MAT('#e0dccf'))); }
     // shoulders, neck, head
     const light = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.arm === 'linen';
@@ -246,7 +248,7 @@ const M3 = (() => {
     else if (d.hero) human(Object.assign({ race: d.race, team }, HERO3[d.key]), pose, P);
     else {
       const L = Object.assign({ race: d.race, team }, LOOK[d.race][d.sub] || {});
-      if (up & 2 && L.arm !== 'leather' && L.arm !== 'apron') { L.arm = 'plate'; L.steel = '#c3cad1'; }
+      if (up & 2 && L.arm !== 'leather' && L.arm !== 'apron') { L.arm = 'plate'; L.steel = '#9da5ad'; L.plume = 1; }
       if (up & 1) L.glow = 1;
       if (d.sub === 'siege') catapult(d.race, pose, P, team);
       else if (d.sub === 'cav' && d.race === 'des') chariot(L, pose, P, team);
@@ -270,7 +272,9 @@ const M3 = (() => {
       if (p.k === 0) { p.bx = p.x; p.by = p.y; } else if (p.k === 1) { p.bx = p.x; p.by = p.y; p.br = Math.max(p.a, p.b, p.c); p.br2 = p.br * p.br; } else if (p.k === 2) { p.bx = (p.ax + p.bx2) / 2; p.by = (p.ay + p.by2) / 2; }
     }
   }
-  return { build, RACE3 };
+  // wildlife for the living world (deer grazing at the forest edge)
+  function animal(kind, frame, coat) { const P = [], pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2 } : {}; beast(kind, pose, P, coat, null); return P; }
+  return { build, RACE3, animal };
 })();
 
 // ---------- sprite cache + background baking queue ----------

@@ -132,6 +132,13 @@ const FORT_UP_NAMES = { walls: 'Каменные стены', archers: 'Лучн
 // battalion levels 1..10: experience needed to leave level L; every level +4% damage and health; a leader appears at LEADER_LVL
 const SQ_XP = [0, 5, 12, 21, 32, 45, 60, 78, 98, 120];
 const SQ_MAX_LVL = 10, LEADER_LVL = 3, FLAG_CD = 60;
+// battalion stances (BFME-style formations)
+const STANCES = {
+  norm: { name: 'Обычный строй', g: '⚔', desc: 'Сбалансированный строй' },
+  charge: { name: 'Натиск', g: '➤', dmg: 0.2, spd: 0.1, armor: -0.15, desc: '+20% урона, +10% скорости, −15% брони' },
+  wall: { name: 'Стена щитов', g: '⛨', dmg: -0.1, spd: -0.3, armor: 0.2, desc: '+20% брони, −10% урона, −30% скорости' },
+};
+const STANCE_KEYS = ['norm', 'charge', 'wall'];
 const upName = (race, k) => ((UPGRADE_NAMES[race] || {})[k]) || FORT_UP_NAMES[k] || k;
 const UPGRADE_NAMES = {
   hum: { blades: 'Кованые клинки', armor: 'Тяжёлая броня', arrows: 'Огненные стрелы', banner: 'Знамёна полков' },
@@ -289,7 +296,15 @@ for (const ck of Object.keys(CREEPS)) addType(Object.assign({ key: ck, race: ck 
 const SKILL_GLYPH = { aura: '✺', dash: '➶', aoe: '✹', strike: '⚔', heal: '✚', buff: '▲', debuff: '▼', summon: '♣', volley: '☄' };
 const FX_KINDS = ['arrow', 'bolt', 'javelin', 'holy', 'leaf', 'rune', 'shadow', 'hammer', 'fireball', 'boom', 'heal', 'buff', 'debuff', 'dash', 'mark', 'summon', 'star', 'lvl', 'farrow', 'boulder'];
 const FX_IDX = {}; FX_KINDS.forEach((k, i) => FX_IDX[k] = i);
-const FX_COLORS = { holy: '#fff1b0', fire: '#ff8a3a', nature: '#8fdc5a', roots: '#6aa84f', quake: '#c28b52', hammer: '#cfd8e0', shadow: '#a36bff', star: '#bfe3ff', def: '#ffd27a' };
+const FX_COLORS = { holy: '#fff1b0', fire: '#ff8a3a', nature: '#8fdc5a', roots: '#6aa84f', quake: '#c28b52', hammer: '#cfd8e0', shadow: '#a36bff', star: '#bfe3ff', def: '#ffd27a', poison: '#8dff7a', sun: '#ffd86a', rune: '#7fc8ff' };
+// upgraded arrows look different for every people: fire, star-silver, runes, poison, sunfire
+const ARROW_FX = { hum: 'fire', elf: 'star', dwf: 'rune', orc: 'fire', und: 'poison', des: 'sun' };
+// signature auras of the heroes: colour (r,g,b), style (rise | orbit | crackle | swirl | drip), light colour
+const HERO_FX = {
+  hum_h1: ['255,215,110', 'rise', 1], hum_h2: ['255,245,190', 'orbit', 1], elf_h1: ['255,90,60', 'crackle', 1], elf_h2: ['200,225,255', 'orbit', 0],
+  dwf_h1: ['150,200,255', 'crackle', 0], dwf_h2: ['255,170,90', 'orbit', 1], orc_h1: ['255,80,50', 'rise', 1], orc_h2: ['140,255,150', 'swirl', 0],
+  und_h1: ['110,255,160', 'drip', 0], und_h2: ['170,230,255', 'swirl', 0], des_h1: ['240,200,120', 'swirl', 1], des_h2: ['255,225,140', 'orbit', 1],
+};
 
 // ---------- spell book: powers bought with points earned in battle (BFME2-style tree) ----------
 const SPELLS = {

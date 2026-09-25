@@ -18,8 +18,8 @@ const Snd = {
     const c = this.ctx;
     this.comp = c.createDynamicsCompressor(); this.comp.threshold.value = -16; this.comp.ratio.value = 4; this.comp.connect(c.destination);
     this.master = c.createGain(); this.master.gain.value = 0.9; this.master.connect(this.comp);
-    this.sfx = c.createGain(); this.sfx.gain.value = this.on ? 1 : 0; this.sfx.connect(this.master);
-    this.mus = c.createGain(); this.mus.gain.value = this.musicOn && this.on ? 0.55 : 0; this.mus.connect(this.master);
+    this.sfx = c.createGain(); this.sfx.gain.value = this.on ? this.vol : 0; this.sfx.connect(this.master);
+    this.mus = c.createGain(); this.mus.gain.value = this.musicOn && this.on ? 0.55 * this.mvol : 0; this.mus.connect(this.master);
     // generated hall reverb
     const len = c.sampleRate * 2.4, ir = c.createBuffer(2, len, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
@@ -28,8 +28,10 @@ const Snd = {
     this.nextT = c.currentTime + 0.2;
     setInterval(() => this.schedule(), 90);
   },
-  setOn(v) { this.on = v; if (this.sfx) { this.sfx.gain.value = v ? 1 : 0; this.mus.gain.value = v && this.musicOn ? 0.55 : 0; } },
-  setMusic(v) { this.musicOn = v; if (this.mus) this.mus.gain.setTargetAtTime(v && this.on ? 0.55 : 0, this.ctx.currentTime, 0.3); },
+  vol: 1, mvol: 1,
+  setOn(v) { this.on = v; if (this.sfx) { this.sfx.gain.value = v ? this.vol : 0; this.mus.gain.value = v && this.musicOn ? 0.55 * this.mvol : 0; } },
+  setMusic(v) { this.musicOn = v; if (this.mus) this.mus.gain.setTargetAtTime(v && this.on ? 0.55 * this.mvol : 0, this.ctx.currentTime, 0.3); },
+  setVol(a, b) { this.vol = a; this.mvol = b; this.setOn(this.on); },
   setTheme(k) { if (MUSIC[k]) this.theme = k; },
   setIntensity(x) { this.targetI = clamp(x, 0, 1); },
   // ---- building blocks ----

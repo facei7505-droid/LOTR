@@ -56,7 +56,7 @@ class Game {
     return { v: 2, cfg: { seed: this.seed, mapType: this.mapType, popMax: this.popMax, players: this.cfg.players }, t: this.t, nextId: this.nextId, nextSq: this.nextSq, fxSeq: this.fxSeq,
       players: this.players.map(p => ({ gold: p.gold, alive: p.alive, heroes: p.heroes, kills: p.kills, lost: p.lost, pxp: p.pxp, plvl: p.plvl, pts: p.pts, spells: p.spells, scd: p.scd, fort: p.fort, up: p.up, ai: p.ai, diff: p.diff })),
       ents: this.ents.filter(e => !e.dead).map(e => { const o = { key: e.d.key }; for (const k of KEYS) if (e[k] !== undefined && e[k] !== null) o[k] = e[k]; return o; }),
-      squads: [...this.squads.values()].map(q => ({ id: q.id, owner: q.owner, key: q.key, mem: q.mem, x: q.x, y: q.y, tx: q.tx, ty: q.ty, ang: q.ang, want: q.want, turnTo: q.turnTo, mode: q.mode, tid: q.tid, kills: q.kills, rank: q.rank, path: q.path, fightT: q.fightT, eq: q.eq, lvl: q.lvl, xp: q.xp, flagCd: q.flagCd, leadT: q.leadT })),
+      squads: [...this.squads.values()].map(q => ({ id: q.id, owner: q.owner, key: q.key, mem: q.mem, x: q.x, y: q.y, tx: q.tx, ty: q.ty, ang: q.ang, want: q.want, turnTo: q.turnTo, mode: q.mode, tid: q.tid, kills: q.kills, rank: q.rank, path: q.path, fightT: q.fightT, eq: q.eq, stance: q.stance, lvl: q.lvl, xp: q.xp, flagCd: q.flagCd, leadT: q.leadT })),
       outposts: this.outposts, camps: this.camps, relic: this.relic, relicT: this.relicT,
       proj: this.proj.map(pr => ({ tid: pr.tid, src: pr.src, own: pr.own, dmg: pr.dmg, left: pr.left, key: pr.sd && pr.sd.key })) };
   }
@@ -284,7 +284,7 @@ class Game {
   }
 
   // ---- stats ----
-  statAdd(e, s) { let v = e.aura[s] || 0; for (const b of e.buffs) if (b.s === s) v += b.v; return v; }
+  statAdd(e, s) { let v = e.aura[s] || 0; for (const b of e.buffs) if (b.s === s) v += b.v; if (e.sq) { const q = this.squads.get(e.sq), st = q && q.stance && STANCES[q.stance]; if (st && st[s]) v += st[s]; } return v; }
   mult(e, s) { return Math.max(0.2, 1 + this.statAdd(e, s)); }
   rankMul(e) { return (1 + 0.04 * e.rank + (e.d.hero ? 0.08 * (e.lvl - 1) : 0)) * (e.leader ? 1.6 : 1); }
   income(p) {
@@ -476,6 +476,11 @@ class Game {
         if (U.forge && !this.ents.some(e => e.owner === pi && !e.dead && e.d.forge && e.built >= 1)) { if (!p.ai) this.note(pi, 'Сначала постройте кузницу'); return; }
         if (this.ents.some(e => e.owner === pi && !e.dead && e.queue.some(q => q.up === U.k))) return;
         p.gold -= U.cost; b.queue.push({ up: U.k, t: 0, cost: U.cost }); return;
+      }
+      case 'stance': {
+        if (!STANCES[c.k]) return;
+        for (const sid of (c.s || []).slice(0, 60)) { const s = this.squads.get(sid); if (s && s.owner === pi && !s.d.summon && s.d.n > 1) s.stance = c.k === 'norm' ? undefined : c.k; }
+        return;
       }
       case 'flag': {
         let n = 0;
@@ -764,7 +769,16 @@ class Game {
       }
     }
   }
-  knock(o, cx, cy, amt) { const a = Math.atan2(o.y - cy, o.x - cx); o.x = clamp(o.x + Math.cos(a) * amt, 10, MAP_W - 10); o.y = clamp(o.y + Math.sin(a) * amt, 10, MAP_H - 10); o.knockT = 0.4; }
+  // knockback never throws anyone into a cliff, a forest thicket or a building: it stops at the last free spot
+  knock(o, cx, cy, amt) {
+    const a = Math.atan2(o.y - cy, o.x - cx), M = this.map;
+    for (let k = 4; k >= 1; k--) {
+      const x = clamp(o.x + Math.cos(a) * amt * k / 4, 10, MAP_W - 10), y = clamp(o.y + Math.sin(a) * amt * k / 4, 10, MAP_H - 10);
+      if (M.water(x, y) === 3 || this.blockedAt(x, y)) continue;
+      o.x = x; o.y = y; break;
+    }
+    o.knockT = 0.4;
+  }
 
   // ---- main step ----
   step(dt) {
@@ -806,6 +820,7 @@ class Game {
     }
     this.buildGrid();
     this.separate();
+    this.trample(dt);
     this.updOutposts(dt); this.updRelic(dt);
     for (const p of this.players) for (const k in p.scd) if (p.scd[k] > 0) p.scd[k] -= dt;
     if (this.ents.some(e => e.dead)) {
@@ -950,11 +965,32 @@ class Game {
     if (Math.abs(dx) > 1 && s > 0.3) e.face = dx > 0 ? 1 : -1;
   }
   sqXpF(s) { const L = s.lvl || 1; if (L >= SQ_MAX_LVL) return 99; const a = SQ_XP[L - 1] || 0, b = SQ_XP[L]; return Math.round(clamp(((s.xp || 0) - a) / (b - a), 0, 1) * 99); }
+  flank(e, t) {
+    if (!t.sq || e.d.kind !== 'u' || e.d.range > 60) return 1;
+    const s = this.squads.get(t.sq); if (!s) return 1;
+    const dx = e.x - t.x, dy = e.y - t.y, d = Math.hypot(dx, dy) || 1, f = (dx * Math.cos(s.ang) + dy * Math.sin(s.ang)) / d;
+    return f < -0.5 ? 1.3 : f < 0.25 ? 1.15 : 1;
+  }
+  // cavalry at full gallop tramples infantry and archers; spearmen stop the charge and wound the horses
+  trample(dt) {
+    for (const e of this.ents) {
+      if (e.dead || e.d.kind !== 'u' || e.d.cls !== 'cav' || !e.moving || e.atk > 0 || e.ox === undefined) continue;
+      if (Math.hypot(e.x - e.ox, e.y - e.oy) / dt < e.d.speed * 0.38) continue;
+      this.near(e.x, e.y, e.r + 20, o => {
+        if (o.dead || o.d.kind !== 'u' || !this.enemy(e.owner, o.owner) || o.d.hero || o.d.cls === 'cav' || o.d.cls === 'siege' || o.d.r > 14) return;
+        if (Math.hypot(o.x - e.x, o.y - e.y) > e.r + o.r + 3 || o.trampleT > this.t) return;
+        o.trampleT = this.t + 1.2;
+        if (o.d.cls === 'spear') { this.damage(o, e, o.d.dmg * 2, false); this.damage(e, o, e.d.dmg * 0.3, false); return; }
+        this.damage(e, o, e.d.dmg * this.mult(e, 'dmg'), false);
+        if (!o.dead) this.knock(o, e.x, e.y, 20);
+      });
+    }
+  }
   eqOf(e) { const s = e.sq ? this.squads.get(e.sq) : null; return s ? s.eq : null; }
   attack(e, t) {
     e.atk = 0.3; e.hd = Math.atan2(t.y - e.y, t.x - e.x);
     if (Math.abs(t.x - e.x) > 1) e.face = t.x > e.x ? 1 : -1;
-    let dmg = e.d.dmg * this.mult(e, 'dmg') * this.rankMul(e);
+    let dmg = e.d.dmg * this.mult(e, 'dmg') * this.rankMul(e) * this.flank(e, t);
     const pu = this.players[e.owner], eq = e.sq ? this.eqOf(e) : null, fire = e.d.proj && ((e.d.kind === 'b' && pu && pu.up.arrows) || (eq && eq.arrows));
     if (eq && eq.blades) dmg *= 1.25;
     if (fire) dmg *= 1.3;
@@ -969,7 +1005,7 @@ class Game {
       const fly = Math.max(0.12, dd / 560);
       this.proj.push({ tid: t.id, src: e.id, sd: e.d, own: e.owner, dmg, left: fly });
       const f = this.addFx(fire ? 'farrow' : e.d.proj, e.x, e.y - (e.d.kind === 'b' ? e.r * 0.8 : 12), t.x, t.y - 8, 0, fly);
-      if (fire) f.c = pu.race === 'elf' ? 'star' : 'fire';
+      if (fire) f.c = ARROW_FX[pu.race] || 'fire';
     } else {
       this.damage(e, t, dmg, false);
       if (e.d.cleave && t.d.kind === 'u') { let n = 0; this.near(t.x, t.y, e.d.cleave + 20, o => { if (n >= 3 || o === t || o.dead || o.d.kind !== 'u' || !this.enemy(e.owner, o.owner) || Math.hypot(o.x - t.x, o.y - t.y) > e.d.cleave + o.r) return; n++; this.damage(e, o, dmg * 0.5, false); }); }
@@ -1266,7 +1302,7 @@ class Game {
     const q = [];
     for (const e of this.ents) if (e.d.kind === 'b' && e.queue.length) { const q0 = e.queue[0], tm = q0.up ? UPG[q0.up].time : DEF[q0.u].time; q.push(e.id, e.queue.length, Math.round(q0.t / tm * 99), q0.up ? 100 + UPGRADES.findIndex(u => u.k === q0.up) : DEF[q0.u].ti); }
     const notes = this.notes.filter(n => this.t - n.t < 3 && this.players[n.p] && this.players[n.p].remote).slice(-4).map(n => [n.p, n.text, Math.round(n.t * 10), n.x, n.y]);
-    const se = []; for (const s of this.squads.values()) if (s.eq || (s.lvl || 1) > 1 || s.xp) se.push(s.id, s.eq ? Object.keys(s.eq).reduce((m, k) => m | (UP_BIT[k] || 0), 0) : 0, Math.max(0, Math.ceil(s.flagCd || 0)), this.sqXpF(s));
+    const se = []; for (const s of this.squads.values()) if (s.eq || (s.lvl || 1) > 1 || s.xp || s.stance) se.push(s.id, s.eq ? Object.keys(s.eq).reduce((m, k) => m | (UP_BIT[k] || 0), 0) : 0, Math.max(0, Math.ceil(s.flagCd || 0)), this.sqXpF(s), STANCE_KEYS.indexOf(s.stance || 'norm'));
     const rl = this.relic ? [this.relic.x, this.relic.y, Math.round(this.relic.prog * 99), this.relic.cap, this.relic.contested ? 1 : 0] : null;
     return { t: Math.round(this.t * 100), u, fx, pl, hs, q, op, se, rl, n: notes, o: this.over };
   }

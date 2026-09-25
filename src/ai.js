@@ -85,7 +85,7 @@ class AI {
     }
     // train
     const fgB = this.mine(e => e.d.forge && e.built >= 1)[0];
-    if (fgB && !fgB.queue.length && this.t > 330 && this.mine(e => e.d.sub === 'siege').length < 2 && p.gold > DEF[p.race + '_siege'].cost + 400) g.cmd(this.pi, { c: 'train', b: fgB.id, u: p.race + '_siege' });
+    if (fgB && !fgB.queue.length && this.t > 300 && this.mine(e => e.d.sub === 'siege').length < (this.t > 700 ? 3 : 2) && p.gold > DEF[p.race + '_siege'].cost + 60) g.cmd(this.pi, { c: 'train', b: fgB.id, u: p.race + '_siege' });
     for (const b of this.mine(e => e.d.kind === 'b' && e.built >= 1 && e.d.trains && e.d.sub !== 'fort' && !e.d.forge)) {
       if (b.queue.length >= 2) continue;
       const opts = b.d.trains; let u = opts[0];
@@ -108,6 +108,7 @@ class AI {
     let threat = null;
     if (fort) g.near(fort.x, fort.y, 700, e => { if (!threat && !e.dead && e.d.kind === 'u' && g.enemy(this.pi, e.owner) && Math.hypot(e.x - fort.x, e.y - fort.y) < 700) threat = e; });
     if (threat) {
+      g.cmd(this.pi, { c: 'stance', s: sqs.filter(q => (q.d.cls === 'spear' || q.d.cls === 'inf') && fort && Math.hypot(q.x - fort.x, q.y - fort.y) < 900).map(q => q.id), k: 'wall' });
       order(sqs.filter(q => q.mode !== 'atk' && !q.eng), heroes.filter(h => !h.order || h.order.t !== 'atk'), threat.x, threat.y);
       return;
     }
@@ -117,7 +118,7 @@ class AI {
     if (((soldiers >= this.wave && this.t - this.lastAttack > 20) || (soldiers >= 40 && this.t - this.lastAttack > 150) || (soldiers >= 24 && this.t - this.lastAttack > 240)) && this.t > 150) {
       this.lastAttack = this.t; this.wave = Math.min(g.popMax * 0.55, this.wave + 10);
       const tgt = this.pickTarget();
-      if (tgt) order(sqs, heroes, tgt.x, tgt.y);
+      if (tgt) { g.cmd(this.pi, { c: 'stance', s: sqs.filter(q => q.d.cls === 'inf' || q.d.cls === 'cav').map(q => q.id), k: 'charge' }); g.cmd(this.pi, { c: 'stance', s: sqs.filter(q => q.d.cls !== 'inf' && q.d.cls !== 'cav').map(q => q.id), k: 'norm' }); order(sqs, heroes, tgt.x, tgt.y); }
     } else if (this.t - this.lastAttack < 90 && this.lastAttack > 0) {
       // keep pushing: idle battalions rejoin the attack
       const tgt = this.pickTarget();
