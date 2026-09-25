@@ -105,6 +105,19 @@ const B3 = (() => {
         flag(hx * 0.5, h + 12, -hz * 0.3, 12);
         break;
       }
+      case 'wall': {
+        if (race === 'orc') { for (let k = -4; k <= 4; k++) { const x = k * 4.6; P.push(cap([x, 0, 0], [x, 26 + (k % 2) * 3, 0], 2.4, wood), cap([x, 26 + (k % 2) * 3, 0], [x, 31 + (k % 2) * 3, 0], 0.9, wood)); } P.push(box(0, 14, -1.5, 20, 1.2, 1.2, wood)); break; }
+        wall(0, 0, 20, 5.5, 24, stone); P.push(box(0, 25, 0, 20.5, 1.3, 6.5, stoneDark)); crenels(0, 5.5, 20, 0.9, 26, stoneDark); crenels(0, -5.5, 20, 0.9, 26, stoneDark);
+        if (race === 'des') P.push(box(0, 27.5, 0, 20.2, 0.6, 6.8, gold));
+        break;
+      }
+      case 'gate': {
+        for (const sx of [-1, 1]) { tower(sx * 20, 0, 9, 38, stone); }
+        wall(0, 0, 12, 5, 34, stone, 22); P.push(box(0, 11, 5.3, 11, 11, 0.8, MAT('#4a3424', { pat: 'planks', bw: 3, ns: 0.3 })), box(0, 11, -5.3, 11, 11, 0.8, MAT('#4a3424', { pat: 'planks', bw: 3, ns: 0.3 })));
+        for (const z of [5.9, -5.9]) for (const x of [-7, 0, 7]) P.push(box(x, 11, z, 0.5, 11, 0.3, MAT('#3a3c40', { pat: 'metal', spec: 0.7, shin: 30 })));
+        P.push(box(0, 36, 0, 13, 2, 6, stoneDark)); crenels(0, 6, 12, 0.8, 37, stoneDark); flag(0, 38, 0, 12);
+        break;
+      }
       case 'tower': {
         if (race === 'des') { obelisk(0, 0, 7, 78, stone); P.push(box(0, 2, 0, 12, 2, 12, stoneDark)); P.push(sph(0, 70, 7.3, 2.2, lit)); flag(9, 10, 9, 14); break; }
         if (race === 'orc') { for (const [x, z] of [[-8, -8], [8, -8], [-8, 8], [8, 8]]) P.push(cap([x * 1.3, 0, z * 1.3], [x, 46, z], 1.4, wood)); P.push(box(0, 48, 0, 11, 2, 11, wood)); for (const [x, z] of [[-10, 0], [10, 0]]) P.push(box(x, 53, z, 0.8, 4, 10, wood)); P.push(gable(0, 60, 0, 12, 12, 10, roof)); P.push(sph(0, 52, 0, 2.5, lit)); flag(9, 66, 0, 10); break; }
@@ -115,7 +128,7 @@ const B3 = (() => {
       }
     }
     // BFME proportions: buildings tower over the soldiers without growing their footprint
-    const vs = d.sub === 'fort' ? 1.5 : d.sub === 'tower' ? 1.2 : 1.3;
+    const vs = d.sub === 'fort' ? 1.5 : d.sub === 'tower' ? 1.2 : d.wall ? 1.15 : 1.3;
     for (const p of P) {
       if (p.k === 0) { Object.assign(p, { k: 1, a: p.r, b: p.r * vs, c: p.r, clip: null }); p.y *= vs; }
       else if (p.k === 1) { p.y *= vs; p.b *= vs; if (p.clip) { const n = [p.clip[0], p.clip[1] / vs, p.clip[2]], l = Math.hypot(n[0], n[1], n[2]); p.clip = [n[0] / l, n[1] / l, n[2] / l, p.clip[3] / l]; } }

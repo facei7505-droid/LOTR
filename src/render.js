@@ -1236,6 +1236,20 @@ class Renderer {
   }
   drawEnt(e, now, rdt, S) {
     const c = this.c, col = TEAM_COLORS[e.owner] || '#888', env = this.env;
+    if (e.d.wall) {
+      const L = e.d.gate ? 30 : 20, h = (e.d.gate ? 30 : 20) * (0.3 + 0.7 * e.built);
+      c.save(); c.translate(e.rx, e.ry); c.rotate(e.ang || 0);
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(-L, -2, L * 2, 10);
+      c.fillStyle = e.d.race === 'orc' ? '#5a4330' : '#8f887c'; c.fillRect(-L, -7, L * 2, 12);
+      c.restore();
+      c.save(); c.translate(e.rx, e.ry); c.fillStyle = e.d.race === 'orc' ? '#6b5038' : '#a39b8d';
+      const dx = Math.cos(e.ang || 0) * L, dy = Math.sin(e.ang || 0) * L;
+      c.beginPath(); c.moveTo(-dx, -dy); c.lineTo(dx, dy); c.lineTo(dx, dy - h); c.lineTo(-dx, -dy - h); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 1; c.stroke();
+      if (e.d.gate) { c.fillStyle = '#4a3424'; c.fillRect(-7, -h * 0.75, 14, h * 0.75); c.fillStyle = col; c.fillRect(-2, -h - 12, 8, 6); }
+      c.restore();
+      return;
+    }
     if (e.d.kind === 'b') {
       const s = bld3(e.d, col) || bldSprite(e.d, col);
       if (e.built < 1) {

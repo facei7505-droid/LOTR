@@ -31,6 +31,7 @@ function makeLocalView(g, me) {
     queue(bid) { const b = g.byId.get(bid); if (!b || !b.queue.length) return null; const q = b.queue[0]; if (q.up) return { n: b.queue.length, prog: q.t / UPG[q.up].time, ti: -1, up: q.up, items: [] }; return { n: b.queue.length, prog: q.t / DEF[q.u].time, ti: DEF[q.u].ti, items: b.queue.map(x => x.u) }; },
     send(c) { g.cmd(me, c); },
     canPlace(key, x, y) { return g.canPlace(me, key, x, y); },
+    wallPlan(x1, y1, x2, y2) { return g.wallPlan(me, x1, y1, x2, y2); },
     teamOf(i) { return g.players[i] ? g.players[i].team : -1; },
     nplayers: g.players.length,
     prep(alpha) {
@@ -80,7 +81,7 @@ function makeClientView(me, players, seed, mapType) {
         e.sq = s.sq || 0; e.eqv = e.sq ? se.get(e.sq) || 0 : 0;
         e.fx0 = e.rx; e.fy0 = e.ry; e.x = s.x; e.y = s.y; e.t0 = now;
         e.hp = s.hp * e.maxhp;
-        if (d.kind === 'b') { e.built = s.ex / 99; }
+        if (d.kind === 'b') { e.built = (s.ex & 127) / 99; e.ang = ((s.ex >> 7) & 31) / 32 * Math.PI * 2; }
         else { e.built = 1; e.atkT = (s.ex & 1) ? 0.3 : 0; e.moving = !!(s.ex & 2); e.hd = (((s.ex >> 2) & 1) | (((s.ex >> 10) & 3) << 1)) * Math.PI / 4; e.face = Math.cos(e.hd) < -0.01 ? -1 : 1; e.stunned = !!(s.ex & 8); const lv = (s.ex >> 6) & 15; e.leader = e.sq ? (s.ex & 16 ? 1 : 0) : 0; e.rank = e.sq ? Math.max(0, lv - 1) : (s.ex >> 4) & 3; if (d.hero && lv > e.lvl && e.lvl) { /* level up */ } e.lvl = lv || 1; }
       }
       for (const id of [...ents.keys()]) if (!seen.has(id)) ents.delete(id);
@@ -188,6 +189,13 @@ function tapWorld(sx, sy, touch) {
   const w = R.toWorld(sx, sy);
   const cm = UI.cmode;
   if (cm) {
+    if (cm.t === 'wall') {
+      if (!cm.a) { cm.a = { x: w.x, y: w.y }; hint('Теперь нажмите, где стена заканчивается (до 900 шагов). Длинная стена получит ворота.'); return; }
+      const plan = V.wallPlan ? V.wallPlan(cm.a.x, cm.a.y, w.x, w.y) : null;
+      V.send({ c: 'wall', x1: cm.a.x, y1: cm.a.y, x2: w.x, y2: w.y, ids: cm.ids || [] }); Snd.play('build');
+      if (plan && !plan.some(s => s.ok)) toast('Здесь стену не поставить: нужно рядом со своими зданиями');
+      UI.cmode = null; hint(''); UI.panelSig = ''; buildSig = ''; ringSig = ''; return;
+    }
     if (cm.t === 'build') {
       const ok = V.canPlace(cm.key, w.x, w.y);
       if (UI.ghost && Math.hypot(UI.ghost.x - w.x, UI.ghost.y - w.y) < 40 / R.cam.z + 20 && UI.ghost.ok) { buildHere(); return; }
@@ -365,6 +373,7 @@ function castPower(k) {
 }
 function pickBuild(sub) {
   const P = V.player(V.me), key = P.race + '_' + sub, d = DEF[key];
+  if (sub === 'wall') { UI.cmode = { t: 'wall', key, ids: mySel().filter(e => e.d.worker).map(e => e.id), a: null }; UI.ghost = null; UI.panelSig = ''; buildSig = ''; hint('Стена: нажмите, где она начинается'); return; }
   if (P.gold < d.cost) { toast('Не хватает золота: нужно ' + d.cost); return; }
   const ws = mySel().filter(e => e.d.worker).map(e => e.id);
   UI.cmode = { t: 'build', key, sub, ids: ws }; UI.ghost = null; UI.panelSig = ''; buildSig = '';
@@ -579,7 +588,7 @@ function updateBuildPanel() {
   if (!bp.hidden && sig === buildSig) return;
   buildSig = sig; bp.hidden = false;
   let h = '<h4>Постройки<button data-b="close" aria-label="Закрыть">✖</button></h4>';
-  for (const sub of BUILD_ORDER) {
+  for (const sub of [...BUILD_ORDER, 'wall']) {
     const d = DEF[race + '_' + sub], lim = sub === 'farm' && farms >= 10;
     h += '<button class="bcard' + (P.gold < d.cost || lim ? ' off' : '') + '" data-b="' + sub + '"><img src="' + bigIcon(d, V.me) + '" alt=""><span><b>' + d.name + '</b><span class="cst">' + d.cost + ' · ' + d.time + ' с</span><span class="ds">' + (lim ? 'Максимум 10' : BLD_DESC[sub]) + '</span></span></button>';
   }
@@ -796,6 +805,7 @@ function menuHelp() {
     '<p><b>Цитадель:</b> в ней улучшаются стены, лучники на стенах, требушет, казна и лазарет.</p>' +
     '<p><b>Уровни и лидеры:</b> батальоны растут до 10 уровня (+4% за уровень). На 3 уровне появляется лидер — он поднимает павших, а навык «Знамя» мгновенно возвращает троих.</p>' +
     '<p><b>Тактика:</b> стойки «Натиск» и «Стена щитов», удар в ближнем бою во фланг +15%, в тыл +30%. Конница на скаку топчет пехоту и стрелков, но копейщики останавливают её.</p>' +
+    '<p><b>Стены:</b> выберите строителя → «Стена», нажмите начало и конец. Длинная стена получит ворота — свои проходят, враги нет.</p>' +
     '<p><b>Реликвии:</b> каждые несколько минут в центре карты появляется реликвия — удержите её 8 секунд ради золота и боевого клича.</p>' +
     '<p><b>Лагеря:</b> на карте живут волки, разбойники и тролли. Разбейте лагерь — заберёте сундук с золотом. Через несколько минут лагерь снова занимают.</p>' +
     '<p><b>Мир:</b> день сменяется ночью (в темноте светят факелы и костры), бывают дождь, туман и снегопад. Павшие остаются на поле, взрывы оставляют воронки, армии протаптывают дороги.</p>' +
@@ -1263,6 +1273,11 @@ function drawOverlay(now) {
   if (UI.moveMark && now - UI.moveMark.t < 0.9) { const m = UI.moveMark, a = (now - m.t) / 0.9; for (let k = 0; k < 3; k++) { const an = -Math.PI / 2 + (k - 1) * 0.5; R.gLine(m.x, m.y, m.x + Math.cos(an) * (22 + a * 10), m.y + Math.sin(an) * (R.is3D ? 22 + a * 10 : 12 + a * 5), '#f6e27a', 0.8 * (1 - a), 2); } }
   UI.pings = UI.pings.filter(p => now - p.t < 0.6);
   for (const p of UI.pings) { const a = (now - p.t) / 0.6; R.gRing(p.x, p.y, 8 + a * 16, p.col, 1, 2.5 * (1 - a) + 0.5); }
+  if (UI.cmode && UI.cmode.t === 'wall' && UI.cmode.a && hoverW && V.wallPlan) {
+    const plan = V.wallPlan(UI.cmode.a.x, UI.cmode.a.y, hoverW.x, hoverW.y), cost = plan.reduce((m, s) => m + DEF[s.key].cost, 0);
+    for (const s of plan) R.gRing(s.x, s.y, DEF[s.key].r, s.ok ? (s.key.endsWith('gate') ? '#ffd46a' : '#6fe08a') : '#ff5a4a', 0.9, 2);
+    if (plan.length) hint('Стена: ' + plan.length + ' секций' + (plan.some(s => s.key.endsWith('gate')) ? ' с воротами' : '') + ' · ' + cost + ' золота · нажмите, чтобы поставить');
+  }
   if (UI.cmode && UI.cmode.t === 'power' && hoverW) { R.gDisc(hoverW.x, hoverW.y, UI.cmode.radius, '#ff7832', 0.15); R.gRing(hoverW.x, hoverW.y, UI.cmode.radius, '#ffb35a', 1, 2); }
   if (UI.cmode && UI.cmode.t === 'skill') {
     const h = V.get(UI.cmode.h);

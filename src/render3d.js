@@ -752,7 +752,8 @@ class Renderer3D extends Renderer {
     const key = d.key + col; let g = this.geos.get('b' + key); if (g) return g;
     if (A3.has(d.key)) { g = A3.bldGeo(d, col); if (g) { this.geos.set('b' + key, g); return g; } }
     const P = B3.build(d, col); const { MAT, box } = R3;
-    P.push(box(0, -14, 0, d.r * 0.98, 14.5, d.r * 0.78, MAT('#5c564c', { pat: 'rock' })));
+    if (d.wall) P.push(box(0, -14, 0, d.gate ? 29 : 21, 14.5, d.gate ? 9 : 7, MAT('#5c564c', { pat: 'rock' })));
+    else P.push(box(0, -14, 0, d.r * 0.98, 14.5, d.r * 0.78, MAT('#5c564c', { pat: 'rock' })));
     g = G3.build(P, { seg: 1 }); this.geos.set('b' + key, g); return g;
   }
   flagTex(race, col) {
@@ -850,7 +851,7 @@ class Renderer3D extends Renderer {
         let bm = this.bldMesh.get(e.id);
         if (!bm) { const mesh = new T.Mesh(this.bldGeo(e.d, col), this.m3.unit); mesh.castShadow = true; mesh.receiveShadow = true; mesh.rotation.y = -0.35; this.scene.add(mesh); bm = { mesh, e }; this.bldMesh.set(e.id, bm); }
         bm.seen = this.frameN; bm.mesh.visible = true;
-        const bh = this.gz(e.rx, e.ry); bm.mesh.position.set(e.rx, bh, e.ry); bm.mesh.scale.set(1, e.built < 1 ? 0.06 + 0.94 * e.built : 1, 1);
+        const bh = this.gz(e.rx, e.ry); bm.mesh.position.set(e.rx, bh, e.ry); if (e.d.wall) bm.mesh.rotation.y = -(e.ang || 0); bm.mesh.scale.set(1, e.built < 1 ? 0.06 + 0.94 * e.built : 1, 1);
         if (e.built < 1) { if (Math.random() < 0.2) this.emit3({ x: e.rx + (Math.random() - 0.5) * e.r, y: e.ry + (Math.random() - 0.5) * e.r * 0.6, h: bh + 4, vx: (Math.random() - 0.5) * 10, vy: 0, vh: 10, life: 1, t: 0, k: 'dust', s: 5 }); G.push(['ring', e.rx, e.ry, e.r * 1.05, '#c9a66a', 0.5, 1.6]); }
         else { this.addLight(e.rx, e.ry, e.r * (e.d.sub === 'fort' ? 3.2 : 2.2), 0.85 * clamp((1 - env.light) * 2, 0, 1), true); if (e.d.forge && Math.random() < 0.35) this.emit3({ x: e.rx + 10, y: e.ry - 10, h: bh + e.r * 2.2, vx: 4, vy: 0, vh: 24, life: 2.6, t: 0, k: 'smoke', s: 4.5 }); }
         if (e.hp < e.maxhp * 0.6 && e.built >= 1) { const sev = 1 - e.hp / e.maxhp; if (Math.random() < 0.7 * sev) this.emit3({ x: e.rx + (Math.random() - 0.5) * e.r, y: e.ry + (Math.random() - 0.5) * e.r * 0.6, h: bh + e.r * (0.8 + Math.random()), vx: 4 + Math.random() * 6, vy: 0, vh: 22 + Math.random() * 10, life: 2.6, t: 0, k: 'smoke', s: 6 + e.r * 0.12 }); if (e.hp < e.maxhp * 0.35 && Math.random() < 0.6) { this.emit3({ x: e.rx + (Math.random() - 0.5) * e.r, y: e.ry + (Math.random() - 0.5) * e.r * 0.5, h: bh + e.r * (0.5 + Math.random() * 0.8), vx: 0, vy: 0, vh: 30, life: 0.7, t: 0, k: 'fire', s: 5 + Math.random() * 4 }); this.addLight(e.rx, e.ry, e.r * 2.5, 0.9, true); } }

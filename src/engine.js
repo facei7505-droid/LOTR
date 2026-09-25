@@ -55,7 +55,7 @@ class Game {
   }
   // ---- save / load (local games) ----
   serialize() {
-    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'leader', 'lastHit'];
+    const KEYS = ['id', 'owner', 'x', 'y', 'hp', 'maxhp', 'order', 'tgt', 'cd', 'face', 'buffs', 'xp', 'rank', 'kills', 'lvl', 'scd', 'stun', 'built', 'queue', 'rally', 'life', 'sq', 'slot', 'anchor', 'auto', 'camp', 'leader', 'ang', 'lastHit'];
     return { v: 2, cfg: { seed: this.seed, mapType: this.mapType, popMax: this.popMax, players: this.cfg.players }, t: this.t, nextId: this.nextId, nextSq: this.nextSq, fxSeq: this.fxSeq,
       players: this.players.map(p => ({ gold: p.gold, alive: p.alive, heroes: p.heroes, kills: p.kills, lost: p.lost, pxp: p.pxp, plvl: p.plvl, pts: p.pts, spells: p.spells, scd: p.scd, fort: p.fort, up: p.up, ai: p.ai, diff: p.diff })),
       ents: this.ents.filter(e => !e.dead).map(e => { const o = { key: e.d.key }; for (const k of KEYS) if (e[k] !== undefined && e[k] !== null) o[k] = e[k]; return o; }),
@@ -136,7 +136,7 @@ class Game {
       buffs: [], aura: {}, xp: 0, rank: 0, kills: 0, lvl: 1, scd: [0, 0, 0, 0], stun: 0, built: 1, queue: [], rally: null, life: 0,
       atk: 0, moving: 0, dead: false, scanT: this.rand() * 0.4, anchor: { x, y }, stuckT: 0, sq: 0, slot: 0 };
     if (d.kind === 'b' && opt && opt.construct) { e.built = 0; e.hp = d.hp * 0.1; }
-    if (d.kind === 'b') this.markBld(e, 1);
+    if (d.kind === 'b' && !d.gate) this.markBld(e, 1);
     this.ents.push(e); this.byId.set(e.id, e);
     return e;
   }
@@ -412,11 +412,33 @@ class Game {
       const dd = Math.hypot(o.x - x, o.y - y);
       if (o.d.kind === 'b') {
         if (dd < o.r + d.r + 12) return false;
-        if (o.owner === pi && ((o.d.sub === 'fort' && dd < 600) || dd < o.r + d.r + 230)) near = true;
+        if (o.owner === pi && !o.d.wall && ((o.d.sub === 'fort' && dd < 600) || dd < o.r + d.r + 230)) near = true;
         if (this.enemy(pi, o.owner) && dd < 380) return false;
       }
     }
     return near;
+  }
+
+  // can a wall segment stand here? walls may touch each other, not other buildings; only inside our own lands
+  canWall(pi, key, x, y) {
+    const d = DEF[key], M = this.map; if (!d) return false;
+    if (x < 30 || y < 30 || x > MAP_W - 30 || y > MAP_H - 30 || M.water(x, y) || M.nblk[clamp(Math.floor(y / NC), 0, M.NH - 1) * M.NW + clamp(Math.floor(x / NC), 0, M.NW - 1)]) return false;
+    for (const t of M.trees) if (Math.abs(t.x - x) < 30 && Math.abs(t.y - y) < 30 && Math.hypot(t.x - x, t.y - y) < d.r + t.r - 2) return false;
+    let near = false;
+    for (const o of this.ents) {
+      if (o.dead || o.d.kind !== 'b') continue;
+      const dd = Math.hypot(o.x - x, o.y - y);
+      if (o.d.wall ? dd < (o.r + d.r) * 0.55 : dd < o.r + d.r + 6) return false;
+      if (this.enemy(pi, o.owner) && dd < 320) return false;
+      if (o.owner === pi && !o.d.wall && ((o.d.sub === 'fort' && dd < 900) || dd < o.r + 420)) near = true;
+    }
+    return near;
+  }
+  wallPlan(pi, x1, y1, x2, y2) {
+    const p = this.players[pi], L = Math.hypot(x2 - x1, y2 - y1); if (!p || L < 20 || L > 900) return [];
+    const n = Math.max(1, Math.round(L / 34)), ang = Math.atan2(y2 - y1, x2 - x1), gate = n >= 5 ? Math.floor(n / 2) : -1, out = [];
+    for (let i = 0; i < n; i++) { const t = (i + 0.5) / n, x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t, key = p.race + '_' + (i === gate ? 'gate' : 'wall'); out.push({ key, x, y, ang, ok: this.canWall(pi, key, x, y) }); }
+    return out;
   }
 
   // ---- commands ----
@@ -528,6 +550,14 @@ class Game {
       case 'cancel': {
         const b = own(c.b); if (!b || !b.queue.length) return;
         const q = b.queue.pop(); p.gold += q.cost; return;
+      }
+      case 'wall': {
+        const plan = this.wallPlan(pi, +c.x1 || 0, +c.y1 || 0, +c.x2 || 0, +c.y2 || 0).filter(s => s.ok); if (!plan.length) return;
+        let placed = 0, first = null;
+        for (const s of plan) { const d = DEF[s.key]; if (p.gold < d.cost) break; if (!this.canWall(pi, s.key, s.x, s.y)) continue; p.gold -= d.cost; const b = this.spawn(s.key, pi, s.x, s.y, { construct: true }); b.ang = s.ang; placed++; if (!first) first = b; }
+        if (first) for (const w of (c.ids || []).slice(0, 12).map(own).filter(e => e && e.d.worker)) this.assignWork(w, first);
+        if (!p.ai) this.note(pi, placed ? 'Стена заложена: секций — ' + placed + (placed < plan.length ? ' (не хватило золота)' : '') : 'Не хватает золота на стену');
+        return;
       }
       case 'build': {
         const key = p.race + '_' + c.t; const d = DEF[key];
@@ -827,7 +857,7 @@ class Game {
     this.updOutposts(dt); this.updRelic(dt); if (this.mode === 'survival') this.updWaves(dt);
     for (const p of this.players) for (const k in p.scd) if (p.scd[k] > 0) p.scd[k] -= dt;
     if (this.ents.some(e => e.dead)) {
-      this.ents = this.ents.filter(e => { if (e.dead) { this.byId.delete(e.id); if (e.d.kind === 'b') this.markBld(e, -1); return false; } return true; });
+      this.ents = this.ents.filter(e => { if (e.dead) { this.byId.delete(e.id); if (e.d.kind === 'b' && !e.d.gate) this.markBld(e, -1); return false; } return true; });
     }
     if (this.fx.length > 500) this.fx.splice(0, this.fx.length - 500);
     this.fx = this.fx.filter(f => this.t - f.t0 < f.dur + 0.5);
@@ -1200,8 +1230,9 @@ class Game {
   updBld(b, dt) {
     const bw = b.bw ? 1 + (Math.min(b.bw, 4) - 1) * 0.5 : 0; b.bw = 0;
     if (b.built < 1) {
-      if (!bw) return; // construction pauses without builders
-      const inc = dt / b.d.time * bw;
+      const bwc = bw || (b.d.wall ? 0.35 : 0);
+      if (!bwc) return; // construction pauses without builders (walls creep up slowly on their own)
+      const inc = dt / b.d.time * bwc;
       b.built = Math.min(1, b.built + inc); b.hp = Math.min(b.maxhp, b.hp + b.maxhp * 0.9 * inc);
       if (b.built >= 1) this.note(b.owner, b.d.name + ': строительство завершено');
       return;
@@ -1292,7 +1323,7 @@ class Game {
       }
     };
     // units vs buildings: few buildings, look up nearby units in the coarse grid
-    for (const b of this.ents) if (b.d.kind === 'b' && !b.dead) this.near(b.x, b.y, b.r + 24, u => { if (u.d.kind === 'u') pair(b, u); });
+    for (const b of this.ents) if (b.d.kind === 'b' && !b.dead) this.near(b.x, b.y, b.r + 24, u => { if (u.d.kind === 'u' && !(b.d.gate && !this.enemy(b.owner, u.owner))) pair(b, u); });
     // units vs units on a fine grid (dense crowds stay cheap)
     const FC = 40, FW = Math.ceil(MAP_W / FC) + 1, FH = Math.ceil(MAP_H / FC) + 1;
     if (!this.fcells) { this.fcells = Array.from({ length: FW * FH }, () => []); this.fused = []; }
@@ -1325,7 +1356,7 @@ class Game {
     for (const e of this.ents) {
       if (e.dead) continue;
       let ex;
-      if (e.d.kind === 'b') ex = Math.round(e.built * 99);
+      if (e.d.kind === 'b') ex = Math.round(e.built * 99) | ((Math.round((((e.ang || 0) % 6.2832) + 6.2832) % 6.2832 / 6.2832 * 32) & 31) << 7);
       else { const dir = ((Math.round((e.hd !== undefined ? e.hd : e.face < 0 ? Math.PI : 0) / (Math.PI / 4)) % 8) + 8) % 8; ex = (e.atk > 0 ? 1 : 0) | (e.moving ? 2 : 0) | ((dir & 1) << 2) | (e.stun > 0 ? 8 : 0) | (e.sq ? (e.leader ? 16 : 0) : (Math.min(3, e.rank) << 4)) | (Math.min(15, e.lvl) << 6) | ((dir >> 1) << 10); }
       u.push(e.id, e.d.ti, e.owner, Math.round(e.x), Math.round(e.y), Math.ceil(e.hp / e.maxhp * 99), ex, e.sq || 0);
     }

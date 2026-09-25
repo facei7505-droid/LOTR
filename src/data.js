@@ -103,6 +103,9 @@ const BLD_BASE = {
   stable: { name: 'Конюшня', hp: 1800, r: 44, cost: 450, time: 22, trains: ['cav'] },
   forge:  { name: 'Кузница', hp: 1400, r: 36, cost: 400, time: 22, forge: true, trains: ['siege'] },
   tower:  { name: 'Башня', hp: 1600, r: 22, cost: 400, time: 20, shoot: true, range: 300, dmg: 22, rate: 1.2, proj: 'arrow' },
+  // fortress walls (BFME2): laid out as a line of segments; long walls get a gate that lets friends through
+  wall:   { name: 'Стена', hp: 1400, r: 16, cost: 35, time: 5, wall: true, armor: 0.45 },
+  gate:   { name: 'Ворота', hp: 2400, r: 22, cost: 120, time: 12, wall: true, gate: true, armor: 0.4 },
 };
 const BLD_NAMES = {
   hum: { farm: 'Ферма', stable: 'Конюшня', tower: 'Сторожевая башня', forge: 'Кузница' },
