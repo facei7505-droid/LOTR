@@ -5926,6 +5926,32 @@ class Renderer3D extends Renderer {
     return null;
   }
   pumpGeos(ms) { const t0 = performance.now(); while (this.geoQ.length && performance.now() - t0 < ms) { const j = this.geoQ.shift(); this.geoBusy.delete(j.key); if (j.bld) { this.bldGeo(j.d, j.col); continue; } if (!this.geos.has(j.key)) this.geos.set(j.key, (A3.has(j.d.key) && A3.unitGeo(j.d, j.col, j.frame)) || G3.build(M3.build(j.d, j.col, j.frame, j.up | 0), { metres: true })); } return this.geoQ.length; }
+  // a portrait of a generated model, rendered off-screen with the game's own materials: 'face', 'bust' or 'bld'
+  portrait(d, col, mode) {
+    if (!A3.has(d.key)) return null;
+    const T = THREE, g = d.kind === 'b' ? A3.bldGeo(d, col) : A3.unitGeo(d, col, 0); if (!g) return null;
+    const sc = this._pScene || (this._pScene = (() => { const s = new T.Scene(); s.add(new T.HemisphereLight(0xdfe6f0, 0x40362a, 0.9)); const k = new T.DirectionalLight(0xfff0dc, 1.6); k.position.set(3, 3.2, 2.2); s.add(k); const r = new T.DirectionalLight(0x9cc0ff, 0.7); r.position.set(-2, 2, -3); s.add(r); return s; })());
+    sc.environment = this.scene.environment;
+    const mesh = new T.Mesh(g, g.userData.mats || this.m3.unit); sc.add(mesh);
+    g.computeBoundingBox(); const bb = g.boundingBox, H = bb.max.y - bb.min.y, cam = new T.PerspectiveCamera(26, 1, 0.01, 5000);
+    if (d.kind === 'u' && !A3.humanoid(d)) mode = 'bld'; // riders and engines: the whole silhouette
+    const top = mode !== 'bld' && ASSET_UNITS[d.key] && ASSET_UNITS[d.key].h ? ASSET_UNITS[d.key].h : bb.max.y; // head height, not the raised spear
+    if (mode === 'bld') { const c = new T.Vector3(); bb.getCenter(c); const R0 = bb.getSize(new T.Vector3()).length() * 0.5, dist = R0 / Math.tan(13 * Math.PI / 180); cam.position.set(c.x + dist * 0.62, c.y + dist * 0.55, c.z + dist * 0.56); cam.lookAt(c); cam.far = dist * 4; cam.near = dist * 0.05; }
+    else { const Hh = top - Math.max(0, bb.min.y), cy = top - Hh * (mode === 'face' ? 0.1 : 0.22), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; cam.position.set(Math.cos(-0.5) * dist, cy + span * 0.12, Math.sin(-0.5) * dist); cam.lookAt(0, cy, 0); }
+    cam.updateProjectionMatrix();
+    const S = 128, rt = this._pRT || (this._pRT = new T.WebGLRenderTarget(S, S, { samples: 4 })); rt.texture.colorSpace = T.SRGBColorSpace;
+    const gl = this.gl, prevT = gl.getRenderTarget(), fogOn = this.fogU.on.value, buf = new Uint8Array(S * S * 4), prevC = gl.getClearColor(new T.Color()), prevA = gl.getClearAlpha();
+    let cv = null;
+    try {
+      this.fogU.on.value = 0; gl.setRenderTarget(rt); gl.setClearColor(0x000000, 0); gl.clear(); gl.render(sc, cam); gl.readRenderTargetPixels(rt, 0, 0, S, S, buf);
+      cv = mkCanvas(S, S); const c = cv.getContext('2d'), img = c.createImageData(S, S);
+      for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4); // flip rows
+      c.putImageData(img, 0, 0);
+    } catch (e) { cv = null; }
+    gl.setRenderTarget(prevT); gl.setClearColor(prevC, prevA); this.fogU.on.value = fogOn;
+    sc.remove(mesh); g.dispose();
+    return cv;
+  }
   // downloaded glTF models arrived: drop the procedural stand-ins so they rebuild from the models
   refreshAssets() {
     const keys = [...Object.keys(ASSET_UNITS), ...Object.keys(ASSET_BLDS)], hit = k => keys.some(a => k.startsWith(a) || k.startsWith('b' + a));
@@ -6892,6 +6918,8 @@ const R = (() => {
   if (store.get('gfx', '3d') === '3d' && hasWebGL()) { try { return new Renderer3D(cv, $('gl'), store.get('q3', -1)); } catch (e) { console.warn('3D renderer failed, using 2D', e); } }
   $('gl').hidden = true; return new Renderer(cv);
 })();
+// generated models arrived: portraits and command icons are redrawn from them
+if (R.is3D) { const prevReady = A3.onReady; A3.onReady = () => { if (prevReady) prevReady(); for (const k of [...SPR.keys()]) if (k.startsWith('ic')) SPR.delete(k); heroSig = ''; ringSig = ''; UI.panelSig = ''; }; }
 
 // ---------- sound (audio.js) ----------
 MQ.room = store.get('room', 'public');
@@ -7017,13 +7045,14 @@ function iconFor(d, owner) {
   const key = 'ic' + d.key + owner; if (SPR.has(key)) return SPR.get(key);
   const face = d.kind !== 'b' && d.sub !== 'siege' && d.sub !== 'wolf' && d.sub !== 'treant';
   const c = mkCanvas(face ? 96 : 64, face ? 96 : 64), x = c.getContext('2d');
-  if (d.kind === 'b') { const spr = bld3(d, TEAM_COLORS[owner], true); const s = Math.min(64 / spr.w, 64 / spr.h); x.drawImage(spr.cv, 32 - spr.w * s / 2, 64 - spr.h * s, spr.w * s, spr.h * s); }
+  const gen = R.portrait && A3.has(d.key) ? R.portrait(d, TEAM_COLORS[owner] || '#888', d.kind === 'b' ? 'bld' : d.hero ? 'face' : 'bust') : null; // generated model -> its own portrait
+  if (d.kind === 'b') { if (gen) x.drawImage(gen, 0, 0, 64, 64); else { const spr = bld3(d, TEAM_COLORS[owner], true); const s = Math.min(64 / spr.w, 64 / spr.h); x.drawImage(spr.cv, 32 - spr.w * s / 2, 64 - spr.h * s, spr.w * s, spr.h * s); } }
   else if (face) {
     // a portrait: heroes face close up, soldiers from the chest up, over a painted sky in the race's colours
     const [c1, c2] = PORTRAIT_BG[d.race] || PORTRAIT_BG.hum, g = x.createRadialGradient(40, 30, 4, 48, 52, 64);
     g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fillRect(0, 0, 96, 96);
     const tc = TEAM_COLORS[owner] || '#888'; x.fillStyle = tc; x.globalAlpha = 0.25; x.beginPath(); x.ellipse(48, 104, 52, 30, 0, 0, 7); x.fill(); x.globalAlpha = 1;
-    x.drawImage(icon3(d, tc, d.hero ? 'face' : 'bust'), 0, 0, 96, 96);
+    x.drawImage(gen || icon3(d, tc, d.hero ? 'face' : 'bust'), 0, 0, 96, 96);
     const v = x.createRadialGradient(48, 48, 30, 48, 48, 50); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); x.fillStyle = v; x.fillRect(0, 0, 96, 96);
   }
   else x.drawImage(icon3(d, TEAM_COLORS[owner] || '#888'), 0, 0, 64, 64);

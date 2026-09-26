@@ -7,6 +7,8 @@ const R = (() => {
   if (store.get('gfx', '3d') === '3d' && hasWebGL()) { try { return new Renderer3D(cv, $('gl'), store.get('q3', -1)); } catch (e) { console.warn('3D renderer failed, using 2D', e); } }
   $('gl').hidden = true; return new Renderer(cv);
 })();
+// generated models arrived: portraits and command icons are redrawn from them
+if (R.is3D) { const prevReady = A3.onReady; A3.onReady = () => { if (prevReady) prevReady(); for (const k of [...SPR.keys()]) if (k.startsWith('ic')) SPR.delete(k); heroSig = ''; ringSig = ''; UI.panelSig = ''; }; }
 
 // ---------- sound (audio.js) ----------
 MQ.room = store.get('room', 'public');
@@ -132,13 +134,14 @@ function iconFor(d, owner) {
   const key = 'ic' + d.key + owner; if (SPR.has(key)) return SPR.get(key);
   const face = d.kind !== 'b' && d.sub !== 'siege' && d.sub !== 'wolf' && d.sub !== 'treant';
   const c = mkCanvas(face ? 96 : 64, face ? 96 : 64), x = c.getContext('2d');
-  if (d.kind === 'b') { const spr = bld3(d, TEAM_COLORS[owner], true); const s = Math.min(64 / spr.w, 64 / spr.h); x.drawImage(spr.cv, 32 - spr.w * s / 2, 64 - spr.h * s, spr.w * s, spr.h * s); }
+  const gen = R.portrait && A3.has(d.key) ? R.portrait(d, TEAM_COLORS[owner] || '#888', d.kind === 'b' ? 'bld' : d.hero ? 'face' : 'bust') : null; // generated model -> its own portrait
+  if (d.kind === 'b') { if (gen) x.drawImage(gen, 0, 0, 64, 64); else { const spr = bld3(d, TEAM_COLORS[owner], true); const s = Math.min(64 / spr.w, 64 / spr.h); x.drawImage(spr.cv, 32 - spr.w * s / 2, 64 - spr.h * s, spr.w * s, spr.h * s); } }
   else if (face) {
     // a portrait: heroes face close up, soldiers from the chest up, over a painted sky in the race's colours
     const [c1, c2] = PORTRAIT_BG[d.race] || PORTRAIT_BG.hum, g = x.createRadialGradient(40, 30, 4, 48, 52, 64);
     g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fillRect(0, 0, 96, 96);
     const tc = TEAM_COLORS[owner] || '#888'; x.fillStyle = tc; x.globalAlpha = 0.25; x.beginPath(); x.ellipse(48, 104, 52, 30, 0, 0, 7); x.fill(); x.globalAlpha = 1;
-    x.drawImage(icon3(d, tc, d.hero ? 'face' : 'bust'), 0, 0, 96, 96);
+    x.drawImage(gen || icon3(d, tc, d.hero ? 'face' : 'bust'), 0, 0, 96, 96);
     const v = x.createRadialGradient(48, 48, 30, 48, 48, 50); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); x.fillStyle = v; x.fillRect(0, 0, 96, 96);
   }
   else x.drawImage(icon3(d, TEAM_COLORS[owner] || '#888'), 0, 0, 64, 64);
