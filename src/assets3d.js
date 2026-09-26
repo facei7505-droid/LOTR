@@ -481,8 +481,12 @@ const A3 = {
     const A = ASSET_BLDS[d.key], m = A && this.models.get(A.file); if (!m) return null;
     this.pose(m, null, 0);
     const G = this.collect(m, this.teamLin(col), A.team), B = this.bounds(G);
-    const s = d.r * A.span / Math.max(1e-6, Math.max(B.mx[0] - B.mn[0], B.mx[2] - B.mn[2]));
-    return this.withMats(this.toGeo(G, s, [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2], A.yaw || 0, 1, A.tall), G, col, A.recolor);
+    const ex = B.mx[0] - B.mn[0], ez = B.mx[2] - B.mn[2];
+    // wall pieces lie along x and are as long as a segment (a little overlap so they join); the rest fit the footprint
+    const s = d.wall && A.recolor ? (d.gate ? 58 : 42) / Math.max(1e-6, Math.max(ex, ez)) : d.r * A.span / Math.max(1e-6, Math.max(ex, ez));
+    const yaw = A.yaw !== undefined && A.yaw !== 0 ? A.yaw : d.wall && ez > ex ? Math.PI / 2 : 0;
+    const tall = d.wall && A.recolor ? clamp((d.gate ? 38 : 27) / Math.max(1e-6, (B.mx[1] - B.mn[1]) * s), 0.6, 16) : A.tall; // walls as high as the old ones
+    return this.withMats(this.toGeo(G, s, [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2], yaw, 1, tall), G, col, A.recolor);
   },
 };
 function rgbHsv(r, g, b) { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; return [h, mx ? d / mx : 0, mx]; }
