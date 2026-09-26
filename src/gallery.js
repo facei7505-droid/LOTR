@@ -27,6 +27,7 @@
   ctx.uTime = { value: 0 }; ctx.atlas = new T.CanvasTexture(detailAtlas()); ctx.atlas.wrapS = ctx.atlas.wrapT = T.ClampToEdgeWrapping; ctx.atlas.colorSpace = T.NoColorSpace;
   ctx.fogU = { tex: { value: null }, on: { value: 0 }, map: { value: new T.Vector2(MAP_W, MAP_H) } }; ctx.geos = new Map();
   const MATS = ctx.makeMats3(); try { ctx.loadAtlasPhotos(); } catch (e) {}
+  A3.baseMats = MATS.unit;
   const wire = new T.MeshBasicMaterial({ color: 0xe8c890, wireframe: true, transparent: true, opacity: 0.35 });
   // floor + stone pedestal
   const flc = mkCanvas(256, 256), fx = flc.getContext('2d'), fg = fx.createRadialGradient(128, 128, 0, 128, 128, 128);
@@ -85,8 +86,9 @@
     const seq = d.kind === 'b' ? [0] : SEQ[S.anim], f = seq[Math.floor(animT * FPS[S.anim]) % seq.length], stop = S.anim === 'death' && animT * FPS.death >= 1 ? 10 : f;
     if (stop === frameNow && model) return; frameNow = stop;
     const g = geoFor(d, stop);
-    if (!model) { model = new T.Mesh(g, S.wire ? wire : MATS.unit); model.castShadow = true; model.receiveShadow = true; scene.add(model); }
-    else { model.geometry = g; model.material = S.wire ? wire : MATS.unit; }
+    const mm = S.wire ? wire : g.userData.mats || MATS.unit;
+    if (!model) { model = new T.Mesh(g, mm); model.castShadow = true; model.receiveShadow = true; scene.add(model); }
+    else { model.geometry = g; model.material = mm; }
   }
   function frameModel() {
     const d = S.d; animT = 0; frameNow = -1; setModel();

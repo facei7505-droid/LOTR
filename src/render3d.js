@@ -199,6 +199,7 @@ class Renderer3D extends Renderer {
     this.pbrU = { tGC: { value: dummy }, tGN: { value: dummy }, tDC: { value: dummy }, tDN: { value: dummy }, tRC: { value: dummy }, tRN: { value: dummy }, uPBR: { value: 0 }, uTile: { value: new T.Vector3(300, 300, 500) }, uAvg: { value: new T.Color(0.1, 0.12, 0.06) } };
     this.texCache = new Map(); this.pbrTarget = 0;
     this.loadAtlasPhotos();
+    A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m);
     A3.onReady = () => this.refreshAssets(); A3.load();
     this.postOn = this.q >= 1;
   }
@@ -739,7 +740,7 @@ class Renderer3D extends Renderer {
   inst(key, geo, mats) {
     let u = this.units.get(key);
     if (!u || u.cap < u.n + 1) {
-      const cap = u ? u.cap * 2 : 32, mesh = new THREE.InstancedMesh(geo, mats || this.m3.unit, cap);
+      const cap = u ? u.cap * 2 : 32, mesh = new THREE.InstancedMesh(geo, mats ? (geo.userData.mats ? geo.userData.mats.map((_, i) => mats[Math.min(i, mats.length - 1)]) : mats) : geo.userData.mats || this.m3.unit, cap);
       mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       if (u) { mesh.instanceMatrix.array.set(u.mesh.instanceMatrix.array.subarray(0, u.n * 16)); this.scene.remove(u.mesh); u.mesh.dispose(); }
       this.scene.add(mesh); u = { mesh, cap, n: u ? u.n : 0 }; this.units.set(key, u);
@@ -854,7 +855,7 @@ class Renderer3D extends Renderer {
       const col = TEAM_COLORS[e.owner] || '#888', sel = S.sel.has(e.id), gh = this.heightAt(e.rx, e.ry);
       if (e.d.kind === 'b') {
         let bm = this.bldMesh.get(e.id);
-        if (!bm) { const mesh = new T.Mesh(this.bldGeo(e.d, col), this.m3.unit); mesh.castShadow = true; mesh.receiveShadow = true; mesh.rotation.y = -0.35; this.scene.add(mesh); bm = { mesh, e }; this.bldMesh.set(e.id, bm); }
+        if (!bm) { const bg = this.bldGeo(e.d, col), mesh = new T.Mesh(bg, bg.userData.mats || this.m3.unit); mesh.castShadow = true; mesh.receiveShadow = true; mesh.rotation.y = -0.35; this.scene.add(mesh); bm = { mesh, e }; this.bldMesh.set(e.id, bm); }
         bm.seen = this.frameN; bm.mesh.visible = true;
         const bh = this.gz(e.rx, e.ry); bm.mesh.position.set(e.rx, bh, e.ry); if (e.d.wall) bm.mesh.rotation.y = -(e.ang || 0); bm.mesh.scale.set(1, e.built < 1 ? 0.06 + 0.94 * e.built : 1, 1);
         if (e.built < 1) { if (Math.random() < 0.2) this.emit3({ x: e.rx + (Math.random() - 0.5) * e.r, y: e.ry + (Math.random() - 0.5) * e.r * 0.6, h: bh + 4, vx: (Math.random() - 0.5) * 10, vy: 0, vh: 10, life: 1, t: 0, k: 'dust', s: 5 }); G.push(['ring', e.rx, e.ry, e.r * 1.05, '#c9a66a', 0.5, 1.6]); }

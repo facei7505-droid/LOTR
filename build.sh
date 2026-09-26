@@ -3,8 +3,9 @@
 set -e
 cd "$(dirname "$0")"
 # downloaded glTF models (assets/*.glb) are embedded so the game also works from a local file
-ASSETS="const ASSET_DATA = {};"
-for f in assets/*.glb; do [ -f "$f" ] && ASSETS="$ASSETS ASSET_DATA['$(basename "$f" .glb)'] = '$(base64 -w0 "$f")';"; done
+# big generated models (over 3 MB) are not embedded: they load from assets/ when the game is served over http
+ASSETS="const ASSET_DATA = {}; const ASSET_LIST = [];"
+for f in assets/*.glb; do [ -f "$f" ] || continue; n=$(basename "$f" .glb); ASSETS="$ASSETS ASSET_LIST.push('$n');"; [ "$(stat -c%s "$f")" -le 3145728 ] && ASSETS="$ASSETS ASSET_DATA['$n'] = '$(base64 -w0 "$f")';"; done
 JS=$(cat src/data.js src/engine.js src/map.js src/ai.js src/net.js src/audio.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/icons.js src/render3d.js src/assets3d.js src/main.js)
 JS="$ASSETS
 $JS"
