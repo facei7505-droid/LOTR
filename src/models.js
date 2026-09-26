@@ -53,6 +53,9 @@ const M3 = (() => {
     const walking = pose.walk !== undefined && pose.walk !== null;
     const ph = pose.walk || 0, swing = walking ? Math.sin(ph) * 0.5 : 0, bob = walking ? Math.abs(Math.cos(ph)) * 0.03 : 0;
     const hipY = base + 0.93 * S + bob;
+    // joints of this pose: the automatic skeleton of generated models copies them
+    const J = P.J = { hip: [0, hipY, 0], top: base + 1.76 * S };
+    for (const side of [1, -1]) { J['knee' + side] = [0.02, base + 0.49 * S, 0.1 * B * side]; J['ank' + side] = [0, base + 0.06 * S, 0.1 * B * side]; J['hip' + side] = [0, hipY, 0.1 * B * side]; }
     const armd = !o.robe && !['leather', 'rags', 'apron', 'linen'].includes(o.arm || 'mail'), heavy = o.arm === 'plate' || o.arm === 'bronze';
     // legs
     if (!o.robe || walking) for (const side of [1, -1]) {
@@ -64,6 +67,7 @@ const M3 = (() => {
         knee = add3(hip, [Math.sin(a) * 0.44 * S, -Math.cos(a) * 0.44 * S, 0]);
         ank = add3(knee, [Math.sin(a - bend) * 0.44 * S, -Math.cos(a - bend) * 0.44 * S, 0]);
       }
+      J['knee' + side] = knee; J['ank' + side] = ank;
       P.push(cap(hip, knee, 0.075 * B, o.robe ? MAT(o.robe, { pat: 'cloth' }) : legsM), cap(knee, ank, 0.06 * B, o.arm === 'plate' ? steel : legsM));
       P.push(ell(ank[0] + 0.05, ank[1] - 0.02, ank[2], 0.12 * B, 0.055, 0.06 * B, leather));
       if (DET) { P.push(cap(lerp3(knee, ank, 0.55), ank, 0.066 * B, heavy ? steel : leather)); if (armd) P.push(sph(knee[0] + 0.03, knee[1], knee[2], 0.072 * B, steel)); if (heavy) P.push(ell(ank[0] + 0.07, ank[1] - 0.005, ank[2], 0.1 * B, 0.045, 0.062 * B, steel)); }
@@ -150,6 +154,7 @@ const M3 = (() => {
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
     for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); if (DET && !o.robe) { P.push(cap(lerp3(e0, h0, 0.35), lerp3(e0, h0, 0.92), 0.054 * B, armd ? steel : leather)); if (armd) P.push(sph(e0[0], e0[1], e0[2], 0.06 * B, steel)); } }
+    Object.assign(J, { ch, hd, shL: sh(1), shR: sh(-1), eL, hL, eR, hR }); P.wIdx = P.length;
     // weapons
     const W = nrm(wd), tip = k => add3(hR, W, k);
     // enchanted weapons: heroes and forged blades glow in their own colour
@@ -168,6 +173,7 @@ const M3 = (() => {
       case 'banner': { const c0 = hL; P.push(cap(add3(c0, [0, -0.9, 0]), add3(c0, [0, 1.1, 0]), 0.02, wood)); P.push(ell(c0[0] + 0.28, c0[1] + 0.85, c0[2], 0.28, 0.2, 0.012, MAT('#efe9dc', { pat: 'cloth' }))); break; }
     }
     // shields (face the camera side when the unit walks to the right)
+    P.sIdx = P.length;
     if (o.sh) {
       const c0 = add3(hL, [0.04, -0.02, 0.07 * B]);
       const shm = MAT(o.team, { pat: 'cloth' });

@@ -2381,6 +2381,9 @@ const M3 = (() => {
     const walking = pose.walk !== undefined && pose.walk !== null;
     const ph = pose.walk || 0, swing = walking ? Math.sin(ph) * 0.5 : 0, bob = walking ? Math.abs(Math.cos(ph)) * 0.03 : 0;
     const hipY = base + 0.93 * S + bob;
+    // joints of this pose: the automatic skeleton of generated models copies them
+    const J = P.J = { hip: [0, hipY, 0], top: base + 1.76 * S };
+    for (const side of [1, -1]) { J['knee' + side] = [0.02, base + 0.49 * S, 0.1 * B * side]; J['ank' + side] = [0, base + 0.06 * S, 0.1 * B * side]; J['hip' + side] = [0, hipY, 0.1 * B * side]; }
     const armd = !o.robe && !['leather', 'rags', 'apron', 'linen'].includes(o.arm || 'mail'), heavy = o.arm === 'plate' || o.arm === 'bronze';
     // legs
     if (!o.robe || walking) for (const side of [1, -1]) {
@@ -2392,6 +2395,7 @@ const M3 = (() => {
         knee = add3(hip, [Math.sin(a) * 0.44 * S, -Math.cos(a) * 0.44 * S, 0]);
         ank = add3(knee, [Math.sin(a - bend) * 0.44 * S, -Math.cos(a - bend) * 0.44 * S, 0]);
       }
+      J['knee' + side] = knee; J['ank' + side] = ank;
       P.push(cap(hip, knee, 0.075 * B, o.robe ? MAT(o.robe, { pat: 'cloth' }) : legsM), cap(knee, ank, 0.06 * B, o.arm === 'plate' ? steel : legsM));
       P.push(ell(ank[0] + 0.05, ank[1] - 0.02, ank[2], 0.12 * B, 0.055, 0.06 * B, leather));
       if (DET) { P.push(cap(lerp3(knee, ank, 0.55), ank, 0.066 * B, heavy ? steel : leather)); if (armd) P.push(sph(knee[0] + 0.03, knee[1], knee[2], 0.072 * B, steel)); if (heavy) P.push(ell(ank[0] + 0.07, ank[1] - 0.005, ank[2], 0.1 * B, 0.045, 0.062 * B, steel)); }
@@ -2478,6 +2482,7 @@ const M3 = (() => {
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
     for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); if (DET && !o.robe) { P.push(cap(lerp3(e0, h0, 0.35), lerp3(e0, h0, 0.92), 0.054 * B, armd ? steel : leather)); if (armd) P.push(sph(e0[0], e0[1], e0[2], 0.06 * B, steel)); } }
+    Object.assign(J, { ch, hd, shL: sh(1), shR: sh(-1), eL, hL, eR, hR }); P.wIdx = P.length;
     // weapons
     const W = nrm(wd), tip = k => add3(hR, W, k);
     // enchanted weapons: heroes and forged blades glow in their own colour
@@ -2496,6 +2501,7 @@ const M3 = (() => {
       case 'banner': { const c0 = hL; P.push(cap(add3(c0, [0, -0.9, 0]), add3(c0, [0, 1.1, 0]), 0.02, wood)); P.push(ell(c0[0] + 0.28, c0[1] + 0.85, c0[2], 0.28, 0.2, 0.012, MAT('#efe9dc', { pat: 'cloth' }))); break; }
     }
     // shields (face the camera side when the unit walks to the right)
+    P.sIdx = P.length;
     if (o.sh) {
       const c0 = add3(hL, [0.04, -0.02, 0.07 * B]);
       const shm = MAT(o.team, { pat: 'cloth' });
@@ -5740,6 +5746,7 @@ const A3 = {
       this.pose(m, idle, 0); const B = this.bounds(this.collect(m, [1, 1, 1], []));
       m.norm = { s: A.h / Math.max(1e-6, B.mx[1] - B.mn[1]), off: [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2] };
     }
+    if (!m.skinned && A.rig !== false && this.humanoid(d)) return this.rigGeo(d, col, frame, A, m); // generated statue -> our own skeleton
     let role = 'idle', t = 0, ph = -1;
     if (frame >= 1 && frame <= 6) { role = 'walk'; t = (frame - 1) / 6; } else if (frame >= 11 && frame <= 16) { role = 'walk'; t = (frame - 10.5) / 6; }
     else if (frame >= 7 && frame <= 9) { role = 'atk'; t = [0.3, 0.5, 0.72][frame - 7]; } else if (frame === 10) { role = 'death'; t = 1; }
@@ -5799,6 +5806,178 @@ const A3 = {
         g.idx.push(ni);
       }
     }
+  },
+  // ---------- automatic skeleton for generated humanoids that come without one ----------
+  // The model (standing in A-pose) gets 16 bones placed by body proportions and measured arm tips / legs;
+  // every vertex is bound to its nearest bones. Each pose frame copies the joints of the procedural soldier
+  // (formation stance with weapon ready, 12 walk phases, wind-up / strike / follow-through), reached by two-bone IK,
+  // and the procedural weapon and shield are moved into the new hands.
+  humanoid(d) { return d.kind === 'u' && d.sub !== 'cav' && d.sub !== 'siege' && d.sub !== 'wolf'; },
+  rigBase(m, A, col) {
+    const T = THREE, key = col + '|' + (m.flip ? 1 : 0);
+    m.rigGeo = m.rigGeo || new Map();
+    let b = m.rigGeo.get(key); if (b) return b;
+    this.pose(m, null, 0);
+    const G = this.collect(m, this.teamLin(col), A.team);
+    const geo = this.withMats(this.toGeo(G, m.norm.s, m.norm.off, m.flip ? -Math.PI / 2 : Math.PI / 2, PPM, 1), G, col, A.recolor);
+    b = { geo, G }; m.rigGeo.set(key, b); return b;
+  },
+  rigSetup(m, A, col) {
+    if (m.rig) return m.rig;
+    let base = this.rigBase(m, A, col).geo, P = base.attributes.position.array;
+    let H = 0; for (let i = 1; i < P.length; i += 3) H = Math.max(H, P[i]);
+    const band = (y0, y1, f) => { for (let i = 0; i < P.length; i += 3) { const y = P[i + 1]; if (y >= y0 * H && y <= y1 * H) f(P[i], y, P[i + 2]); } };
+    // facing: the toes stick out in front of the ankles; generated models may face either way
+    let tx = 0, tn = 0, ax = 0, an = 0;
+    band(0, 0.035, x => { tx += x; tn++; }); band(0.08, 0.14, x => { ax += x; an++; });
+    if (tn && an && tx / tn < ax / an - 0.004 * H && !m.flip) { m.flip = true; base = this.rigBase(m, A, col).geo; P = base.attributes.position.array; }
+    const rs = m.flip ? -1 : 1; // lateral side of the right hand (glTF characters face +z with the right hand at -x)
+    // centre line and legs
+    let cx = 0, cn = 0; band(0.4, 0.9, (x, y, z) => { if (Math.abs(z) < 0.08 * H) { cx += x; cn++; } }); cx = cn ? cx / cn : 0;
+    const leg = { 1: [0, 0, 0], '-1': [0, 0, 0] };
+    band(0.12, 0.35, (x, y, z) => { const s = z >= 0 ? 1 : -1, L = leg[s]; L[0] += x; L[1] += z; L[2]++; });
+    const legZ = s => { const L = leg[s]; return L[2] ? clamp(L[1] / L[2], -0.11 * H, 0.11 * H) : s * 0.055 * H; }, legX = s => leg[s][2] ? leg[s][0] / leg[s][2] : cx;
+    // arm tips: the points furthest to each side between the hips and the shoulders
+    const tip = { 1: null, '-1': null };
+    band(0.3, 0.88, (x, y, z) => { const s = z >= 0 ? 1 : -1; if (!tip[s] || Math.abs(z) > Math.abs(tip[s][2])) tip[s] = [x, y, z]; });
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const J = {}, sy = 0.815 * H, hy = 0.52 * H;
+    J.pelvis = V(cx, hy, 0); J.chest = V(cx, 0.72 * H, 0); J.neck = V(cx, 0.845 * H, 0); J.top = V(cx, H, 0);
+    for (const s of [1, -1]) {
+      const n = s === rs ? 'R' : 'L', t = tip[s] || [cx, 0.55 * H, s * 0.35 * H];
+      const S = V(cx, sy, s * 0.105 * H), T0 = V(t[0], t[1], t[2]), len = T0.distanceTo(S), W = S.clone().lerp(T0, Math.max(0.5, 1 - 0.1 * H / Math.max(len, 1e-3)));
+      J['sh' + n] = S; J['el' + n] = S.clone().lerp(W, 0.5); J['wr' + n] = W; J['tip' + n] = T0;
+      const lz = legZ(s), lx = legX(s);
+      J['hip' + n] = V(lx, hy - 0.02 * H, lz); J['kn' + n] = V(lx, 0.28 * H, lz); J['an' + n] = V(lx, 0.055 * H, lz); J['to' + n] = V(lx + 0.12 * H, 0.01 * H, lz);
+    }
+    // bones: [name, head, tail, radius (share of height), side]
+    const B = [['pelvis', J.pelvis, J.pelvis.clone().setY(0.44 * H), 0.12], ['spine', J.pelvis, J.chest, 0.13], ['chest', J.chest, J.neck, 0.13], ['head', J.neck, J.top, 0.08]];
+    for (const n of ['R', 'L']) B.push(['ua' + n, J['sh' + n], J['el' + n], 0.05, n], ['fa' + n, J['el' + n], J['wr' + n], 0.045, n], ['ha' + n, J['wr' + n], J['tip' + n], 0.04, n], ['th' + n, J['hip' + n], J['kn' + n], 0.07, n], ['sn' + n, J['kn' + n], J['an' + n], 0.055, n], ['ft' + n, J['an' + n], J['to' + n], 0.05, n]);
+    // skin weights: inverse distance to the bone segments (in bone radii), four strongest kept; legs never take the other side
+    const nv = P.length / 3, W4 = new Float32Array(nv * 4), I4 = new Uint8Array(nv * 4), p = V(0, 0, 0), ab = V(0, 0, 0), ap = V(0, 0, 0);
+    const segD = (a, b) => { ab.subVectors(b, a); ap.subVectors(p, a); const t = clamp(ap.dot(ab) / Math.max(1e-9, ab.lengthSq()), 0, 1); return ap.sub(ab.multiplyScalar(t)).length(); };
+    const w = new Float32Array(B.length);
+    for (let i = 0; i < nv; i++) {
+      p.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); const side = (p.z - 0) * rs >= 0 ? 'R' : 'L';
+      for (let b = 0; b < B.length; b++) {
+        const [nm, a, t, r, bs] = B[b];
+        if (bs && /^(th|sn|ft)/.test(nm) && bs !== side && Math.abs(p.z) > 0.015 * H) { w[b] = 0; continue; }
+        if (bs && /^(ua|fa|ha)/.test(nm) && bs !== side) { w[b] = 0; continue; }
+        const nd = segD(a, t) / (r * H); w[b] = 1 / (nd * nd * nd * nd + 1e-4);
+      }
+      const ord = [...w.keys()].sort((a, b) => w[b] - w[a]).slice(0, 4); let sum = 0; for (const b of ord) sum += w[b];
+      ord.forEach((b, k) => { I4[i * 4 + k] = b; W4[i * 4 + k] = w[b] / sum; });
+    }
+    m.rig = { H, J, B, W4, I4, rs };
+    return m.rig;
+  },
+  // where the procedural soldier holds its joints in this frame, mapped onto the generated body
+  rigPose(R, PJ, PJ0) {
+    const T = THREE, { J, H, rs } = R, V = a => new T.Vector3(a[0], a[1], -rs * a[2]); // procedural right hand is at -z
+    const k = H / PJ0.top, q = new Map(), o = new Map(), qn = (a, b) => new T.Quaternion().setFromUnitVectors(a.clone().normalize(), b.clone().normalize());
+    const dy = (PJ.hip[1] - PJ0.hip[1]) * k;
+    const pelvis2 = J.pelvis.clone().setY(J.pelvis.y + dy);
+    const spRest = V(PJ0.hd).sub(V(PJ0.hip)), spNow = V(PJ.hd).sub(V(PJ.hip)), qs = qn(spRest, spNow);
+    const tr = (pt) => pt.clone().sub(J.pelvis).applyQuaternion(qs).add(pelvis2);
+    o.set('pelvis', [J.pelvis, pelvis2]); q.set('pelvis', new T.Quaternion());
+    for (const b of ['spine', 'chest', 'head']) q.set(b, qs);
+    o.set('spine', [J.pelvis, pelvis2]); o.set('chest', [J.pelvis, pelvis2]); o.set('head', [J.pelvis, pelvis2]);
+    // two-bone IK towards a target, bending like the procedural elbow / knee
+    const ik = (A, Bj, C, target, pole) => {
+      const L1 = A.distanceTo(Bj), L2 = Bj.distanceTo(C), d = clamp(A.distanceTo(target), Math.abs(L1 - L2) + 1e-4, L1 + L2 - 1e-4);
+      const dir = target.clone().sub(A).normalize(), a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+      const pl = pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))); if (pl.lengthSq() < 1e-8) pl.set(0, 0, 1); pl.normalize();
+      const mid = A.clone().add(dir.clone().multiplyScalar(a)).add(pl.multiplyScalar(h)), end = A.clone().add(dir.multiplyScalar(d));
+      return [mid, end];
+    };
+    for (const n of ['R', 'L']) {
+      const pn = n; // procedural names use the same letters
+      const S0 = J['sh' + n], E0 = J['el' + n], W0 = J['wr' + n], S1 = tr(S0);
+      const pS = V(PJ['sh' + pn]), pE = V(PJ['e' + pn]), pH = V(PJ['h' + pn]), pS0 = V(PJ0['sh' + pn]), pH0 = V(PJ0['h' + pn]), pE0 = V(PJ0['e' + pn]);
+      const kA = (S0.distanceTo(E0) + E0.distanceTo(W0)) / Math.max(1e-4, pS0.distanceTo(pE0) + pE0.distanceTo(pH0));
+      const target = S1.clone().add(pH.clone().sub(pS).multiplyScalar(kA)), [E1, W1] = ik(S1, E0, W0, target, pE.clone().sub(pS));
+      const qu = qn(E0.clone().sub(S0), E1.clone().sub(S1)), qf = qn(W0.clone().sub(E0), W1.clone().sub(E1));
+      q.set('ua' + n, qu); o.set('ua' + n, [S0, S1]); q.set('fa' + n, qf); o.set('fa' + n, [E0, E1]); q.set('ha' + n, qf); o.set('ha' + n, [W0, W1]);
+      R['hand' + n] = W1; R['handDir' + n] = W1.clone().sub(E1).normalize();
+      const side = n === 'R' ? -1 : 1, H0 = J['hip' + n], K0 = J['kn' + n], A0 = J['an' + n], H1 = H0.clone().setY(H0.y + dy);
+      const pHp = V(PJ['hip' + side]), pK = V(PJ['knee' + side]), pA = V(PJ['ank' + side]), pHp0 = V(PJ0['hip' + side]), pK0 = V(PJ0['knee' + side]), pA0 = V(PJ0['ank' + side]);
+      const kL = (H0.distanceTo(K0) + K0.distanceTo(A0)) / Math.max(1e-4, pHp0.distanceTo(pK0) + pK0.distanceTo(pA0));
+      const lt = H1.clone().add(pA.clone().sub(pHp).multiplyScalar(kL)), [K1, A1] = ik(H1, K0, A0, lt, pK.clone().sub(pHp).add(new T.Vector3(0.3, 0, 0)));
+      q.set('th' + n, qn(K0.clone().sub(H0), K1.clone().sub(H1))); o.set('th' + n, [H0, H1]);
+      q.set('sn' + n, qn(A0.clone().sub(K0), A1.clone().sub(K1))); o.set('sn' + n, [K0, K1]);
+      q.set('ft' + n, new T.Quaternion()); o.set('ft' + n, [A0, A1]);
+    }
+    return { q, o, k };
+  },
+  // move primitives (procedural weapons) by x -> O + k * M (x - A), M mirroring z when mz = -1
+  xformPrims(list, A, O, k, mz) {
+    const f = (x, y, z) => [O.x + k * (x - A.x), O.y + k * (y - A.y), O.z + k * mz * (z - A.z)];
+    const plane = pl => { const n = [pl[0], pl[1], pl[2] * mz]; return [n[0], n[1], n[2], k * (pl[3] - (pl[0] * A.x + pl[1] * A.y + pl[2] * A.z)) + n[0] * O.x + n[1] * O.y + n[2] * O.z]; };
+    return list.map(p0 => {
+      const p = Object.assign({}, p0);
+      if (p.k === 0 || p.k === 1 || p.k === 4) { [p.x, p.y, p.z] = f(p.x, p.y, p.z); }
+      if (p.k === 0) p.r *= k;
+      if (p.k === 1) { p.a *= k; p.b *= k; p.c *= k; if (p.clip) p.clip = plane(p.clip); }
+      if (p.k === 2) { [p.ax, p.ay, p.az] = f(p.ax, p.ay, p.az); [p.bx2, p.by2, p.bz2] = f(p.bx2, p.by2, p.bz2); p.r *= k; }
+      if (p.k === 3) p.pl = p.pl.map(plane);
+      if (p.k === 4) { p.r0 *= k; p.r1 *= k; p.h *= k; }
+      [p.bx, p.by, p.bz] = f(p.bx, p.by, p.bz); p.br *= k; p.br2 = p.br * p.br;
+      return p;
+    });
+  },
+  rigGeo(d, col, frame, A, m) {
+    const T = THREE, R = this.rigSetup(m, A, col), base = this.rigBase(m, A, col), bg = base.geo;
+    const f = frame === 10 ? 0 : frame;
+    const PP = M3.build(d, col, f, A.up || 0), PJ = PP.J, PJ0 = (m.rigP0 || (m.rigP0 = M3.build(d, col, 0, 0).J));
+    if (!PJ || !PJ0) return bg;
+    const pose = this.rigPose(R, PJ, PJ0), names = R.B.map(b => b[0]);
+    const qs = names.map(n => pose.q.get(n)), os = names.map(n => pose.o.get(n));
+    const P0 = bg.attributes.position.array, N0 = bg.attributes.normal.array, nv = P0.length / 3;
+    const P1 = new Float32Array(P0.length), N1 = new Float32Array(N0.length), v = new T.Vector3(), acc = new T.Vector3(), nacc = new T.Vector3(), n = new T.Vector3();
+    for (let i = 0; i < nv; i++) {
+      acc.set(0, 0, 0); nacc.set(0, 0, 0);
+      for (let j = 0; j < 4; j++) {
+        const w = R.W4[i * 4 + j]; if (w < 1e-4) continue; const b = R.I4[i * 4 + j], [a0, a1] = os[b];
+        v.set(P0[i * 3], P0[i * 3 + 1], P0[i * 3 + 2]).sub(a0).applyQuaternion(qs[b]).add(a1); acc.addScaledVector(v, w);
+        n.set(N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]).applyQuaternion(qs[b]); nacc.addScaledVector(n, w);
+      }
+      nacc.normalize(); P1[i * 3] = acc.x; P1[i * 3 + 1] = acc.y; P1[i * 3 + 2] = acc.z; N1[i * 3] = nacc.x; N1[i * 3 + 1] = nacc.y; N1[i * 3 + 2] = nacc.z;
+    }
+    let geo = new T.BufferGeometry(); // (clone() would deep-copy userData with its materials)
+    for (const [nm, at] of Object.entries(bg.attributes)) geo.setAttribute(nm, nm === 'position' ? new T.BufferAttribute(P1, 3) : nm === 'normal' ? new T.BufferAttribute(N1, 3) : at);
+    geo.setIndex(bg.index); for (const g of bg.groups) geo.addGroup(g.start, g.count, g.materialIndex); geo.userData.mats = bg.userData.mats;
+    // the procedural weapon (right hand, or the bow / staff in the left) and shield follow the new hands
+    if (PP.wIdx !== undefined) {
+      const k = pose.k * (A.propScale || 1), mz = -R.rs, V = a => new T.Vector3(a[0], a[1], a[2]);
+      const pR = V(PJ.hR), pL = V(PJ.hL), wR = R.handR, wL = R.handL, list = PP.slice(PP.wIdx);
+      const nearL = p => { const c = p.k === 2 ? [(p.ax + p.bx2) / 2, (p.ay + p.by2) / 2, (p.az + p.bz2) / 2] : [p.bx, p.by, p.bz]; return Math.hypot(c[0] - pL.x, c[1] - pL.y, c[2] - pL.z) < Math.hypot(c[0] - pR.x, c[1] - pR.y, c[2] - pR.z); };
+      const left = [], right = []; list.forEach((p, i) => ((PP.wIdx + i >= PP.sIdx || nearL(p)) ? left : right).push(p));
+      const prims = this.xformPrims(right, pR, wR, k, mz).concat(this.xformPrims(left, pL, wL, k, mz));
+      if (prims.length) geo = this.mergeGeo(geo, G3.build(prims, { metres: true, hi: true }));
+    }
+    if (frame === 10) { // fallen: lying on the back
+      const pa = geo.attributes.position.array, na = geo.attributes.normal.array, c = Math.cos(-1.5), s = Math.sin(-1.5);
+      for (let i = 0; i < pa.length; i += 3) { const x = pa[i], y = pa[i + 1]; pa[i] = x * c - y * s; pa[i + 1] = x * s + y * c + 0.1; const nx = na[i], ny = na[i + 1]; na[i] = nx * c - ny * s; na[i + 1] = nx * s + ny * c; }
+    }
+    geo.computeBoundingSphere();
+    return geo;
+  },
+  // append a G3 geometry (groups 0-2, no UVs) to a posed model geometry
+  mergeGeo(a, b) {
+    const T = THREE, na = a.attributes.position.count, nb = b.attributes.position.count, out = new T.BufferGeometry();
+    for (const [name, size] of [['position', 3], ['normal', 3], ['color', 3], ['patd', 2], ['uv', 2]]) {
+      if (!a.attributes[name] && !b.attributes[name]) continue;
+      const arr = new Float32Array((na + nb) * size), A0 = a.attributes[name], B0 = b.attributes[name];
+      if (A0) arr.set(A0.array.subarray(0, na * size), 0); else if (name === 'color') arr.fill(1, 0, na * size);
+      if (B0) arr.set(B0.array.subarray(0, nb * size), na * size);
+      out.setAttribute(name, new T.BufferAttribute(arr, size));
+    }
+    const ia = a.index.array, ib = b.index.array, idx = new Uint32Array(ia.length + ib.length); idx.set(ia, 0); for (let i = 0; i < ib.length; i++) idx[ia.length + i] = ib[i] + na;
+    out.setIndex(new T.BufferAttribute(idx, 1));
+    for (const g of a.groups) out.addGroup(g.start, g.count, g.materialIndex);
+    for (const g of b.groups) out.addGroup(ia.length + g.start, g.count, g.materialIndex);
+    out.userData.mats = a.userData.mats;
+    return out;
   },
   // a building in world px: fitted to the footprint, taller like BFME, roofs in the team colour
   bldGeo(d, col) {
