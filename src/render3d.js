@@ -200,7 +200,7 @@ class Renderer3D extends Renderer {
     this.texCache = new Map(); this.pbrTarget = 0;
     this.loadAtlasPhotos();
     A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m);
-    A3.onReady = () => this.refreshAssets(); A3.load();
+    A3.onReady = () => this.refreshAssets();
     this.postOn = this.q >= 1;
   }
   // photo-scanned surfaces (Poly Haven, CC0) replace the procedural detail cells: masonry, roof tiles, planks, plaster, reed thatch, rock, bark

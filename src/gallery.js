@@ -151,7 +151,7 @@
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; const ds = b.dataset;
-    if (ds.race) { S.race = ds.race; if (S.race === 'wild') S.cat = 'wild'; else if (S.cat === 'wild') S.cat = 'heroes'; S.d = null; bars(); }
+    if (ds.race) { S.race = ds.race; if (S.race !== 'wild') A3.need([S.race]); if (S.race === 'wild') S.cat = 'wild'; else if (S.cat === 'wild') S.cat = 'heroes'; S.d = null; bars(); }
     else if (ds.cat) { S.cat = ds.cat; S.d = null; bars(); }
     else if (ds.k) { S.d = DEF[ds.k]; document.querySelectorAll('.th').forEach(t => t.classList.toggle('on', t.dataset.k === ds.k)); ctlBar(); frameModel(); }
     else if (ds.anim) { S.anim = ds.anim; animT = 0; frameNow = -1; ctlBar(); }
@@ -181,6 +181,6 @@
     pumpThumbs(); gl.render(scene, cam); requestAnimationFrame(loop);
   }
   A3.onReady = () => { geoCache.clear(); frameNow = -1; if (S.d) frameModel(); };
-  try { A3.load(); } catch (e) {}
+  A3.need([S.race]);
   bars(); requestAnimationFrame(loop);
 })();

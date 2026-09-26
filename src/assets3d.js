@@ -21,7 +21,7 @@ const ASSET_TUNE = {};
 const ASSET_H = { worker: 1.75, inf: 1.85, spear: 1.85, arch: 1.8, cav: 2.7, siege: 2.8, hero: 1.95, troll: 3.4, wolf: 1.0, treant: 3.6, ghoul: 1.8, bandit: 1.8 };
 const PROP_LEN = { weapon: 1.0, shield: 0.85 }, PROP_LEN_SUB = { spear: 2.6, cav: 2.9, arch: 1.4 };
 const A3 = {
-  models: new Map(), ready: false, failed: false, onReady: null, baseMats: null, patch: null, texMats: new Map(),
+  models: new Map(), missing: new Set(), ready: false, failed: false, onReady: null, baseMats: null, patch: null, texMats: new Map(),
   files() { return typeof ASSET_LIST !== 'undefined' ? ASSET_LIST : typeof ASSET_DATA !== 'undefined' ? Object.keys(ASSET_DATA) : []; },
   // generated models name themselves after the unit / building they replace
   autoRegister() {
@@ -42,19 +42,25 @@ const A3 = {
     if (typeof ASSET_DATA !== 'undefined' && ASSET_DATA[name]) { const s = atob(ASSET_DATA[name]), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return Promise.resolve(b.buffer); }
     return fetch('assets/' + name + '.glb').then(r => { if (!r.ok) throw new Error(name); return r.arrayBuffer(); });
   },
-  async load() {
+  // models are loaded per people: only the races in the battle (plus wild creatures), so a hundred files never load at once
+  load() { return this.need(null); },
+  need(races) { this.q = (this.q || Promise.resolve()).then(() => this.needNow(races)); return this.q; },
+  async needNow(races) {
     try {
       if (!window.THREE) throw new Error('no three');
-      this.autoRegister();
-      if (!THREE.GLTFLoader) await loadScript(GLTF_LIB, GLTF_SRI);
+      if (!this.registered) { this.autoRegister(); this.registered = true; }
+      const want = k => !races || races.some(r => k.startsWith(r + '_')) || !/^(hum|elf|dwf|orc|und|des)_/.test(k);
       const files = new Set();
-      for (const a of [...Object.values(ASSET_UNITS), ...Object.values(ASSET_BLDS)]) { files.add(a.file); for (const f of Object.values(a.clipFiles || {})) files.add(f); if (a.propR) files.add(a.propR); if (a.propL) files.add(a.propL); }
+      for (const [k, a] of [...Object.entries(ASSET_UNITS), ...Object.entries(ASSET_BLDS)]) { if (!want(k)) continue; files.add(a.file); for (const f of Object.values(a.clipFiles || {})) files.add(f); if (a.propR) files.add(a.propR); if (a.propL) files.add(a.propL); }
+      for (const f of [...files]) if (this.models.has(f) || this.missing.has(f)) files.delete(f);
+      if (!files.size) return;
+      if (!THREE.GLTFLoader) await loadScript(GLTF_LIB, GLTF_SRI);
       for (const f of files) {
         try {
           const buf = await this.bytes(f);
           const gltf = await new Promise((ok, bad) => new THREE.GLTFLoader().parse(buf, '', ok, bad));
           this.models.set(f, this.prepare(gltf));
-        } catch (e) { console.warn('model', f, e); }
+        } catch (e) { this.missing.add(f); console.warn('model', f, e); }
       }
       // clips from separate files join the model they were made for (same skeleton, same bone names)
       for (const A of Object.values(ASSET_UNITS)) {

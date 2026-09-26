@@ -997,6 +997,7 @@ Net.onPeers(() => {
 // ---------- game start ----------
 let speed = 1, paused = false, loading = null;
 function beginView() {
+  if (R.is3D && V) { const rs = []; for (let i = 0; i < V.nplayers; i++) { const p = V.player(i); if (p && !rs.includes(p.race)) rs.push(p.race); } A3.need(rs); } // generated models of the peoples in this battle
   hideScr(); stopAttract();
   $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
   requestAnimationFrame(measurePads); tipsIdx = store.get('tipsDone', false) || mode !== 'local' ? 99 : 0;
