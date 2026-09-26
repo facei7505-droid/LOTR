@@ -5550,7 +5550,7 @@ const A3 = {
     for (const f of F) {
       const d = typeof DEF !== 'undefined' && DEF[f]; if (!d || (ASSET_UNITS[f] || ASSET_BLDS[f] || {}).file === f) continue; // a file named after the unit wins over an older stand-in
       if (d.kind === 'b') ASSET_BLDS[f] = { file: f, team: [], recolor: 1, span: d.wall ? 1.1 : 2.3, tall: 1, yaw: 0 };
-      else ASSET_UNITS[f] = { file: f, h: d.hero ? ASSET_H.hero : ASSET_H[d.sub] || 1.85, recolor: 1, sub: d.sub };
+      else ASSET_UNITS[f] = { file: f, h: d.hero ? ASSET_H.hero : ASSET_H[d.sub] || 1.85, recolor: 1, sub: d.sub, weaponLeft: (d.sub === 'arch' && d.race !== 'dwf' && d.race !== 'orc') || f === 'elf_h2' }; // bows are held in the left hand
     }
     for (const f of F) {
       let m = /^(.+)_(idle|walk|attack|atk|death)$/.exec(f); if (m && ASSET_UNITS[m[1]]) { const A = ASSET_UNITS[m[1]]; (A.clipFiles || (A.clipFiles = {}))[m[2] === 'attack' ? 'atk' : m[2]] = f; continue; }
@@ -5765,7 +5765,8 @@ const A3 = {
   },
   // a generated weapon or shield in the hand: its longest side follows the bone's +Z (tune with propRot / propGrip / propLen)
   addProp(m, A, G, side, col) {
-    const P = this.models.get(side === 'R' ? A.propR : A.propL), bone = this.handBone(m, side, side === 'R' ? A.handR : A.handL); if (!P || !bone) return;
+    const hand = side === 'R' && A.weaponLeft ? 'L' : side;
+    const P = this.models.get(side === 'R' ? A.propR : A.propL), bone = this.handBone(m, hand, hand === 'R' ? A.handR : A.handL); if (!P || !bone) return;
     const T = THREE;
     if (!P.fit) {
       this.pose(P, null, 0); const B = this.bounds(this.collect(P, [1, 1, 1], [])), ext = [0, 1, 2].map(a => B.mx[a] - B.mn[a]), ax = ext.indexOf(Math.max(...ext));
