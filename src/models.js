@@ -269,7 +269,7 @@ const M3 = (() => {
   // ---------- build a model for a unit type ----------
   function build(d, colorHex, frame, up, det) {
     const DET0 = DET; if (det) DET = 1;
-    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 ? { atk: 0.55 } : { atk: 0 };
+    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : { atk: 0 }; // 17-20: in-between strike frames
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
     else if (d.sub === 'wolf') beast('wolf', pose, P, '#6f675b', null);

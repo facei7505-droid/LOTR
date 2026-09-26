@@ -217,6 +217,7 @@ const A3 = {
     const idle = this.clip(m, A, 'idle');
     if (!m.norm) { // scale and feet-on-the-ground from the idle pose
       this.pose(m, idle, 0); const B = this.bounds(this.collect(m, [1, 1, 1], []));
+      if (A.recolor && !A.hFixed && this.humanoid(d)) { const pj = M3.build(d, '#888888', 0, 0).J; if (pj && pj.top) A.h = pj.top * 1.04; } // same height as the soldier it replaces
       m.norm = { s: A.h / Math.max(1e-6, B.mx[1] - B.mn[1]), off: [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2] };
     }
     if (!m.skinned && A.rig !== false && this.humanoid(d)) return this.rigGeo(d, col, frame, A, m); // generated statue -> our own skeleton
@@ -368,7 +369,7 @@ const A3 = {
       const S0 = J['sh' + n], E0 = J['el' + n], W0 = J['wr' + n], S1 = tr(S0);
       const pS = V(PJ['sh' + pn]), pE = V(PJ['e' + pn]), pH = V(PJ['h' + pn]), pS0 = V(PJ0['sh' + pn]), pH0 = V(PJ0['h' + pn]), pE0 = V(PJ0['e' + pn]);
       const kA = (S0.distanceTo(E0) + E0.distanceTo(W0)) / Math.max(1e-4, pS0.distanceTo(pE0) + pE0.distanceTo(pH0));
-      const target = S1.clone().add(pH.clone().sub(pS).multiplyScalar(kA)), [E1, W1] = ik(S1, E0, W0, target, pE.clone().sub(pS));
+      const target = S1.clone().add(pH.clone().sub(pS).multiplyScalar(kA)).add(new T.Vector3(0.05 * H, 0, (n === 'R' ? rs : -rs) * 0.04 * H)), [E1, W1] = ik(S1, E0, W0, target, pE.clone().sub(pS)); // clear of the tabard
       const qu = qn(E0.clone().sub(S0), E1.clone().sub(S1)), qf = qn(W0.clone().sub(E0), W1.clone().sub(E1));
       q.set('ua' + n, qu); o.set('ua' + n, [S0, S1]); q.set('fa' + n, qf); o.set('fa' + n, [E0, E1]); q.set('ha' + n, qf); o.set('ha' + n, [W0, W1]);
       R['hand' + n] = W1; R['handDir' + n] = W1.clone().sub(E1).normalize();
@@ -381,6 +382,12 @@ const A3 = {
       q.set('ft' + n, new T.Quaternion()); o.set('ft' + n, [A0, A1]);
     }
     return { q, o, k };
+  },
+  // halfway between the same primitives in two poses (in-between frames)
+  lerpPrims(a, b) {
+    if (a.length !== b.length) return a;
+    const F = ['x', 'y', 'z', 'ax', 'ay', 'az', 'bx2', 'by2', 'bz2', 'bx', 'by', 'bz'];
+    return a.map((p, i) => { const q = b[i]; if (!q || q.k !== p.k) return p; const o = Object.assign({}, p); for (const f of F) if (typeof p[f] === 'number') o[f] = (p[f] + q[f]) / 2; if (p.pl && q.pl && p.pl.length === q.pl.length) o.pl = p.pl.map((r, j) => r.map((v, k) => (v + q.pl[j][k]) / 2)); if (p.clip && q.clip) o.clip = p.clip.map((v, k) => (v + q.clip[k]) / 2); return o; });
   },
   // move primitives (procedural weapons) by x -> O + k * M (x - A), M mirroring z when mz = -1
   xformPrims(list, A, O, k, mz) {
@@ -400,8 +407,14 @@ const A3 = {
   },
   rigGeo(d, col, frame, A, m) {
     const T = THREE, R = this.rigSetup(m, A, col), base = this.rigBase(m, A, col), bg = base.geo;
-    const f = frame === 10 ? 0 : frame;
-    const PP = M3.build(d, col, f, A.up || 0), PJ = PP.J, PJ0 = (m.rigP0 || (m.rigP0 = M3.build(d, col, 0, 0).J));
+    const f = frame === 10 ? 0 : frame, BL = { 17: [0, 7], 18: [7, 8], 19: [8, 9], 20: [9, 0] }[f];
+    let PP, PJ;
+    if (BL) { // in-between frame: joints and weapon halfway between two key poses
+      const A1 = M3.build(d, col, BL[0], A.up || 0), B1 = M3.build(d, col, BL[1], A.up || 0), lerp = (a, b) => a.map((v, i) => (v + b[i]) / 2);
+      PJ = {}; for (const kk of Object.keys(A1.J)) PJ[kk] = Array.isArray(A1.J[kk]) ? lerp(A1.J[kk], B1.J[kk]) : (A1.J[kk] + B1.J[kk]) / 2;
+      PP = A1.slice(0, A1.wIdx).concat(this.lerpPrims(A1.slice(A1.wIdx), B1.slice(B1.wIdx))); PP.J = PJ; PP.wIdx = A1.wIdx; PP.sIdx = A1.sIdx;
+    } else { PP = M3.build(d, col, f, A.up || 0); PJ = PP.J; }
+    const PJ0 = (m.rigP0 || (m.rigP0 = M3.build(d, col, 0, 0).J));
     if (!PJ || !PJ0) return bg;
     const pose = this.rigPose(R, PJ, PJ0), names = R.B.map(b => b[0]);
     const qs = names.map(n => pose.q.get(n)), os = names.map(n => pose.o.get(n));
