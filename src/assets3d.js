@@ -201,8 +201,9 @@ const A3 = {
       c.drawImage(img, 0, 0, W, H); const d = c.getImageData(0, 0, W, H), p = d.data;
       const sk = clamp(th[1] / 0.75, 0.2, 1.3), vk = clamp(th[2] / 0.8, 0.55, 1.25);
       for (let i = 0; i < p.length; i += 4) {
-        const [h, s, v] = rgbHsv(p[i], p[i + 1], p[i + 2]); if (h < 195 || h > 255 || s < 0.3 || v < 0.1) continue;
-        const [r, g, b] = hsvRgb(th[0], Math.min(1, s * sk), Math.min(1, v * vk)); p[i] = r; p[i + 1] = g; p[i + 2] = b;
+        const [h, s, v] = rgbHsv(p[i], p[i + 1], p[i + 2]); if (h < 195 || h > 255 || s < 0.38 || v < 0.12) continue; // the vivid team cloth, not grey-blue slate or steel
+        const w = Math.min(1, (s - 0.38) / 0.14) * Math.min(1, (v - 0.12) / 0.08), [r, g, b] = hsvRgb(th[0], Math.min(1, s * sk), Math.min(1, v * vk));
+        p[i] += (r - p[i]) * w; p[i + 1] += (g - p[i + 1]) * w; p[i + 2] += (b - p[i + 2]) * w;
       }
       c.putImageData(d, 0, 0);
       const t = new THREE.CanvasTexture(cv); t.flipY = tex.flipY; t.colorSpace = tex.colorSpace || THREE.SRGBColorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.anisotropy = 4; t.needsUpdate = true;
