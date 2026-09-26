@@ -487,7 +487,7 @@ const A3 = {
     // wall pieces lie along x and are as long as a segment (a little overlap so they join); the rest fit the footprint
     const s = d.wall && A.recolor ? (d.gate ? 58 : 42) / Math.max(1e-6, Math.max(ex, ez)) : d.r * A.span / Math.max(1e-6, Math.max(ex, ez));
     const yaw = A.yaw !== undefined && A.yaw !== 0 ? A.yaw : d.wall && ez > ex ? Math.PI / 2 : 0;
-    const tall = d.wall && A.recolor ? clamp((d.gate ? 38 : 27) / Math.max(1e-6, (B.mx[1] - B.mn[1]) * s), 0.6, 16) : A.tall; // walls as high as the old ones
+    const tall = d.wall && !d.gate && A.recolor ? clamp((27) / Math.max(1e-6, (B.mx[1] - B.mn[1]) * s), 0.6, 16) : A.tall; // walls as high as the old ones
     return this.withMats(this.toGeo(G, s, [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2], yaw, 1, tall), G, col, A.recolor);
   },
 };
