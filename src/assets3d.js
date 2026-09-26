@@ -27,7 +27,7 @@ const A3 = {
   autoRegister() {
     const F = this.files();
     for (const f of F) {
-      const d = typeof DEF !== 'undefined' && DEF[f]; if (!d || ASSET_UNITS[f] || ASSET_BLDS[f]) continue;
+      const d = typeof DEF !== 'undefined' && DEF[f]; if (!d || (ASSET_UNITS[f] || ASSET_BLDS[f] || {}).file === f) continue; // a file named after the unit wins over an older stand-in
       if (d.kind === 'b') ASSET_BLDS[f] = { file: f, team: [], recolor: 1, span: d.wall ? 1.1 : 2.3, tall: 1, yaw: 0 };
       else ASSET_UNITS[f] = { file: f, h: d.hero ? ASSET_H.hero : ASSET_H[d.sub] || 1.85, recolor: 1, sub: d.sub };
     }
