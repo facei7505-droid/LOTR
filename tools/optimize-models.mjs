@@ -62,7 +62,7 @@ for (const f of files) {
       await doc.transform(resample(), prune());
     } else {
       const steps = [dedup(), weld()];
-      if (t0 > B.tris) steps.push(simplify({ simplifier: MeshoptSimplifier, ratio: B.tris / t0, error: 0.04, lockBorder: false }));
+      if (t0 > B.tris) steps.push(simplify({ simplifier: MeshoptSimplifier, ratio: B.tris / t0, error: B.tris / t0 < 0.05 ? 0.12 : 0.04, lockBorder: false }));
       steps.push(resample(), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [B.tex, B.tex], quality: 86 }));
       await doc.transform(...steps);
     }
