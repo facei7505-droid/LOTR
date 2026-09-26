@@ -199,7 +199,7 @@ class Renderer3D extends Renderer {
     this.pbrU = { tGC: { value: dummy }, tGN: { value: dummy }, tDC: { value: dummy }, tDN: { value: dummy }, tRC: { value: dummy }, tRN: { value: dummy }, uPBR: { value: 0 }, uTile: { value: new T.Vector3(300, 300, 500) }, uAvg: { value: new T.Color(0.1, 0.12, 0.06) } };
     this.texCache = new Map(); this.pbrTarget = 0;
     this.loadAtlasPhotos();
-    A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m);
+    A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m); A3.lowQ = this.q <= 1;
     A3.onReady = () => this.refreshAssets();
     this.postOn = this.q >= 1;
   }

@@ -17,15 +17,16 @@ const DIR = path.resolve(dirArg >= 0 ? args[dirArg + 1] : 'assets'), SRC = path.
 const FORCE = args.includes('--force');
 // triangles and texture size per kind of model (see the prompts page)
 function budget(name) {
+  if (/_lo$/.test(name)) return { skip: true };
   if (/_(idle|walk|attack|atk|death)$/.test(name)) return { clip: true };
   if (/_(weapon|shield)$/.test(name)) return { tris: 2000, tex: 512 };
-  if (/_h[12]$/.test(name)) return { tris: 20000, tex: 2048 };
+  if (/_h[12]$/.test(name)) return { tris: 20000, tex: 2048, lo: 6000, loTex: 1024 };
   if (/_fort$/.test(name)) return { tris: 30000, tex: 2048 };
   if (/_wall$/.test(name)) return { tris: 6000, tex: 1024 };
   if (/_gate$/.test(name)) return { tris: 12000, tex: 1024 };
-  if (/_(cav|siege)$/.test(name)) return { tris: 15000, tex: 2048 };
+  if (/_(cav|siege)$/.test(name)) return { tris: 15000, tex: 2048, lo: 4500, loTex: 1024 };
   if (/_(farm|barr|range|stable|forge|tower)$/.test(name)) return { tris: 20000, tex: 1024 };
-  return { tris: 8000, tex: 1024 }; // soldiers, workers, wild creatures
+  return { tris: 8000, tex: 1024, lo: 2200, loTex: 512 }; // soldiers, workers, wild creatures; lo = the light copy for low graphics / big armies
 }
 function triangles(doc) {
   let n = 0;
@@ -47,12 +48,25 @@ let manifest = {}; try { manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')
 fs.mkdirSync(SRC, { recursive: true });
 const files = fs.readdirSync(DIR).filter(f => f.endsWith('.glb'));
 let done = 0;
+// the light copy: same model, far fewer triangles and a smaller texture
+async function makeLo(name, orig, loFile, B) {
+  try {
+    const doc = await io.read(orig), t0 = triangles(doc);
+    await doc.transform(dedup(), weld(), simplify({ simplifier: MeshoptSimplifier, ratio: Math.min(1, B.lo / t0), error: 0.5, lockBorder: false }), prune(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [B.loTex, B.loTex], quality: 80 }));
+    for (const ext of doc.getRoot().listExtensionsUsed()) if (/draco|meshopt/i.test(ext.extensionName)) ext.dispose();
+    await io.write(loFile, doc); manifest[name + '_lo'] = hash(loFile);
+    console.log((name + '_lo').padEnd(22), (t0 + ' → ' + triangles(doc) + ' треуг.').padEnd(22), kb(fs.statSync(loFile).size));
+  } catch (e) { console.error(name, 'лёгкая копия не удалась:', e.message); }
+}
 for (const f of files) {
   const name = f.slice(0, -4), file = path.join(DIR, f), st = fs.statSync(file), mark = hash(file);
+  const B = budget(name); if (B.skip) continue;
+  const orig = path.join(SRC, f), loFile = path.join(DIR, name + '_lo.glb');
+  if (B.lo && fs.existsSync(orig) && (!fs.existsSync(loFile) || manifest[name] !== mark)) await makeLo(name, orig, loFile, B);
   if (!FORCE && manifest[name] === mark) continue; // already ours
-  const B = budget(name), before = st.size;
-  const orig = path.join(SRC, f);
+  const before = st.size;
   if (!(FORCE && fs.existsSync(orig))) fs.copyFileSync(file, orig); // keep the original out of git
+  if (B.lo) await makeLo(name, orig, loFile, B);
   try {
     const doc = await io.read(orig), t0 = triangles(doc);
     if (B.clip) { // an animation-only file: bones and clips are all the game needs

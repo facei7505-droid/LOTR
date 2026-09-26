@@ -28,12 +28,14 @@ const A3 = {
     const F = this.files();
     for (const f of F) {
       const d = typeof DEF !== 'undefined' && DEF[f]; if (!d || (ASSET_UNITS[f] || ASSET_BLDS[f] || {}).file === f) continue; // a file named after the unit wins over an older stand-in
+      if (/_lo$/.test(f)) continue;
       if (d.kind === 'b') ASSET_BLDS[f] = { file: f, team: [], recolor: 1, span: d.wall ? 1.1 : 2.3, tall: 1, yaw: 0 };
       else ASSET_UNITS[f] = { file: f, h: d.hero ? ASSET_H.hero : ASSET_H[d.sub] || 1.85, recolor: 1, sub: d.sub, weaponLeft: (d.sub === 'arch' && d.race !== 'dwf' && d.race !== 'orc') || f === 'elf_h2' }; // bows are held in the left hand
     }
     for (const f of F) {
       let m = /^(.+)_(idle|walk|attack|atk|death)$/.exec(f); if (m && ASSET_UNITS[m[1]]) { const A = ASSET_UNITS[m[1]]; (A.clipFiles || (A.clipFiles = {}))[m[2] === 'attack' ? 'atk' : m[2]] = f; continue; }
-      m = /^(.+)_(weapon|shield)$/.exec(f); if (m && ASSET_UNITS[m[1]]) ASSET_UNITS[m[1]][m[2] === 'weapon' ? 'propR' : 'propL'] = f;
+      m = /^(.+)_(weapon|shield)$/.exec(f); if (m && ASSET_UNITS[m[1]]) { ASSET_UNITS[m[1]][m[2] === 'weapon' ? 'propR' : 'propL'] = f; continue; }
+      m = /^(.+)_lo$/.exec(f); if (m && ASSET_UNITS[m[1]] && this.lowQ) ASSET_UNITS[m[1]].file = f; // low graphics: the light copy
     }
     for (const k of Object.keys(ASSET_TUNE)) { const A = ASSET_UNITS[k] || ASSET_BLDS[k]; if (A) Object.assign(A, ASSET_TUNE[k]); }
   },

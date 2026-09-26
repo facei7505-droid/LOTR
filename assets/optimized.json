@@ -16,5 +16,13 @@
  "hum_range": "6e49e4d1b65ce749",
  "hum_stable": "5a68d845873937b5",
  "hum_forge": "7d0203bb8ac78588",
- "hum_tower": "7e890dc6c77de59c"
+ "hum_tower": "7e890dc6c77de59c",
+ "hum_arch_lo": "771bfb0830e301d6",
+ "hum_cav_lo": "5ecdc04ba68684bf",
+ "hum_h1_lo": "9f5f3e67734e8db8",
+ "hum_h2_lo": "8b5710efc646e6f9",
+ "hum_inf_lo": "86154b6f6329c4e0",
+ "hum_siege_lo": "72d072b661ef19ce",
+ "hum_spear_lo": "1dc31ff3819f420c",
+ "hum_worker_lo": "d9b4fb8fc3935e71"
 }
