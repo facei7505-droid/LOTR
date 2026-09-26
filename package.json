@@ -1,0 +1,12 @@
+{
+  "name": "ashen-kingdoms",
+  "private": true,
+  "description": "Пепельные Королевства — сборка и инструменты для моделей",
+  "scripts": {
+    "build": "bash build.sh",
+    "models": "node tools/optimize-models.mjs"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0"
+  }
+}

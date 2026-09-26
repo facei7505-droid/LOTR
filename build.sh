@@ -2,6 +2,8 @@
 # Сборка игры из src/ в один файл: index.html (самостоятельная версия) и dist/artifact.html (для публикации на claude.ai)
 set -e
 cd "$(dirname "$0")"
+# new generated models are shrunk to their budget first (npm i once; see tools/optimize-models.mjs)
+[ -d node_modules/@gltf-transform ] && node tools/optimize-models.mjs
 # downloaded glTF models (assets/*.glb) are embedded so the game also works from a local file
 # the smallest models are embedded up to 6 MB in total (the game then works from a local file); the rest load from assets/ over http
 ASSETS="const ASSET_DATA = {}; const ASSET_LIST = [];"
