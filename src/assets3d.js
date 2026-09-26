@@ -219,6 +219,16 @@ const A3 = {
       this.pose(m, idle, 0); const B = this.bounds(this.collect(m, [1, 1, 1], []));
       if (A.recolor && !A.hFixed && this.humanoid(d)) { const pj = M3.build(d, '#888888', 0, 0).J; if (pj && pj.top) A.h = pj.top * 1.04; } // same height as the soldier it replaces
       m.norm = { s: A.h / Math.max(1e-6, B.mx[1] - B.mn[1]), off: [(B.mn[0] + B.mx[0]) / 2, B.mn[1], (B.mn[2] + B.mx[2]) / 2] };
+      // riders and machines: turned so the head (or, for engines, the side away from the bucket) leads, and as long as the old model
+      if (A.recolor && !m.skinned && !this.humanoid(d)) {
+        const ax = B.mx[0] - B.mn[0] >= B.mx[2] - B.mn[2] ? 0 : 2, lo = B.mn[ax], hi = B.mx[ax], span = Math.max(1e-6, hi - lo);
+        let yLo = -1e9, yHi = -1e9; const G0 = this.collect(m, [1, 1, 1], []);
+        for (const g of [...G0, ...G0.tex.values()]) for (let i = 0; i < g.pos.length; i += 3) { const v = g.pos[i + ax], y = g.pos[i + 1]; if (v < lo + span * 0.22) yLo = Math.max(yLo, y); else if (v > hi - span * 0.22) yHi = Math.max(yHi, y); }
+        let front = yHi > yLo; if (d.sub === 'siege') front = !front;
+        if (A.yaw === undefined) A.yaw = ax === 0 ? (front ? 0 : Math.PI) : (front ? Math.PI / 2 : -Math.PI / 2);
+        let pmn = 1e9, pmx = -1e9; for (const q of M3.build(d, '#888888', 0, 0)) { pmn = Math.min(pmn, q.bx - q.br); pmx = Math.max(pmx, q.bx + q.br); }
+        if (pmx > pmn) m.norm.s = (pmx - pmn) * 0.95 / span;
+      }
     }
     if (!m.skinned && A.rig !== false && this.humanoid(d)) return this.rigGeo(d, col, frame, A, m); // generated statue -> our own skeleton
     let role = 'idle', t = 0, ph = -1;
