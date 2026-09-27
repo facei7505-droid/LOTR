@@ -35,7 +35,7 @@ const A3 = {
     for (const f of F) {
       let m = /^(.+)_(idle|walk|attack|atk|death)$/.exec(f); if (m && ASSET_UNITS[m[1]]) { const A = ASSET_UNITS[m[1]]; (A.clipFiles || (A.clipFiles = {}))[m[2] === 'attack' ? 'atk' : m[2]] = f; continue; }
       m = /^(.+)_(weapon|shield)$/.exec(f); if (m && ASSET_UNITS[m[1]]) { ASSET_UNITS[m[1]][m[2] === 'weapon' ? 'propR' : 'propL'] = f; continue; }
-      m = /^(.+)_lo$/.exec(f); if (m && ASSET_UNITS[m[1]] && this.lowQ) ASSET_UNITS[m[1]].file = f; // low graphics: the light copy
+      m = /^(.+)_lo$/.exec(f); if (m && ASSET_UNITS[m[1]] && (this.lowQ || (this.troopsLo && !(DEF[m[1]] && DEF[m[1]].hero)))) ASSET_UNITS[m[1]].file = f; // the light copy: everything on low graphics, the rank and file on high (hundreds of them on screen), heroes stay detailed
     }
     for (const k of Object.keys(ASSET_TUNE)) { const A = ASSET_UNITS[k] || ASSET_BLDS[k]; if (A) Object.assign(A, ASSET_TUNE[k]); }
   },

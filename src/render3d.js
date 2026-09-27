@@ -182,7 +182,11 @@ class Renderer3D extends Renderer {
     const T = THREE;
     this.is3D = true; this.glcv = glcv;
     const phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 700;
-    this.q = quality === undefined || quality < 0 ? (phone ? 0 : 2) : quality;
+    // automatic quality: phones low, integrated graphics (Intel UHD/Iris, mobile GPUs, software) medium, real graphics cards high
+    const gpu = (() => { try { const c = document.createElement('canvas').getContext('webgl'), e = c && c.getExtension('WEBGL_debug_renderer_info'); return e ? String(c.getParameter(e.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
+    this.gpu = gpu; this.weakGpu = /Intel(?!.*Arc)|Mali|Adreno|PowerVR|Apple GPU|SwiftShader|llvmpipe|Basic Render/i.test(gpu);
+    this.q = quality === undefined || quality < 0 ? (phone ? 0 : this.weakGpu ? 1 : 2) : quality;
+    this.rs = 1; // dynamic resolution: shrinks when a big battle drops the frame rate, grows back when it recovers
     this.low = this.q === 0;
     M3.setDetail(this.q >= 3); // ultra: armour lames, knee cops and faces on every soldier
     const gl = this.gl = new T.WebGLRenderer({ canvas: glcv, antialias: this.q >= 2, powerPreference: 'high-performance' });
@@ -211,7 +215,7 @@ class Renderer3D extends Renderer {
     this.pbrU = { tGC: { value: dummy }, tGN: { value: dummy }, tDC: { value: dummy }, tDN: { value: dummy }, tRC: { value: dummy }, tRN: { value: dummy }, uPBR: { value: 0 }, uTile: { value: new T.Vector3(300, 300, 500) }, uAvg: { value: new T.Color(0.1, 0.12, 0.06) } };
     this.texCache = new Map(); this.pbrTarget = 0;
     this.loadAtlasPhotos();
-    A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m); A3.lowQ = this.q <= 1;
+    A3.baseMats = this.m3.unit; A3.patch = m => this.fogPatch(m); A3.lowQ = this.q <= 1; A3.troopsLo = this.q <= 2;
     A3.onReady = () => this.refreshAssets();
     this.postOn = this.q >= 1;
   }
@@ -595,9 +599,20 @@ class Renderer3D extends Renderer {
   // ---- camera: the 2D cam (top-left corner + zoom) drives a perspective rig looking at the view centre ----
   resize() {
     super.resize();
-    this.gl.setPixelRatio([1, 1, Math.min(window.devicePixelRatio || 1, 1.5), Math.min(window.devicePixelRatio || 1, 2)][this.q]);
+    this.gl.setPixelRatio([1, 1, Math.min(window.devicePixelRatio || 1, 1.5), Math.min(window.devicePixelRatio || 1, 2)][this.q] * this.rs);
     this.gl.setSize(this.w, this.h, false);
     this.camera.aspect = this.w / this.h;
+  }
+  // called every frame with the frame time; steps the render scale 100% -> 60% under load and back up with headroom
+  adapt(dt) {
+    const A = this._ad || (this._ad = { t: 0, n: 0, wait: 3 });
+    if (dt >= 0.2) return; // tab switches and loading hitches say nothing about the scene
+    A.t += dt; A.n++; A.wait -= dt;
+    if (A.t < 2) return;
+    const fps = A.n / A.t; A.t = 0; A.n = 0;
+    if (A.wait > 0) return;
+    const next = fps < 27 ? Math.max(0.6, this.rs - 0.1) : fps > 50 ? Math.min(1, this.rs + 0.1) : this.rs;
+    if (Math.abs(next - this.rs) > 0.01) { this.rs = Math.round(next * 10) / 10; this.resize(); A.wait = 3; }
   }
   clampCam() {
     const cam = this.cam; cam.z = clamp(cam.z, 0.42, this.maxZ);

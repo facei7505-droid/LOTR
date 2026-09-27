@@ -1493,7 +1493,7 @@ function frame(now) {
     }
     // keyboard pan
     const kp = 600 * store.get('camSpd', 1) * dt / R.cam.z;
-    fpsTick(dt);
+    fpsTick(dt); if (R.adapt && !loading && store.get('dynres', true)) R.adapt(dt);
     if (keys.has('w') || keys.has('arrowup')) R.cam.y -= kp; if (keys.has('s') || keys.has('arrowdown')) R.cam.y += kp;
     if (keys.has('a') || keys.has('arrowleft')) R.cam.x -= kp; if (keys.has('d') || keys.has('arrowright')) R.cam.x += kp;
     R.clampCam();
