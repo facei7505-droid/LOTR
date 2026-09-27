@@ -53,5 +53,9 @@
  "dwf_h1": "79deccea516cd499",
  "elf_gate": "7bed972e44d4f5d2",
  "dwf_h2_lo": "3c635a05079704cf",
- "dwf_h2": "1e367cf96b5e10bd"
+ "dwf_h2": "1e367cf96b5e10bd",
+ "dwf_inf_lo": "1f7b77698cc588f5",
+ "dwf_inf": "ba2b083e97ec30da",
+ "dwf_worker_lo": "a241b76edf7ea74b",
+ "dwf_worker": "84745bfef2ce4211"
 }
