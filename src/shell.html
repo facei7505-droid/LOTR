@@ -384,6 +384,18 @@ body{font-family:var(--ui)}
 .ld-row{width:100%;display:flex;justify-content:space-between;font-family:var(--disp);font-size:13px;letter-spacing:.1em;color:var(--ink2)}
 .ld-hint{max-width:560px;text-align:center;color:var(--ink);font-size:15px;line-height:1.45;opacity:.9;margin:4px 0 0}
 .ld-hint:before{content:'⚜ ';color:var(--gold2)}
+
+.cmap{position:relative;width:100%;aspect-ratio:960/440;margin:4px 0 14px;border-radius:4px;overflow:visible;box-shadow:0 0 0 1px #07080a,0 0 0 3px var(--gold3),0 10px 26px rgba(0,0,0,.6)}
+.cmap canvas{display:block;width:100%;height:100%;border-radius:4px}
+.cnode{position:absolute;transform:translate(-50%,-50%);background:none;border:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:44px;min-height:44px;justify-content:center}
+.cnode i{font-style:normal;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:14px;color:#2b1d0c;background:radial-gradient(circle at 40% 35%,#fff3cf,#d4a54e 60%,#8a6424);box-shadow:0 0 0 2px #3b2a18,0 3px 8px rgba(0,0,0,.5)}
+.cnode span{font-family:var(--disp);font-size:11px;font-weight:700;color:#2b1d0c;white-space:nowrap;padding:1px 6px;border-radius:3px;background:rgba(236,220,182,.85);box-shadow:0 0 0 1px rgba(59,42,24,.5)}
+.cnode.done i{background:radial-gradient(circle at 40% 35%,#e87a5e,#8c1e14 70%);color:#fff3cf}
+.cnode.lock{cursor:default}.cnode.lock i{background:radial-gradient(circle at 40% 35%,#c9b995,#8f7f5e);color:#4a3a22;box-shadow:0 0 0 2px rgba(59,42,24,.6)}.cnode.lock span{opacity:.7}
+.cnode.next i{animation:cpulse 1.6s ease-in-out infinite}
+@keyframes cpulse{0%,100%{box-shadow:0 0 0 2px #3b2a18,0 0 0 4px rgba(246,220,152,.0),0 3px 8px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 2px #3b2a18,0 0 0 7px rgba(246,220,152,.75),0 0 18px rgba(246,220,152,.9)}}
+@media (prefers-reduced-motion:reduce){.cnode.next i{animation:none;box-shadow:0 0 0 2px #3b2a18,0 0 0 5px rgba(246,220,152,.7)}}
+@media (max-width:640px){.cnode span{display:none}}
 </style>
 
 <div id="app">

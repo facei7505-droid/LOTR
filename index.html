@@ -385,6 +385,18 @@ body{font-family:var(--ui)}
 .ld-row{width:100%;display:flex;justify-content:space-between;font-family:var(--disp);font-size:13px;letter-spacing:.1em;color:var(--ink2)}
 .ld-hint{max-width:560px;text-align:center;color:var(--ink);font-size:15px;line-height:1.45;opacity:.9;margin:4px 0 0}
 .ld-hint:before{content:'⚜ ';color:var(--gold2)}
+
+.cmap{position:relative;width:100%;aspect-ratio:960/440;margin:4px 0 14px;border-radius:4px;overflow:visible;box-shadow:0 0 0 1px #07080a,0 0 0 3px var(--gold3),0 10px 26px rgba(0,0,0,.6)}
+.cmap canvas{display:block;width:100%;height:100%;border-radius:4px}
+.cnode{position:absolute;transform:translate(-50%,-50%);background:none;border:none;padding:0;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:44px;min-height:44px;justify-content:center}
+.cnode i{font-style:normal;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:14px;color:#2b1d0c;background:radial-gradient(circle at 40% 35%,#fff3cf,#d4a54e 60%,#8a6424);box-shadow:0 0 0 2px #3b2a18,0 3px 8px rgba(0,0,0,.5)}
+.cnode span{font-family:var(--disp);font-size:11px;font-weight:700;color:#2b1d0c;white-space:nowrap;padding:1px 6px;border-radius:3px;background:rgba(236,220,182,.85);box-shadow:0 0 0 1px rgba(59,42,24,.5)}
+.cnode.done i{background:radial-gradient(circle at 40% 35%,#e87a5e,#8c1e14 70%);color:#fff3cf}
+.cnode.lock{cursor:default}.cnode.lock i{background:radial-gradient(circle at 40% 35%,#c9b995,#8f7f5e);color:#4a3a22;box-shadow:0 0 0 2px rgba(59,42,24,.6)}.cnode.lock span{opacity:.7}
+.cnode.next i{animation:cpulse 1.6s ease-in-out infinite}
+@keyframes cpulse{0%,100%{box-shadow:0 0 0 2px #3b2a18,0 0 0 4px rgba(246,220,152,.0),0 3px 8px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 2px #3b2a18,0 0 0 7px rgba(246,220,152,.75),0 0 18px rgba(246,220,152,.9)}}
+@media (prefers-reduced-motion:reduce){.cnode.next i{animation:none;box-shadow:0 0 0 2px #3b2a18,0 0 0 5px rgba(246,220,152,.7)}}
+@media (max-width:640px){.cnode span{display:none}}
 </style></head><body>
 
 <div id="app">
@@ -8085,10 +8097,70 @@ function openChat() {
 }
 // ---------- campaign ----------
 let campMission = -1;
+// campaign map: an inked parchment of Albion with the road of the war from mission to mission
+const CAMP_POS = [[0.40, 0.76], [0.22, 0.55], [0.60, 0.27], [0.20, 0.17], [0.86, 0.82], [0.49, 0.58]];
+function drawCampaignMap(cv, done) {
+  const W = cv.width, H = cv.height, x = cv.getContext('2d'), rnd = mkRng(77), ink = '#3b2a18';
+  // parchment with stains
+  x.fillStyle = '#d8c297'; x.fillRect(0, 0, W, H);
+  for (let k = 0; k < 260; k++) { const px = rnd() * W, py = rnd() * H, r = 8 + rnd() * 70, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, rnd() < 0.5 ? 'rgba(120,84,40,.07)' : 'rgba(255,245,215,.08)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2); }
+  const P = (fx, fy) => [fx * W, fy * H];
+  const path = pts => { x.beginPath(); pts.forEach(([a, b], k) => { const [px, py] = P(a, b); if (k) x.lineTo(px, py); else x.moveTo(px, py); }); };
+  const blob = (pts, fill) => { path(pts); x.closePath(); x.fillStyle = fill; x.fill(); x.strokeStyle = ink; x.lineWidth = 2; x.stroke(); };
+  const wob = (a, b, n, amp) => { const out = []; for (let k = 0; k <= n; k++) { const t = k / n; out.push([a[0] + (b[0] - a[0]) * t + (rnd() - 0.5) * amp, a[1] + (b[1] - a[1]) * t + (rnd() - 0.5) * amp]); } return out; };
+  const tri = (px, py, s, fill) => { x.fillStyle = fill; x.beginPath(); x.moveTo(px - s, py + s * 0.6); x.lineTo(px, py - s * 0.7); x.lineTo(px + s, py + s * 0.6); x.closePath(); x.fill(); x.strokeStyle = ink; x.lineWidth = 1.4; x.stroke(); };
+  // the eastern sea with the sands of Kemet beyond it
+  const sea = [...wob([0.56, 1.02], [1.02, 0.46], 26, 0.03), [1.02, 1.02]];
+  blob(sea, 'rgba(92,120,122,.55)');
+  x.save(); path(sea); x.closePath(); x.clip(); x.strokeStyle = 'rgba(40,60,62,.35)'; x.lineWidth = 1.2;
+  for (let k = 0; k < 60; k++) { const px = W * (0.55 + rnd() * 0.47), py = H * (0.45 + rnd() * 0.57); x.beginPath(); x.arc(px, py, 6, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
+  x.restore();
+  blob([...wob([0.76, 1.02], [1.02, 0.7], 12, 0.025), [1.02, 1.02]], 'rgba(226,190,110,.9)');
+  x.fillStyle = 'rgba(150,110,50,.5)'; for (let k = 0; k < 40; k++) { const [px, py] = P(0.84 + rnd() * 0.16, 0.82 + rnd() * 0.18); x.fillRect(px, py, 2, 1); }
+  for (const [a, b] of [[0.93, 0.9], [0.97, 0.83]]) { const [px, py] = P(a, b); tri(px, py, 12, 'rgba(190,150,80,.95)'); }
+  // the frozen north-west
+  const g0 = x.createRadialGradient(W * 0.14, H * 0.1, 10, W * 0.14, H * 0.1, W * 0.26); g0.addColorStop(0, 'rgba(250,252,255,.85)'); g0.addColorStop(1, 'rgba(250,252,255,0)'); x.fillStyle = g0; x.fillRect(0, 0, W * 0.45, H * 0.5);
+  // forests of Sylvaen and the eastern woods
+  const tree = (px, py, r) => { x.fillStyle = 'rgba(62,80,42,.8)'; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); x.strokeStyle = ink; x.lineWidth = 0.8; x.stroke(); x.beginPath(); x.moveTo(px, py + r); x.lineTo(px, py + r + 4); x.stroke(); };
+  for (let k = 0; k < 70; k++) { const [px, py] = P(0.04 + rnd() * 0.3, 0.28 + rnd() * 0.18); tree(px, py, 4 + rnd() * 3); }
+  for (let k = 0; k < 36; k++) { const [px, py] = P(0.55 + rnd() * 0.13, 0.38 + rnd() * 0.12); tree(px, py, 3.5 + rnd() * 2); }
+  // the mountains of Gromgard, snow on the peaks
+  for (let k = 0; k < 26; k++) {
+    const [px, py] = P(0.5 + rnd() * 0.32, 0.06 + rnd() * 0.3), s = 12 + rnd() * 14;
+    tri(px, py, s, '#cdb68a');
+    x.fillStyle = 'rgba(80,60,36,.3)'; x.beginPath(); x.moveTo(px, py - s * 0.7); x.lineTo(px + s, py + s * 0.6); x.lineTo(px + s * 0.2, py + s * 0.6); x.closePath(); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.9)'; x.beginPath(); x.moveTo(px - s * 0.28, py - s * 0.3); x.lineTo(px, py - s * 0.7); x.lineTo(px + s * 0.28, py - s * 0.3); x.closePath(); x.fill();
+  }
+  // the great river and the isle of the last battle
+  const river = [[0.33, -0.02], [0.35, 0.2], [0.42, 0.42], [0.49, 0.58], [0.45, 0.8], [0.52, 1.02]], rp = [];
+  for (let k = 0; k < river.length - 1; k++) rp.push(...wob(river[k], river[k + 1], 6, 0.012).slice(k ? 1 : 0));
+  rp[0] = river[0]; rp[rp.length - 1] = river[river.length - 1];
+  for (const [w, c] of [[11, ink], [8, '#6f8f94'], [3, 'rgba(200,225,225,.6)']]) { x.strokeStyle = c; x.lineWidth = w; x.lineCap = 'round'; x.lineJoin = 'round'; path(rp); x.stroke(); }
+  { const [px, py] = P(0.49, 0.58); x.fillStyle = '#6f8f94'; x.beginPath(); x.ellipse(px, py, 32, 19, 0.4, 0, 7); x.fill(); x.strokeStyle = ink; x.lineWidth = 2; x.stroke(); x.fillStyle = '#9d9478'; x.beginPath(); x.ellipse(px, py, 17, 9, 0.4, 0, 7); x.fill(); x.stroke(); }
+  // Camelot
+  { const [px, py] = P(0.13, 0.62); x.strokeStyle = ink; x.lineWidth = 1.5; for (const [dx, h] of [[-15, 22], [0, 31], [15, 22]]) { x.fillStyle = '#efe6d0'; x.fillRect(px + dx - 5, py - h, 10, h); x.strokeRect(px + dx - 5, py - h, 10, h); x.fillStyle = '#3f5f8f'; x.beginPath(); x.moveTo(px + dx - 7, py - h); x.lineTo(px + dx, py - h - 11); x.lineTo(px + dx + 7, py - h); x.closePath(); x.fill(); x.stroke(); } }
+  // the road of the war: marched in red ink, the rest pencilled
+  const pts = CAMP_POS.map(([a, b]) => P(a, b));
+  for (let k = 0; k < pts.length - 1; k++) {
+    const [ax, ay] = pts[k], [bx, by] = pts[k + 1], mx = (ax + bx) / 2 + (by - ay) * 0.18, my = (ay + by) / 2 - (bx - ax) * 0.18, gone = k < done;
+    x.strokeStyle = gone ? 'rgba(140,30,20,.9)' : 'rgba(59,42,24,.45)'; x.lineWidth = gone ? 3 : 2; x.setLineDash(gone ? [10, 6] : [4, 7]);
+    x.beginPath(); x.moveTo(ax, ay); x.quadraticCurveTo(mx, my, bx, by); x.stroke();
+  }
+  x.setLineDash([]);
+  // compass rose and the name of the land
+  { const px = W * 0.07, py = H * 0.8, r = 30; x.strokeStyle = ink; x.fillStyle = ink; x.lineWidth = 1.2; x.beginPath(); x.arc(px, py, r * 0.62, 0, 7); x.stroke();
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 - Math.PI / 2; x.beginPath(); x.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r); x.lineTo(px + Math.cos(a + 0.5) * r * 0.2, py + Math.sin(a + 0.5) * r * 0.2); x.lineTo(px + Math.cos(a - 0.5) * r * 0.2, py + Math.sin(a - 0.5) * r * 0.2); x.closePath(); if (k) x.stroke(); else x.fill(); }
+    x.font = '700 13px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillText('С', px, py - r - 5); }
+  x.font = '700 ' + Math.round(H * 0.07) + 'px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(59,42,24,.7)'; x.fillText('А Л Ь Б И О Н', W * 0.8, H * 0.47);
+  // darkened, worn edge
+  const v = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62); v.addColorStop(0, 'rgba(60,35,10,0)'); v.addColorStop(1, 'rgba(60,35,10,.6)'); x.fillStyle = v; x.fillRect(0, 0, W, H);
+}
 function menuCampaign() {
   const done = store.get('camp', 0);
-  show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Пепел Камелота</h2><p class="lead">Кампания за Королевство Камелот: от первой стычки на реке до битвы с Мордредом.</p><div class="missions">' +
+  const nodes = CAMPAIGN.map((m, i) => { const [fx, fy] = CAMP_POS[i] || [0.5, 0.5]; return '<button class="cnode ' + (i < done ? 'done' : i === done ? 'next' : 'lock') + '" style="left:' + (fx * 100).toFixed(1) + '%;top:' + (fy * 100).toFixed(1) + '%" data-a="mission" data-v="' + i + '"' + (i > done ? ' disabled' : '') + ' aria-label="' + escapeHtml(m.title) + '"><i>' + (i < done ? '✔' : i + 1) + '</i><span>' + escapeHtml(m.title) + '</span></button>'; }).join('');
+  show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Пепел Камелота</h2><p class="lead">Кампания за Королевство Камелот: от первой стычки на реке до битвы с Мордредом.</p><div class="cmap"><canvas id="cmapcv" width="960" height="440" aria-hidden="true"></canvas>' + nodes + '</div><div class="missions">' +
     CAMPAIGN.map((m, i) => '<button class="mis' + (i < done ? ' done' : i === done ? ' next' : ' lock') + '" data-a="mission" data-v="' + i + '"' + (i > done ? ' disabled' : '') + '><b>' + (i + 1) + '. ' + m.title + '</b><span>' + (i < done ? 'Пройдено ✔' : i === done ? 'Следующая' : 'Закрыто') + (m.mode === 'survival' ? ' · оборона, ' + m.waves + ' волн' : '') + '</span></button>').join('') + '</div></div>');
+  const cv = $('cmapcv'); if (cv) drawCampaignMap(cv, done);
 }
 function briefing(i) {
   const m = CAMPAIGN[i];
