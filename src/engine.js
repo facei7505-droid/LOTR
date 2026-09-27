@@ -1315,7 +1315,7 @@ class Game {
       const ab = a.d.kind === 'b', bb = b.d.kind === 'b';
       if (ab && bb) return;
       const dx = b.x - a.x, dy = b.y - a.y;
-      const min = a.r + b.r - (ab || bb ? 0 : 3);
+      const foe = !ab && !bb && a.owner !== b.owner, min = a.r + b.r - (ab || bb || foe ? 0 : 3);
       if (Math.abs(dx) > min || Math.abs(dy) > min) return;
       const d2 = dx * dx + dy * dy;
       if (d2 >= min * min) return;
@@ -1326,11 +1326,11 @@ class Game {
       else if (bb) { a.x -= nx * push; a.y -= ny * push; }
       else {
         let wa = 0.5, wb = 0.5;
-        if (a.moving && !b.moving) { wa = 0.2; wb = 0.8; } else if (b.moving && !a.moving) { wa = 0.8; wb = 0.2; }
+        // friends make way for the marching; a standing enemy line holds and the attacker is the one stopped
+        if (a.moving && !b.moving) { wa = foe ? 0.8 : 0.2; wb = 1 - wa; } else if (b.moving && !a.moving) { wa = foe ? 0.2 : 0.8; wb = 1 - wa; }
         if (a.d.hero && !b.d.hero) { wa *= 0.5; wb = 1 - wa; } else if (b.d.hero && !a.d.hero) { wb *= 0.5; wa = 1 - wb; }
-        // allies slide past each other gently; enemies hold the line
-        // friends in different battalions filter through each other on the march; enemies hold the line
-        const k = a.owner !== b.owner ? 0.6 : a.sq && a.sq === b.sq ? 0.7 : 0.5;
+        // friends in different battalions filter through each other on the march; enemies never pass through
+        const k = foe ? 0.9 : a.sq && a.sq === b.sq ? 0.7 : 0.5;
         a.x -= nx * push * k * wa; a.y -= ny * push * k * wa; b.x += nx * push * k * wb; b.y += ny * push * k * wb;
       }
     };

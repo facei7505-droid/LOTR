@@ -1754,7 +1754,7 @@ class Game {
       const ab = a.d.kind === 'b', bb = b.d.kind === 'b';
       if (ab && bb) return;
       const dx = b.x - a.x, dy = b.y - a.y;
-      const min = a.r + b.r - (ab || bb ? 0 : 3);
+      const foe = !ab && !bb && a.owner !== b.owner, min = a.r + b.r - (ab || bb || foe ? 0 : 3);
       if (Math.abs(dx) > min || Math.abs(dy) > min) return;
       const d2 = dx * dx + dy * dy;
       if (d2 >= min * min) return;
@@ -1765,11 +1765,11 @@ class Game {
       else if (bb) { a.x -= nx * push; a.y -= ny * push; }
       else {
         let wa = 0.5, wb = 0.5;
-        if (a.moving && !b.moving) { wa = 0.2; wb = 0.8; } else if (b.moving && !a.moving) { wa = 0.8; wb = 0.2; }
+        // friends make way for the marching; a standing enemy line holds and the attacker is the one stopped
+        if (a.moving && !b.moving) { wa = foe ? 0.8 : 0.2; wb = 1 - wa; } else if (b.moving && !a.moving) { wa = foe ? 0.2 : 0.8; wb = 1 - wa; }
         if (a.d.hero && !b.d.hero) { wa *= 0.5; wb = 1 - wa; } else if (b.d.hero && !a.d.hero) { wb *= 0.5; wa = 1 - wb; }
-        // allies slide past each other gently; enemies hold the line
-        // friends in different battalions filter through each other on the march; enemies hold the line
-        const k = a.owner !== b.owner ? 0.6 : a.sq && a.sq === b.sq ? 0.7 : 0.5;
+        // friends in different battalions filter through each other on the march; enemies never pass through
+        const k = foe ? 0.9 : a.sq && a.sq === b.sq ? 0.7 : 0.5;
         a.x -= nx * push * k * wa; a.y -= ny * push * k * wa; b.x += nx * push * k * wb; b.y += ny * push * k * wb;
       }
     };
@@ -5514,7 +5514,7 @@ class Renderer3D extends Renderer {
   }
   // ---- projectiles, spells and explosions in 3D ----
   fx3(fxs, now, G) {
-    const arrowGeo = this.geos.get('arrow') || (this.geos.set('arrow', G3.build([R3.cap([-12, 0, 0], [0, 0, 0], 0.45, R3.MAT('#8a6a44')), R3.cap([0, 0, 0], [3, 0, 0], 0.9, R3.MAT('#b8bec4', { pat: 'metal', spec: 1 })), R3.ell(-11, 0, 0, 2.4, 1.6, 0.2, R3.MAT('#e8e2d2'))], { seg: 1 })), this.geos.get('arrow'));
+    const arrowGeo = this.geos.get('arrow') || (this.geos.set('arrow', G3.build([R3.cap([-11, 0, 0], [0, 0, 0], 0.28, R3.MAT('#6e5236')), R3.cap([0, 0, 0], [2.2, 0, 0], 0.55, R3.MAT('#9aa2a8', { pat: 'metal', spec: 1 })), R3.ell(-9.8, 0, 0, 1.5, 0.75, 0.12, R3.MAT('#8c8272')), R3.ell(-9.8, 0, 0, 1.5, 0.12, 0.75, R3.MAT('#7a3a2a'))], { seg: 1 })), this.geos.get('arrow'));
     for (const f of fxs) {
       const a = (now - f.t0) / f.dur; if (a < 0 || a > 1.4) continue;
       const col = FX_COLORS[f.c] || null;
@@ -5528,7 +5528,7 @@ class Renderer3D extends Renderer {
           const P = t => [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, h0 + (h1 - h0) * t + Math.sin(t * Math.PI) * arc];
           const p = P(a), pb = P(Math.max(0, a - 0.04)), yaw = -Math.atan2(p[1] - pb[1], p[0] - pb[0]), pitch = Math.atan2(p[2] - pb[2], Math.hypot(p[0] - pb[0], p[1] - pb[1]));
           if (f.k === 'farrow') { for (let k = 0; k < 2; k++) this.emit3({ x: p[0] + (Math.random() - 0.5) * 3, y: p[1] + (Math.random() - 0.5) * 3, h: p[2], vx: 0, vy: 0, vh: 4, life: 0.35, t: 0, k: 'magic', col: acol, s: 3.2 }); this.addLight(p[0], p[1], 50, 0.6, f.c === 'fire' || f.c === 'sun' || !f.c); }
-          this.put('arrow', arrowGeo, p[0], p[2], p[1], yaw, f.k === 'javelin' ? 1.4 : f.k === 'bolt' ? 0.75 : 1, [0, pitch]);
+          this.put('arrow', arrowGeo, p[0], p[2], p[1], yaw, f.k === 'javelin' ? 1.3 : f.k === 'bolt' ? 0.65 : 0.85, [0, pitch]);
           break;
         }
         case 'holy': case 'leaf': case 'rune': case 'shadow': case 'fireball': case 'hammer': {
