@@ -8,5 +8,8 @@
 "чтобы сохранить": "to save them",
 "пехоту": "infantry",
 "Бойцы с опытом становятся ветеранами (★": "Experienced soldiers become veterans (★",
-"Бойцы с опытом становятся ветеранами": "Experienced soldiers become veterans"
+"Бойцы с опытом становятся ветеранами": "Experienced soldiers become veterans",
+"Об игре": "About the game",
+"3D-модели героев, войск и зданий созданы с помощью ИИ (Tencent HY 3D) и доработаны для игры. Движок three.js (MIT), фото-текстуры Poly Haven (CC0), шрифты Cinzel и Alegreya (OFL)": "The 3D models of heroes, troops and buildings were generated with AI (Tencent HY 3D) and adapted for the game. Engine: three.js (MIT); photo textures: Poly Haven (CC0); fonts: Cinzel and Alegreya (OFL)",
+"Политика конфиденциальности": "Privacy policy"
 }
