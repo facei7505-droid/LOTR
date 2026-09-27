@@ -56,7 +56,8 @@ function makeMap(seed, type) {
   const blobs = list => { const out = []; for (const [fx, fy, rad] of list) { const ph = r() * 6.28; out.push([fx * MAP_W, fy * MAP_H, rad, ph, 0], [(1 - fx) * MAP_W, (1 - fy) * MAP_H, rad, ph, 1]); } return out; };
   const blobD = (b, x, y) => { const dx = x - b[0], dy = y - b[1]; let a = Math.atan2(dy, dx); if (b[4]) a += Math.PI; return Math.hypot(dx, dy) - b[2] * (1 + 0.22 * Math.sin(3 * a + b[3]) + 0.1 * Math.sin(7 * a + b[3] * 1.7)); };
   let rx = null, river = null, lakes = [], cliffs = [];
-  if (type === 'river') {
+  const riverLike = type === 'river' || type === 'nile'; // the Nile keeps the river valley's layout under desert skies
+  if (riverLike) {
     const A = 300, A2 = (r() - 0.5) * 120;
     rx = y => { const u = (y - MAP_H / 2) / MAP_H; return MAP_W / 2 + A * Math.sin(2 * Math.PI * u) + A2 * Math.sin(4 * Math.PI * u); };
     river = []; for (let y = -80; y <= MAP_H + 80; y += 40) river.push([rx(y), y]);
@@ -86,13 +87,13 @@ function makeMap(seed, type) {
   const mirror = p => [MAP_W - p[0], MAP_H - p[1]];
   // outposts: centre + mirrored pairs
   const outposts = [nudge(C[0], C[1], 60)];
-  const opPairs = type === 'river' ? [[0.2, 0.5], [(rx(MAP_H * 0.2) + 260) / MAP_W, 0.2], [0.64, 0.2]] : [[0.2, 0.5], [0.5, 0.2], [0.66, 0.2]];
+  const opPairs = riverLike ? [[0.2, 0.5], [(rx(MAP_H * 0.2) + 260) / MAP_W, 0.2], [0.64, 0.2]] : [[0.2, 0.5], [0.5, 0.2], [0.66, 0.2]];
   for (const [fx, fy] of opPairs) { const p = nudge(fx * MAP_W, fy * MAP_H, 120); outposts.push(p, mirror(p)); }
   // wild camps: mirrored pairs
   const camps = [];
   const campKinds = [seed % 2 ? 'wolves' : 'bandits', 'troll'];
   [[0.08, 0.62], [0.42, 0.06]].forEach(([fx, fy], k) => { const p = nudge(fx * MAP_W, fy * MAP_H, 150); camps.push([p[0], p[1], campKinds[k]], [...mirror(p), campKinds[k]]); });
-  const M = { seed, type, biome: { river: 'meadow', pass: 'highland', winter: 'snow' }[type], river, rx, RW, ISL, C, outposts, camps, roads: [], bridges: [], trees: [],
+  const M = { seed, type, biome: { river: 'meadow', pass: 'highland', winter: 'snow', nile: 'desert' }[type], river, rx, RW, ISL, C, outposts, camps, roads: [], bridges: [], trees: [],
     wd, cl, wat, GW, GH, wdAt, clAt,
     water(x, y) { const gx = Math.round(clamp(x, 0, MAP_W) / WCELL), gy = Math.round(clamp(y, 0, MAP_H) / WCELL); return wat[gy * GW + gx]; },
   };
@@ -149,8 +150,8 @@ function makeMap(seed, type) {
     if (wdAt(x, y) < 24 || clAt(x, y) < 12) return false;
     return !onRoad(x, y, 56 - pad * 0.3);
   };
-  const pickV = () => { const q = r(); if (M.biome === 'snow') return q < 0.85 ? 8 + ((r() * 2) | 0) : 10; if (M.biome === 'highland') return q < 0.6 ? (q < 0.3 ? 0 : 3) : q < 0.85 ? 2 : 6; return q < 0.15 ? (q < 0.08 ? 0 : 3) : q < 0.4 ? 6 + ((r() * 2) | 0) : [1, 2, 4, 5][(r() * 4) | 0]; };
-  const nClusters = { meadow: 34, highland: 26, snow: 40 }[M.biome];
+  const pickV = () => { const q = r(); if (M.biome === 'desert') return q < 0.88 ? 11 : 10; if (M.biome === 'snow') return q < 0.85 ? 8 + ((r() * 2) | 0) : 10; if (M.biome === 'highland') return q < 0.6 ? (q < 0.3 ? 0 : 3) : q < 0.85 ? 2 : 6; return q < 0.15 ? (q < 0.08 ? 0 : 3) : q < 0.4 ? 6 + ((r() * 2) | 0) : [1, 2, 4, 5][(r() * 4) | 0]; };
+  const nClusters = { meadow: 34, highland: 26, snow: 40, desert: 26 }[M.biome];
   for (let k = 0; k < nClusters; k++) {
     let cx, cy, tries = 0;
     do { cx = r() * MAP_W; cy = r() * MAP_H; tries++; } while (!okTree(cx, cy) && tries < 40);

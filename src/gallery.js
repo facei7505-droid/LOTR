@@ -27,7 +27,7 @@
   ctx.uTime = { value: 0 }; ctx.atlas = new T.CanvasTexture(detailAtlas()); ctx.atlas.wrapS = ctx.atlas.wrapT = T.ClampToEdgeWrapping; ctx.atlas.colorSpace = T.NoColorSpace;
   ctx.fogU = { tex: { value: null }, on: { value: 0 }, map: { value: new T.Vector2(MAP_W, MAP_H) } }; ctx.geos = new Map();
   const MATS = ctx.makeMats3(); try { ctx.loadAtlasPhotos(); } catch (e) {}
-  A3.baseMats = MATS.unit;
+  A3.baseMats = MATS.unit; A3.hiWeapons = true;
   const wire = new T.MeshBasicMaterial({ color: 0xe8c890, wireframe: true, transparent: true, opacity: 0.35 });
   // floor + stone pedestal
   const flc = mkCanvas(256, 256), fx = flc.getContext('2d'), fg = fx.createRadialGradient(128, 128, 0, 128, 128, 128);

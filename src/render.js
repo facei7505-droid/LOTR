@@ -544,6 +544,13 @@ function treeSprite(v) {
       }
       if (snowy) for (let k = 0; k < 26; k++) { const fx = r() * 2 - 1, x = fx * w * 0.9, yy = y - 9 - r() * 5 + Math.abs(fx) * 5; line(c, x * 0.4, yy - 3, x, yy, mix('#c9d4de', '#ffffff', clamp(0.6 - fx * 0.4, 0, 1)), 1.6); }
     }
+  } else if (v === 11) { // date palm: a curved ringed trunk and a crown of drooping fronds
+    const lean = (r() - 0.5) * 14;
+    for (let k = 0; k < 14; k++) { const t = k / 14, x = lean * t * t, y = -t * 62; ell(c, x, y, 3.2 - t * 1.2, 2.6, k % 2 ? '#6e5436' : '#8a6c46'); }
+    const tx = lean, ty = -62;
+    for (let k = 0; k < 11; k++) { const a = -Math.PI / 2 + (k / 10 - 0.5) * 3.4, l = 26 + r() * 8, mx = tx + Math.cos(a) * l * 0.55, my = ty + Math.sin(a) * l * 0.35 - 6, ex = tx + Math.cos(a) * l, ey = ty + Math.sin(a) * l * 0.2 + 12;
+      c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(mx, my, ex, ey); c.strokeStyle = k % 2 ? '#3e6a2a' : '#5a8a36'; c.lineWidth = 4; c.stroke(); c.strokeStyle = 'rgba(160,200,90,.5)'; c.lineWidth = 1.2; c.stroke(); }
+    for (let k = 0; k < 3; k++) ell(c, tx + (k - 1) * 3, ty + 4, 2.4, 2.4, '#5a3a1a');
   } else if (v === 10) {
     const trunk = '#4b4038';
     c.beginPath(); c.moveTo(-3, 0); c.quadraticCurveTo(-2, -24, -1.2, -44); c.lineTo(1.2, -44); c.quadraticCurveTo(2, -24, 3, 0); c.closePath(); c.fillStyle = lg(c, -4, 4, trunk, -0.5, 0.2); c.fill();
@@ -597,6 +604,7 @@ function tuftSprite(v) {
 
 // ================= TERRAIN =================
 const PAL = {
+  desert:   { G1: [178, 146, 96], G2: [214, 184, 128], DRY: [196, 164, 112], ROCK: [156, 128, 96], FOR: [96, 104, 52], DIRT: [168, 134, 90], DIRT2: [138, 108, 72], MUD: [112, 98, 66], SAND: [222, 196, 146], SHAL: [72, 118, 104], DEEP: [26, 66, 72], WETG: [86, 110, 48] },
   meadow:   { G1: [54, 70, 36], G2: [104, 118, 60], DRY: [146, 136, 88], ROCK: [118, 114, 106], FOR: [34, 48, 26], DIRT: [118, 98, 68], DIRT2: [90, 74, 52], MUD: [98, 86, 62], SAND: [150, 138, 104], SHAL: [88, 108, 90], DEEP: [30, 54, 64], WETG: [48, 66, 34] },
   highland: { G1: [68, 74, 42], G2: [120, 118, 72], DRY: [156, 142, 100], ROCK: [128, 122, 112], FOR: [40, 48, 28], DIRT: [124, 106, 78], DIRT2: [96, 82, 60], MUD: [100, 90, 70], SAND: [148, 138, 108], SHAL: [88, 108, 96], DEEP: [34, 58, 66], WETG: [58, 70, 40] },
   snow:     { G1: [196, 205, 216], G2: [238, 241, 246], DRY: [214, 218, 224], ROCK: [104, 102, 106], FOR: [168, 176, 188], DIRT: [170, 164, 156], DIRT2: [146, 140, 134], MUD: [160, 162, 168], SAND: [196, 200, 206], SHAL: [196, 218, 230], DEEP: [132, 168, 192], WETG: [196, 204, 214] },
@@ -752,7 +760,7 @@ function buildDecor(M) {
   if (M.river) for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28; out.push({ k: 'p', x: M.C[0] + Math.cos(a) * 118, y: M.C[1] + Math.sin(a) * 80, s: 1, broken: i % 3 === 1 }); }
   M.camps.forEach((c, i) => out.push({ k: 'camp', i, kind: c[2], x: c[0], y: c[1] - 40 }));
   if (M.river) for (let i = 0; i < 520; i++) { const y = r() * MAP_H, x = M.rx(y) + (r() < 0.5 ? -1 : 1) * (M.RW - 6 + r() * 16); const w = M.wdAt(x, y); if (w > -10 && w < 6 && M.water(x, y) !== 2) ground.push({ v: 8, x, y, s: 0.6 + r() * 0.5 }); }
-  const tuftV = () => M.biome === 'snow' ? 9 : M.biome === 'highland' ? (r() < 0.5 ? 9 : (r() * 4) | 0) : r() < 0.72 ? (r() * 4) | 0 : r() < 0.6 ? 4 + ((r() * 2) | 0) : 6 + ((r() * 2) | 0);
+  const tuftV = () => M.biome === 'desert' ? 9 : M.biome === 'snow' ? 9 : M.biome === 'highland' ? (r() < 0.5 ? 9 : (r() * 4) | 0) : r() < 0.72 ? (r() * 4) | 0 : r() < 0.6 ? 4 + ((r() * 2) | 0) : 6 + ((r() * 2) | 0);
   for (let i = 0; i < 3600; i++) { const x = r() * MAP_W, y = r() * MAP_H; if (clear(x, y, 120)) ground.push({ v: tuftV(), x, y, s: 0.5 + r() * 0.4 }); }
   const water = [];
   if (M.river) for (let i = 0; i < 12000 && water.length < 1400; i++) { const x = r() * MAP_W, y = r() * MAP_H; if (M.wdAt(x, y) < -8) water.push({ x, y, ph: r() * 6.28, l: 3 + r() * 6 }); }
@@ -829,7 +837,7 @@ function envAt(M, seed, t) {
   const wOf = s => {
     if (s === 0) return M.biome === 'snow' ? 'snow' : 'clear';
     const q = mkRng((seed * 977 + s * 131 + 7) >>> 0)();
-    const tbl = { meadow: [['clear', 0.5], ['rain', 0.3], ['fog', 0.2]], highland: [['clear', 0.45], ['fog', 0.35], ['rain', 0.2]], snow: [['snow', 0.6], ['clear', 0.25], ['fog', 0.15]] }[M.biome];
+    const tbl = { meadow: [['clear', 0.5], ['rain', 0.3], ['fog', 0.2]], highland: [['clear', 0.45], ['fog', 0.35], ['rain', 0.2]], snow: [['snow', 0.6], ['clear', 0.25], ['fog', 0.15]], desert: [['clear', 0.8], ['fog', 0.2]] }[M.biome];
     let acc = 0; for (const [k, pr] of tbl) { acc += pr; if (q < acc) return k; } return 'clear';
   };
   const ph = t - seg * SEG;

@@ -8,7 +8,7 @@ const R = (() => {
   $('gl').hidden = true; return new Renderer(cv);
 })();
 // generated models arrived: portraits and command icons are redrawn from them
-if (R.is3D) { const prevReady = A3.onReady; A3.onReady = () => { if (prevReady) prevReady(); for (const k of [...SPR.keys()]) if (k.startsWith('ic')) SPR.delete(k); heroSig = ''; ringSig = ''; UI.panelSig = ''; }; }
+if (R.is3D) { const prevReady = A3.onReady; A3.onReady = () => { if (prevReady) prevReady(); for (const k of [...SPR.keys()]) if (k.startsWith('ic')) SPR.delete(k); for (const k in bigIcons) delete bigIcons[k]; heroSig = ''; ringSig = ''; buildSig = ''; UI.panelSig = ''; }; }
 
 // ---------- sound (audio.js) ----------
 MQ.room = store.get('room', 'public');
@@ -366,7 +366,7 @@ mini.addEventListener('pointercancel', () => miniDown = false);
 
 // ---------- HUD: BFME-style palette (round map + command ring), spell book, builders ----------
 const CLS_TIP = { inf: 'силён против копейщиков', spear: 'бьёт конницу', arch: 'бьёт пехоту издалека', cav: 'топчет стрелков', siege: 'ломает здания' };
-const BLD_DESC = { farm: 'Золото +3/с и +12 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Осадные машины; нужна, чтобы открыть клинки, броню и огненные стрелы', fort: 'Герои, строители и улучшения крепости', tower: 'Сама стреляет по врагам' };
+const BLD_DESC = { farm: 'Золото +3/с и +25 к лимиту армии', barr: 'Пехота и копейщики', range: 'Стрелки', stable: 'Конница', forge: 'Осадные машины; нужна, чтобы открыть клинки, броню и огненные стрелы', fort: 'Герои, строители и улучшения крепости', tower: 'Сама стреляет по врагам' };
 const short = s => { const w = String(s).split(/[ ,]/)[0]; return w.length > 8 ? w.slice(0, 7) + '.' : w; };
 function myFort() { return V.ents.find(x => x.owner === V.me && x.d.sub === 'fort'); }
 function myWorkers() { return V.ents.filter(e => e.owner === V.me && e.d.worker); }
@@ -607,9 +607,9 @@ let buildSig = '';
 const bigIcons = {};
 function bigIcon(d, owner) {
   const key = d.key + owner; if (bigIcons[key]) return bigIcons[key];
-  const spr = bld3(d, TEAM_COLORS[owner], true), c = mkCanvas(160, 160), x = c.getContext('2d');
-  const s = Math.min(150 / spr.w, 150 / spr.h);
-  x.drawImage(spr.cv, 80 - spr.w * s / 2, 156 - spr.h * s, spr.w * s, spr.h * s);
+  const c = mkCanvas(160, 160), x = c.getContext('2d'), gen = R.portrait && A3.has(d.key) ? R.portrait(d, TEAM_COLORS[owner], 'bld') : null;
+  if (gen) x.drawImage(gen, 0, 0, 160, 160); // the generated building
+  else { const spr = bld3(d, TEAM_COLORS[owner], true), s = Math.min(150 / spr.w, 150 / spr.h); x.drawImage(spr.cv, 80 - spr.w * s / 2, 156 - spr.h * s, spr.w * s, spr.h * s); }
   let url = ''; try { url = c.toDataURL(); } catch (e) {}
   return bigIcons[key] = url;
 }

@@ -138,6 +138,13 @@ function treePrims(v) {
       P.push(frus(0, y, 0, w, 0.5, 25 - t * 1.4, MAT(col.map(c => c / 255), { pat: 'leaf' })));
       if (snowy) P.push(frus(0, y + 7, 0, w * 0.78, 0.4, 16 - t, MAT('#eef2f7', { pat: 'leaf' })));
     }
+  } else if (v === 11) { // date palm
+    const bark = MAT('#7a5c3c', { pat: 'wood' }), bark2 = MAT('#5e4630', { pat: 'wood' }), leaf = MAT('#4e7a30', { pat: 'leaf' }), leaf2 = MAT('#6a9a3c', { pat: 'leaf' });
+    const lx = (r() - 0.5) * 16, lz = (r() - 0.5) * 16; let prev = [0, 0, 0];
+    for (let k = 1; k <= 8; k++) { const t = k / 8, p = [lx * t * t, t * 64, lz * t * t]; P.push(cap(prev, p, 2.6 - t * 1.1, k % 2 ? bark : bark2)); prev = p; }
+    for (let k = 0; k < 10; k++) { const a = k / 10 * 6.283 + r() * 0.3, l = 24 + r() * 8, d = [Math.cos(a), 0, Math.sin(a)], m1 = [prev[0] + d[0] * l * 0.45, prev[1] + 5, prev[2] + d[2] * l * 0.45], e = [prev[0] + d[0] * l, prev[1] - 9 - r() * 6, prev[2] + d[2] * l];
+      P.push(cap(prev, m1, 1.4, k % 2 ? leaf : leaf2), cap(m1, e, 1.1, k % 2 ? leaf2 : leaf)); }
+    for (let k = 0; k < 4; k++) P.push(sph(prev[0] + Math.cos(k * 1.6) * 2.4, prev[1] - 3, prev[2] + Math.sin(k * 1.6) * 2.4, 1.6, MAT('#5a3a1a')));
   } else if (v === 10) {
     const bark = MAT('#4b4038', { pat: 'wood' });
     P.push(frus(0, 0, 0, 3.4, 1.2, 46, bark));
@@ -162,6 +169,7 @@ const PBR_SETS = {
   meadow: [['rocky_terrain_02', 'diff', 420], ['dirt_aerial_02', 'diff', 360], ['lichen_rock', 'diff', 150]],
   highland: [['grass_path_3', 'diff', 110], ['rocks_ground_02', 'col', 120], ['lichen_rock', 'diff', 150]],
   snow: [['snow_02', 'diff', 170], ['aerial_mud_1', 'diff', 170], ['lichen_rock', 'diff', 150]],
+  desert: [['aerial_sand', 'diff', 260], ['coast_sand_01', 'diff', 200], ['sandstone_cracks', 'diff', 150]],
 };
 class Renderer3D extends Renderer {
   // quality: 0 low (phones), 1 medium, 2 high, 3 ultra
@@ -343,7 +351,7 @@ class Renderer3D extends Renderer {
     void pc; this.maskData = img.data; this.maskW = mw; this.maskH = mh;
     const mskT = new T.DataTexture(new Uint8Array(img.data.buffer.slice(0)), mw, mh, T.RGBAFormat); mskT.magFilter = T.LinearFilter; mskT.minFilter = T.LinearMipmapLinearFilter; mskT.generateMipmaps = true; mskT.wrapS = mskT.wrapT = T.MirroredRepeatWrapping; mskT.needsUpdate = true;
     const det = k => { const t = new T.CanvasTexture(detailTex(k)); t.wrapS = t.wrapT = T.RepeatWrapping; t.colorSpace = T.NoColorSpace; t.anisotropy = 8; return t; };
-    const b = M.biome, dG = det(b === 'snow' ? 'snow' : b === 'highland' ? 'dry' : 'grass'), dD = det('dirt'), dR = det('rock');
+    const b = M.biome, dG = det(b === 'snow' ? 'snow' : b === 'highland' || b === 'desert' ? 'dry' : 'grass'), dD = det('dirt'), dR = det('rock');
     this.trampleT3 = new T.CanvasTexture(this.trample); this.trampleT3.flipY = false;
     const cl = new T.CanvasTexture(this.clouds); cl.wrapS = cl.wrapT = T.RepeatWrapping;
     const P = PAL[b], edge = new T.Color().setRGB(...mix3(P.G1, P.G2, 0.45).map(v => Math.pow(v / 255, 2.2)));
@@ -460,7 +468,7 @@ class Renderer3D extends Renderer {
   }
   buildSky3() {
     const T = THREE, b = this.map.biome;
-    const top = b === 'snow' ? [0.52, 0.6, 0.72] : [0.36, 0.52, 0.78], hor = b === 'snow' ? [0.86, 0.88, 0.9] : [0.84, 0.82, 0.74], gnd = [0.32, 0.3, 0.26];
+    const top = b === 'snow' ? [0.52, 0.6, 0.72] : b === 'desert' ? [0.4, 0.56, 0.8] : [0.36, 0.52, 0.78], hor = b === 'snow' ? [0.86, 0.88, 0.9] : b === 'desert' ? [0.94, 0.86, 0.7] : [0.84, 0.82, 0.74], gnd = [0.32, 0.3, 0.26];
     const sky = new T.Scene();
     const m = new T.ShaderMaterial({ side: T.BackSide, uniforms: { a: { value: new T.Vector3(...top) }, h: { value: new T.Vector3(...hor) }, g: { value: new T.Vector3(...gnd) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
@@ -571,6 +579,7 @@ class Renderer3D extends Renderer {
       tries++;
       const x = r() * MAP_W, y = r() * MAP_H, mi = (Math.floor(y / MAP_H * this.maskH) * this.maskW + Math.floor(x / MAP_W * this.maskW)) * 4;
       if (this.maskData[mi] < 150 || this.maskData[mi + 3] > 20 || M.water(x, y)) continue;
+      if (M.biome === 'desert' && (Math.abs(x - M.rx(y)) > 300 || r() < 0.4)) continue; // green only along the river
       const ci = (Math.floor(y * tsc) * TW + Math.floor(x * tsc)) * 4;
       c.setRGB(Math.pow(tc.data[ci] / 255, 2.2) * 1.45, Math.pow(tc.data[ci + 1] / 255, 2.2) * 1.55, Math.pow(tc.data[ci + 2] / 255, 2.2) * 1.2);
       if (high) c.lerp(new T.Color(0.4, 0.34, 0.2), 0.2);
@@ -739,7 +748,7 @@ class Renderer3D extends Renderer {
     g.computeBoundingBox(); const bb = g.boundingBox, H = bb.max.y - bb.min.y, cam = new T.PerspectiveCamera(26, 1, 0.01, 5000);
     if (d.kind === 'u' && !A3.humanoid(d)) mode = 'bld'; // riders and engines: the whole silhouette
     const top = mode !== 'bld' && ASSET_UNITS[d.key] && ASSET_UNITS[d.key].h ? ASSET_UNITS[d.key].h : bb.max.y; // head height, not the raised spear
-    if (mode === 'bld') { const c = new T.Vector3(); bb.getCenter(c); const R0 = bb.getSize(new T.Vector3()).length() * 0.5, dist = R0 / Math.tan(13 * Math.PI / 180); cam.position.set(c.x + dist * 0.62, c.y + dist * 0.55, c.z + dist * 0.56); cam.lookAt(c); cam.far = dist * 4; cam.near = dist * 0.05; }
+    if (mode === 'bld') { const c = new T.Vector3(); bb.getCenter(c); const R0 = bb.getSize(new T.Vector3()).length() * 0.5, dist = R0 / Math.tan(13 * Math.PI / 180) * 0.74; cam.position.set(c.x + dist * 0.62, c.y + dist * 0.55, c.z + dist * 0.56); cam.lookAt(c); cam.far = dist * 4; cam.near = dist * 0.05; }
     else { const Hh = top - Math.max(0, bb.min.y), cy = top - Hh * (mode === 'face' ? 0.1 : 0.22), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; cam.position.set(Math.cos(-0.5) * dist, cy + span * 0.12, Math.sin(-0.5) * dist); cam.lookAt(0, cy, 0); }
     cam.updateProjectionMatrix();
     const S = 128, rt = this._pRT || (this._pRT = new T.WebGLRenderTarget(S, S, { samples: 4 })); rt.texture.colorSpace = T.SRGBColorSpace;
@@ -762,7 +771,7 @@ class Renderer3D extends Renderer {
     for (const [k, u] of this.units) if (hit(k)) { this.scene.remove(u.mesh); u.mesh.dispose(); this.units.delete(k); }
     for (const [id, bm] of this.bldMesh) if (ASSET_BLDS[bm.e.d.key]) { this.scene.remove(bm.mesh); this.bldMesh.delete(id); }
   }
-  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]) this.geoFor(d, col, f, 0); }
+  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) /* in-between strike and idle frames (17-22) are built during play */ this.geoFor(d, col, f, 0); }
   inst(key, geo, mats) {
     let u = this.units.get(key);
     if (!u || u.cap < u.n + 1) {
@@ -849,7 +858,7 @@ class Renderer3D extends Renderer {
     const fogK = env.weather === 'fog' ? 1 - 0.4 * wa : env.weather === 'rain' ? 1 - 0.2 * wa : 1;
     this.scene.fog.near = this.D * (0.75 + 0.2 * fogK); this.scene.fog.far = Math.max(this.D * 2.2, (this.D * 2.8 + 1200) * fogK);
     this.gl.toneMappingExposure = (0.55 + 0.35 * L) * (1 - 0.15 * wa) + this.flash * 0.6;
-    this.uCloud.value = (this.map.biome === 'snow' ? 0.12 : 0.26) * L * (env.weather === 'clear' ? 1 : 0.5);
+    this.uCloud.value = (this.map.biome === 'snow' ? 0.12 : this.map.biome === 'desert' ? 0.07 : 0.26) * L * (env.weather === 'clear' ? 1 : 0.5);
     if (this.flash > 0) this.flash = Math.max(0, this.flash - rdt * 4);
     // trample paths worn by the armies
     this.trampleT -= rdt;
@@ -1065,7 +1074,7 @@ class Renderer3D extends Renderer {
     for (const b of [this.birdsA, this.birdsB]) { b.frustumCulled = false; b.count = 0; this.world.add(b); }
     this.flocks = []; for (let k = 0; k < (this.low ? 2 : 4); k++) this.flocks.push({ x: 400 + r() * (MAP_W - 800), y: 300 + r() * (MAP_H - 600), R: 120 + r() * 160, h: 190 + r() * 90, sp: (0.25 + r() * 0.2) * (r() < 0.5 ? -1 : 1), n: 5 + (r() * 6 | 0), ph: r() * 6.28 });
     // deer herds near the forests
-    this.deer = []; if (M.biome === 'highland' && r() < 0.5) return;
+    this.deer = []; if ((M.biome === 'highland' && r() < 0.5) || M.biome === 'desert') return;
     const coat = M.biome === 'snow' ? '#8a7a68' : '#9a6c40';
     this.deerGeo = [0, 1, 2, 3, 4, 5, 6].map(f => G3.build(M3.animal('deer', f, coat), { metres: true }));
     for (let h = 0; h < 4; h++) {

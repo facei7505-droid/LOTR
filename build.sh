@@ -18,4 +18,6 @@ mkdir -p dist
 # model gallery: every hero, soldier and building on a turntable
 GJS=$(cat src/data.js src/engine.js src/map.js src/net.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/render3d.js src/assets3d.js src/gallery.js)
 { echo '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12140f">'; sed 's#</style>#</style></head><body>#' src/gallery.html; echo '<script>'; echo '"use strict";'; echo "$ASSETS"; echo "$GJS"; echo '</script></body></html>'; } > gallery.html
+# syntax check of both bundles: a broken build never reaches the site
+for f in index.html gallery.html; do node -e "const s=require('fs').readFileSync('$f','utf8');const i=s.lastIndexOf('<script>'),j=s.lastIndexOf('</script>');require('fs').writeFileSync('.check.js',s.slice(i+8,j))" && node --check .check.js || { echo "SYNTAX ERROR in $f"; rm -f .check.js; exit 1; }; done; rm -f .check.js
 wc -c index.html dist/artifact.html gallery.html

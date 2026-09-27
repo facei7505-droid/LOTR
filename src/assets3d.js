@@ -452,7 +452,7 @@ const A3 = {
       const nearL = p => { const c = p.k === 2 ? [(p.ax + p.bx2) / 2, (p.ay + p.by2) / 2, (p.az + p.bz2) / 2] : [p.bx, p.by, p.bz]; return Math.hypot(c[0] - pL.x, c[1] - pL.y, c[2] - pL.z) < Math.hypot(c[0] - pR.x, c[1] - pR.y, c[2] - pR.z); };
       const left = [], right = []; list.forEach((p, i) => ((PP.wIdx + i >= PP.sIdx || nearL(p)) ? left : right).push(p));
       const prims = this.xformPrims(right, pR, wR, k, mz).concat(this.xformPrims(left, pL, wL, k, mz));
-      if (prims.length) geo = this.mergeGeo(geo, G3.build(prims, { metres: true, hi: true }));
+      if (prims.length) geo = this.mergeGeo(geo, G3.build(prims, { metres: true, hi: !!this.hiWeapons }));
     }
     if (frame === 10) { // fallen: lying on the back
       const pa = geo.attributes.position.array, na = geo.attributes.normal.array, c = Math.cos(-1.5), s = Math.sin(-1.5);
