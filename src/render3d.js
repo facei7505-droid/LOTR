@@ -959,8 +959,10 @@ class Renderer3D extends Renderer {
       if (e.lhp !== undefined && e.hp < e.lhp - 0.5) { e.hitT = now; if (Math.random() < 0.5 && e.d.sub !== 'treant') for (let k = 0; k < 2; k++) this.emit3({ x: e.rx, y: e.ry, h: gh + 18, vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50, vh: 30 + Math.random() * 30, life: 0.5, t: 0, k: 'blood', s: 1.4 }); }
       e.lhp = e.hp;
       const bob = e.moving ? Math.abs(Math.sin(now * 10 + e.id)) * 0.8 : 0;
-      const tilt = e.stunned ? [Math.sin(now * 10) * 0.08, Math.cos(now * 9) * 0.08] : e.hitT && now - e.hitT < 0.12 ? [0.08, 0] : null;
-      this.put(unit3Key(e.d, col, fk, 0, uk), geo, e.rx, gh + bob, e.ry, -e._yaw, PPM * (e.leader ? 1.2 : 1), tilt);
+      // flinch when struck: a quick recoil back and aside that settles, with a little knockback
+      const ht = e.hitT ? now - e.hitT : 9, fl = ht < 0.32 && e.d.cls !== 'siege' ? Math.sin(Math.PI * ht / 0.32) * (1 - ht / 0.64) * (e.d.hero || e.d.cls === 'cav' ? 0.5 : 1) : 0;
+      const tilt = e.stunned ? [Math.sin(now * 10) * 0.08, Math.cos(now * 9) * 0.08] : fl ? [(e.id & 1 ? 0.05 : -0.05) * fl, -0.16 * fl] : null;
+      this.put(unit3Key(e.d, col, fk, 0, uk), geo, e.rx - Math.cos(e._yaw) * 1.8 * fl, gh + bob - 0.6 * fl, e.ry - Math.sin(e._yaw) * 1.8 * fl, -e._yaw, PPM * (e.leader ? 1.2 : 1), tilt);
       this.blob(e.rx, e.ry, gh, e.r * (e.d.cls === 'cav' || e.d.cls === 'siege' ? 3.4 : 2.4));
       if (e.leader) G.push(['ring', e.rx, e.ry, e.r * 1.35, '#ffd46a', 0.75, 1.6]);
       if (this.map.water(e.rx, e.ry) === 1) { const ph = (now * 1.8 + e.id * 0.37) % 1; if (e.id % 3 === 0) G.push(['ring', e.rx, e.ry, e.r * (1.1 + ph * 0.9), '#e1f0f0', 0.5 * (1 - ph), 1.2]); if (e.moving && Math.random() < 0.06) this.emit3({ x: e.rx, y: e.ry, h: WL3 + 1, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, vh: 20, life: 0.4, t: 0, k: 'splash', s: 2 }); }
