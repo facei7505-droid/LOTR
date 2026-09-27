@@ -78,8 +78,8 @@ const UNITS_BY_RACE = {
     siege: ['Осадный камнемёт', {}],
   },
   und: {
-    inf:   ['Скелеты-воины', { n: 12, hp: 92, dmg: 8.5, speed: 70, armor: 0.2, cost: 290 }],
-    spear: ['Могильные копейщики', { n: 12, hp: 82, speed: 68, armor: 0.15, cost: 300 }],
+    inf:   ['Скелеты-воины', { n: 12, hp: 100, dmg: 8.5, speed: 74, armor: 0.2, cost: 290 }],
+    spear: ['Могильные копейщики', { n: 12, hp: 90, speed: 72, armor: 0.15, cost: 300 }],
     arch:  ['Костяные лучники', { n: 9, range: 250, dmg: 9, hp: 52, cost: 330 }],
     cav:   ['Рыцари смерти', { hp: 300, dmg: 21, speed: 118, armor: 0.25, cost: 520 }],
     worker: ['Гуль-могильщик', { hp: 190, speed: 78 }],
