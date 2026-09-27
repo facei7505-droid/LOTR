@@ -368,6 +368,22 @@ body{font-family:var(--ui)}
 .toast{background:var(--plate)!important;border:none!important;border-left:3px solid var(--gold2)!important;box-shadow:0 0 0 1px #07080a, 0 6px 16px rgba(0,0,0,.5)!important;color:var(--ink);font-family:var(--ui);font-size:14px!important}
 .toast.go{border-left-color:#c9473a!important}
 #selplate span{color:var(--ink2)}
+
+#scr.ld-on{background:radial-gradient(ellipse at 50% 40%,rgba(22,24,28,.9),rgba(4,5,6,.985) 75%)!important;backdrop-filter:blur(6px);z-index:60}
+.ld{width:min(720px,94vw);display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 0}
+.ld-map{font-family:var(--disp);font-size:clamp(22px,3.4vw,34px);letter-spacing:.14em;text-transform:uppercase;color:var(--gold1);text-shadow:0 2px 12px #000}
+.ld-vs{display:flex;align-items:center;justify-content:center;gap:clamp(12px,4vw,40px);width:100%}
+.ld-team{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.ld-x{font-family:var(--disp);color:var(--ink2);letter-spacing:.2em;text-transform:uppercase;font-size:13px}
+.ld-side{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:84px}
+.ld-side img{width:clamp(64px,11vw,96px);height:clamp(64px,11vw,96px);border-radius:6px;box-shadow:0 0 0 2px #07080a,0 0 0 4px var(--tc),0 0 0 5px #07080a,0 8px 20px rgba(0,0,0,.7)}
+.ld-side b{font-family:var(--disp);color:var(--ink);font-size:15px;letter-spacing:.06em}
+.ld-side span{font-size:12px;color:var(--ink2)}
+.ld-bar{width:100%;height:10px;border-radius:5px;background:#0b0c0e;box-shadow:inset 0 1px 3px #000,0 0 0 1px #3c3a33;overflow:hidden}
+.ld-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8a6424,#f6dc98 80%,#fff3cf);box-shadow:0 0 12px rgba(246,220,152,.6);transition:width .25s}
+.ld-row{width:100%;display:flex;justify-content:space-between;font-family:var(--disp);font-size:13px;letter-spacing:.1em;color:var(--ink2)}
+.ld-hint{max-width:560px;text-align:center;color:var(--ink);font-size:15px;line-height:1.45;opacity:.9;margin:4px 0 0}
+.ld-hint:before{content:'⚜ ';color:var(--gold2)}
 </style>
 
 <div id="app">

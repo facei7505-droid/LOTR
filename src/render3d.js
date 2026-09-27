@@ -126,6 +126,8 @@ const G3 = {
 };
 
 // ---------- trees as 3D volumes (world px) ----------
+// which way a lying (frame 10) figure's head points along local x: the tilt that stands it back up
+function fallSide(g) { const a = g.attributes.position.array; let m = 0; for (let i = 0; i < a.length; i += 3) m += a[i]; return m >= 0 ? 1 : -1; }
 function treePrims(v) {
   const { MAT, frus, sph, cap } = R3, P = [], r = mkRng(v * 131 + 7);
   const conifer = v === 0 || v === 3 || v === 8 || v === 9, snowy = v === 8 || v === 9;
@@ -987,9 +989,16 @@ class Renderer3D extends Renderer {
     for (const k of this.corpses) {
       const age = now - k.t; if (age > 50 || age < 0 || !onScr(k.x, k.y, 60)) continue;
       const col = TEAM_COLORS[k.owner] || '#888', uk = upLook(k.d, k.up), g0 = this.heightAt(k.x, k.y);
-      const fall = clamp(age / 0.45, 0, 1), sink = age > 38 ? (age - 38) / 12 * 14 : 0;
-      if (fall < 1) { const g = this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, [0, -fall * fall * 1.5]); }
-      else { const g = this.geoFor(k.d, col, 10, uk) || this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? 10 : 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? null : [0, -1.5]); }
+      const sink = age > 38 ? (age - 38) / 12 * 14 : 0, k10 = unit3Key(k.d, col, 10, 0, uk), g10 = this.geos.has(k10) ? this.geos.get(k10) : this.geoFor(k.d, col, 10, uk);
+      if (g10 && this.geos.has(k10)) {
+        // death: a short stagger, then the body topples about the feet with gravity and settles with a small bounce
+        const sg = g10.userData.fallSign || (g10.userData.fallSign = fallSide(g10)), dur = k.dur, st = 0.12;
+        let th = 0, dh = 0;
+        if (age < st) { th = Math.PI / 2; dh = -age / st * 1.5; }
+        else if (age < st + dur) { const e = (age - st) / dur; th = Math.PI / 2 * (1 - e * e); dh = -1.5; }
+        else if (age < st + dur + 0.3) { th = 0.1 * Math.sin(Math.PI * (age - st - dur) / 0.3); dh = -1.5 * (1 - (age - st - dur) / 0.3); }
+        this.put(k10, g10, k.x, g0 - sink + dh, k.y, -k.yaw, PPM, th ? [0, sg * th] : null);
+      } else { const fall = clamp(age / 0.45, 0, 1), g = this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, [0, -fall * 1.5]); }
       if (k.blood && age < 40) this.pool(k.x - Math.cos(k.yaw) * 10, k.y - Math.sin(k.yaw) * 10, g0, Math.min(1, age / 2.5) * (k.d.r + 3) * 2.2);
     }
     // buildings that are gone
@@ -1157,7 +1166,7 @@ class Renderer3D extends Renderer {
     }
     if (this.corpses.length > 380) this.corpses.shift();
     const col = TEAM_COLORS[e.owner] || '#888', uk = upLook(e.d, up); this.geoFor(e.d, col, 10, uk);
-    this.corpses.push({ d: e.d, owner: e.owner, x: e.rx, y: e.ry, yaw: e._yaw !== undefined ? e._yaw : (e.hd || 0), t: now, up: up | 0, blood: e.d.sub !== 'treant' && e.d.sub !== 'ghoul' });
+    this.corpses.push({ d: e.d, owner: e.owner, x: e.rx, y: e.ry, yaw: (e._yaw !== undefined ? e._yaw : (e.hd || 0)) + ((e.id * 0.618) % 1 - 0.5) * 0.9, dur: 0.42 + ((e.id * 0.377) % 1) * 0.25 + (e.d.sub === 'cav' ? 0.2 : 0), t: now, up: up | 0, blood: e.d.sub !== 'treant' && e.d.sub !== 'ghoul' });
   }
   // ---- projectiles, spells and explosions in 3D ----
   fx3(fxs, now, G) {

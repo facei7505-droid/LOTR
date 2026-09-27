@@ -369,6 +369,22 @@ body{font-family:var(--ui)}
 .toast{background:var(--plate)!important;border:none!important;border-left:3px solid var(--gold2)!important;box-shadow:0 0 0 1px #07080a, 0 6px 16px rgba(0,0,0,.5)!important;color:var(--ink);font-family:var(--ui);font-size:14px!important}
 .toast.go{border-left-color:#c9473a!important}
 #selplate span{color:var(--ink2)}
+
+#scr.ld-on{background:radial-gradient(ellipse at 50% 40%,rgba(22,24,28,.9),rgba(4,5,6,.985) 75%)!important;backdrop-filter:blur(6px);z-index:60}
+.ld{width:min(720px,94vw);display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 0}
+.ld-map{font-family:var(--disp);font-size:clamp(22px,3.4vw,34px);letter-spacing:.14em;text-transform:uppercase;color:var(--gold1);text-shadow:0 2px 12px #000}
+.ld-vs{display:flex;align-items:center;justify-content:center;gap:clamp(12px,4vw,40px);width:100%}
+.ld-team{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.ld-x{font-family:var(--disp);color:var(--ink2);letter-spacing:.2em;text-transform:uppercase;font-size:13px}
+.ld-side{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:84px}
+.ld-side img{width:clamp(64px,11vw,96px);height:clamp(64px,11vw,96px);border-radius:6px;box-shadow:0 0 0 2px #07080a,0 0 0 4px var(--tc),0 0 0 5px #07080a,0 8px 20px rgba(0,0,0,.7)}
+.ld-side b{font-family:var(--disp);color:var(--ink);font-size:15px;letter-spacing:.06em}
+.ld-side span{font-size:12px;color:var(--ink2)}
+.ld-bar{width:100%;height:10px;border-radius:5px;background:#0b0c0e;box-shadow:inset 0 1px 3px #000,0 0 0 1px #3c3a33;overflow:hidden}
+.ld-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8a6424,#f6dc98 80%,#fff3cf);box-shadow:0 0 12px rgba(246,220,152,.6);transition:width .25s}
+.ld-row{width:100%;display:flex;justify-content:space-between;font-family:var(--disp);font-size:13px;letter-spacing:.1em;color:var(--ink2)}
+.ld-hint{max-width:560px;text-align:center;color:var(--ink);font-size:15px;line-height:1.45;opacity:.9;margin:4px 0 0}
+.ld-hint:before{content:'⚜ ';color:var(--gold2)}
 </style></head><body>
 
 <div id="app">
@@ -5549,6 +5565,8 @@ const G3 = {
 };
 
 // ---------- trees as 3D volumes (world px) ----------
+// which way a lying (frame 10) figure's head points along local x: the tilt that stands it back up
+function fallSide(g) { const a = g.attributes.position.array; let m = 0; for (let i = 0; i < a.length; i += 3) m += a[i]; return m >= 0 ? 1 : -1; }
 function treePrims(v) {
   const { MAT, frus, sph, cap } = R3, P = [], r = mkRng(v * 131 + 7);
   const conifer = v === 0 || v === 3 || v === 8 || v === 9, snowy = v === 8 || v === 9;
@@ -6410,9 +6428,16 @@ class Renderer3D extends Renderer {
     for (const k of this.corpses) {
       const age = now - k.t; if (age > 50 || age < 0 || !onScr(k.x, k.y, 60)) continue;
       const col = TEAM_COLORS[k.owner] || '#888', uk = upLook(k.d, k.up), g0 = this.heightAt(k.x, k.y);
-      const fall = clamp(age / 0.45, 0, 1), sink = age > 38 ? (age - 38) / 12 * 14 : 0;
-      if (fall < 1) { const g = this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, [0, -fall * fall * 1.5]); }
-      else { const g = this.geoFor(k.d, col, 10, uk) || this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? 10 : 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, this.geos.has(unit3Key(k.d, col, 10, 0, uk)) ? null : [0, -1.5]); }
+      const sink = age > 38 ? (age - 38) / 12 * 14 : 0, k10 = unit3Key(k.d, col, 10, 0, uk), g10 = this.geos.has(k10) ? this.geos.get(k10) : this.geoFor(k.d, col, 10, uk);
+      if (g10 && this.geos.has(k10)) {
+        // death: a short stagger, then the body topples about the feet with gravity and settles with a small bounce
+        const sg = g10.userData.fallSign || (g10.userData.fallSign = fallSide(g10)), dur = k.dur, st = 0.12;
+        let th = 0, dh = 0;
+        if (age < st) { th = Math.PI / 2; dh = -age / st * 1.5; }
+        else if (age < st + dur) { const e = (age - st) / dur; th = Math.PI / 2 * (1 - e * e); dh = -1.5; }
+        else if (age < st + dur + 0.3) { th = 0.1 * Math.sin(Math.PI * (age - st - dur) / 0.3); dh = -1.5 * (1 - (age - st - dur) / 0.3); }
+        this.put(k10, g10, k.x, g0 - sink + dh, k.y, -k.yaw, PPM, th ? [0, sg * th] : null);
+      } else { const fall = clamp(age / 0.45, 0, 1), g = this.geoFor(k.d, col, 0, uk); if (g) this.put(unit3Key(k.d, col, 0, 0, uk), g, k.x, g0 - sink, k.y, -k.yaw, PPM, [0, -fall * 1.5]); }
       if (k.blood && age < 40) this.pool(k.x - Math.cos(k.yaw) * 10, k.y - Math.sin(k.yaw) * 10, g0, Math.min(1, age / 2.5) * (k.d.r + 3) * 2.2);
     }
     // buildings that are gone
@@ -6580,7 +6605,7 @@ class Renderer3D extends Renderer {
     }
     if (this.corpses.length > 380) this.corpses.shift();
     const col = TEAM_COLORS[e.owner] || '#888', uk = upLook(e.d, up); this.geoFor(e.d, col, 10, uk);
-    this.corpses.push({ d: e.d, owner: e.owner, x: e.rx, y: e.ry, yaw: e._yaw !== undefined ? e._yaw : (e.hd || 0), t: now, up: up | 0, blood: e.d.sub !== 'treant' && e.d.sub !== 'ghoul' });
+    this.corpses.push({ d: e.d, owner: e.owner, x: e.rx, y: e.ry, yaw: (e._yaw !== undefined ? e._yaw : (e.hd || 0)) + ((e.id * 0.618) % 1 - 0.5) * 0.9, dur: 0.42 + ((e.id * 0.377) % 1) * 0.25 + (e.d.sub === 'cav' ? 0.2 : 0), t: now, up: up | 0, blood: e.d.sub !== 'treant' && e.d.sub !== 'ghoul' });
   }
   // ---- projectiles, spells and explosions in 3D ----
   fx3(fxs, now, G) {
@@ -7974,8 +7999,8 @@ function updateHud() {
 const setup = { race: store.get('race', 'hum'), modeN: store.get('modeN', 0), diff: store.get('diff', 1), name: store.get('name', ''), map: store.get('map', 'random') };
 function pickMap(k) { return k === 'random' || !MAP_TYPES.some(m => m.k === k) ? MAP_TYPES[(Math.random() * MAP_TYPES.length) | 0].k : k; }
 function mapName(k) { const m = MAP_TYPES.find(x => x.k === k); return m ? m.name : ''; }
-function show(html) { const s = $('scr'); s.classList.remove('mm-on'); s.innerHTML = html; s.hidden = false; }
-function hideScr() { $('scr').hidden = true; $('scr').innerHTML = ''; }
+function show(html) { const s = $('scr'); s.classList.remove('mm-on', 'ld-on'); s.innerHTML = html; s.hidden = false; }
+function hideScr() { $('scr').hidden = true; $('scr').classList.remove('mm-on', 'ld-on'); $('scr').innerHTML = ''; }
 function heroThumbs(rk) { return HEROES[rk].map(h => '<img src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
 function raceCards(sel, act) {
   return '<div class="races">' + RACE_KEYS.map(rk => '<button class="race ' + (sel === rk ? 'on' : '') + '" data-a="' + act + '" data-v="' + rk + '"><b>' + RACES[rk].short + '</b><span>' + RACES[rk].name + '</span><div class="hh">' + heroThumbs(rk) + '</div><span>' + HEROES[rk].map(h => h.name).join(' · ') + '</span></button>').join('') + '</div>';
@@ -8230,8 +8255,26 @@ function beginView() {
   Snd.play('horn'); Snd.setTheme(me ? me.race : 'hum');
   prewarm3();
   // local battles wait (paused) until the 3D buildings and the idle poses are baked
-  if (mode === 'local') { loading = { total: R.is3D ? R.geoQ.length : QB.length + Q3.length }; paused = true; show('<div class="card" style="text-align:center"><h2>Подготовка армий…</h2><p class="lead" id="ldp">0%</p></div>'); }
+  if (mode === 'local') { loading = { total: R.is3D ? R.geoQ.length : QB.length + Q3.length }; paused = true; showLoading(); }
   endShown = false; saveT = 60;
+}
+const LOAD_HINTS = [
+  'Копейщики держат строй против конницы — ставьте их впереди стрелков.',
+  'Фермы кормят войско: каждая добавляет 25 мест в армии.',
+  'Аванпосты дают золото и 10 мест — захватывайте флаги на карте.',
+  'Герой рядом с батальоном вдохновляет солдат и ускоряет их удары.',
+  'Кузница улучшает клинки, броню и стрелы всех батальонов сразу.',
+  'Осадные машины ломают стены и башни втрое быстрее пехоты.',
+  'Стрелки на возвышенности бьют дальше, а в лесу их труднее достать.',
+  'Отступление спасает батальон: раненые солдаты восстанавливаются у цитадели.',
+];
+function showLoading() {
+  const ps = []; for (let i = 0; i < V.nplayers; i++) { const p = V.player(i); if (p) ps.push([p, i]); }
+  const side = ([p, i]) => { const d = DEF[p.race + '_h1'], r = RACES[p.race]; return '<div class="ld-side" style="--tc:' + TEAM_COLORS[i] + '">' + (d ? '<img src="' + iconFor(d, i) + '" alt="">' : '') + '<b>' + escapeHtml(r ? r.short : p.race) + '</b><span>' + escapeHtml(i === V.me ? 'Вы' : p.horde ? 'Орда' : p.ai ? 'ИИ' : p.name) + '</span></div>'; };
+  const mine = ps.filter(([p]) => p.team === V.player(V.me).team), foes = ps.filter(([p]) => p.team !== V.player(V.me).team);
+  show('<div class="ld"><div class="ld-map">' + escapeHtml(mapName(game ? game.mapType : '') || 'Поле битвы') + '</div><div class="ld-vs"><div class="ld-team">' + mine.map(side).join('') + '</div><div class="ld-x">против</div><div class="ld-team">' + foes.map(side).join('') + '</div></div>' +
+    '<div class="ld-bar"><i id="ldb"></i></div><div class="ld-row"><span>Подготовка армий…</span><span id="ldp">0%</span></div><p class="ld-hint">' + LOAD_HINTS[Math.floor(Math.random() * LOAD_HINTS.length)] + '</p></div>');
+  $('scr').classList.add('ld-on');
 }
 // bake the idle poses of every army on the field in all 8 facings (walk/attack frames bake on demand)
 function prewarm3() {
@@ -8524,7 +8567,7 @@ function frame(now) {
     if (!V) return;
     if (loading) {
       const t0 = performance.now(); if (R.is3D) R.pumpGeos(45); else if (pumpBld3(40) === 0) pumpUnit3(40 - (performance.now() - t0));
-      const left = R.is3D ? R.geoQ.length : QB.length + Q3.length, el = $('ldp'); if (el) el.textContent = Math.round((1 - left / Math.max(1, loading.total)) * 100) + '%';
+      const left = R.is3D ? R.geoQ.length : QB.length + Q3.length, el = $('ldp'), pc = Math.round((1 - left / Math.max(1, loading.total)) * 100); if (el) el.textContent = pc + '%'; const lb = $('ldb'); if (lb) lb.style.width = pc + '%';
       if (!left || !el) { loading = null; hideScr(); paused = false; }
     }
     // keyboard pan

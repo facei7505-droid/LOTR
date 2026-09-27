@@ -784,8 +784,8 @@ function updateHud() {
 const setup = { race: store.get('race', 'hum'), modeN: store.get('modeN', 0), diff: store.get('diff', 1), name: store.get('name', ''), map: store.get('map', 'random') };
 function pickMap(k) { return k === 'random' || !MAP_TYPES.some(m => m.k === k) ? MAP_TYPES[(Math.random() * MAP_TYPES.length) | 0].k : k; }
 function mapName(k) { const m = MAP_TYPES.find(x => x.k === k); return m ? m.name : ''; }
-function show(html) { const s = $('scr'); s.classList.remove('mm-on'); s.innerHTML = html; s.hidden = false; }
-function hideScr() { $('scr').hidden = true; $('scr').innerHTML = ''; }
+function show(html) { const s = $('scr'); s.classList.remove('mm-on', 'ld-on'); s.innerHTML = html; s.hidden = false; }
+function hideScr() { $('scr').hidden = true; $('scr').classList.remove('mm-on', 'ld-on'); $('scr').innerHTML = ''; }
 function heroThumbs(rk) { return HEROES[rk].map(h => '<img src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
 function raceCards(sel, act) {
   return '<div class="races">' + RACE_KEYS.map(rk => '<button class="race ' + (sel === rk ? 'on' : '') + '" data-a="' + act + '" data-v="' + rk + '"><b>' + RACES[rk].short + '</b><span>' + RACES[rk].name + '</span><div class="hh">' + heroThumbs(rk) + '</div><span>' + HEROES[rk].map(h => h.name).join(' · ') + '</span></button>').join('') + '</div>';
@@ -1040,8 +1040,26 @@ function beginView() {
   Snd.play('horn'); Snd.setTheme(me ? me.race : 'hum');
   prewarm3();
   // local battles wait (paused) until the 3D buildings and the idle poses are baked
-  if (mode === 'local') { loading = { total: R.is3D ? R.geoQ.length : QB.length + Q3.length }; paused = true; show('<div class="card" style="text-align:center"><h2>Подготовка армий…</h2><p class="lead" id="ldp">0%</p></div>'); }
+  if (mode === 'local') { loading = { total: R.is3D ? R.geoQ.length : QB.length + Q3.length }; paused = true; showLoading(); }
   endShown = false; saveT = 60;
+}
+const LOAD_HINTS = [
+  'Копейщики держат строй против конницы — ставьте их впереди стрелков.',
+  'Фермы кормят войско: каждая добавляет 25 мест в армии.',
+  'Аванпосты дают золото и 10 мест — захватывайте флаги на карте.',
+  'Герой рядом с батальоном вдохновляет солдат и ускоряет их удары.',
+  'Кузница улучшает клинки, броню и стрелы всех батальонов сразу.',
+  'Осадные машины ломают стены и башни втрое быстрее пехоты.',
+  'Стрелки на возвышенности бьют дальше, а в лесу их труднее достать.',
+  'Отступление спасает батальон: раненые солдаты восстанавливаются у цитадели.',
+];
+function showLoading() {
+  const ps = []; for (let i = 0; i < V.nplayers; i++) { const p = V.player(i); if (p) ps.push([p, i]); }
+  const side = ([p, i]) => { const d = DEF[p.race + '_h1'], r = RACES[p.race]; return '<div class="ld-side" style="--tc:' + TEAM_COLORS[i] + '">' + (d ? '<img src="' + iconFor(d, i) + '" alt="">' : '') + '<b>' + escapeHtml(r ? r.short : p.race) + '</b><span>' + escapeHtml(i === V.me ? 'Вы' : p.horde ? 'Орда' : p.ai ? 'ИИ' : p.name) + '</span></div>'; };
+  const mine = ps.filter(([p]) => p.team === V.player(V.me).team), foes = ps.filter(([p]) => p.team !== V.player(V.me).team);
+  show('<div class="ld"><div class="ld-map">' + escapeHtml(mapName(game ? game.mapType : '') || 'Поле битвы') + '</div><div class="ld-vs"><div class="ld-team">' + mine.map(side).join('') + '</div><div class="ld-x">против</div><div class="ld-team">' + foes.map(side).join('') + '</div></div>' +
+    '<div class="ld-bar"><i id="ldb"></i></div><div class="ld-row"><span>Подготовка армий…</span><span id="ldp">0%</span></div><p class="ld-hint">' + LOAD_HINTS[Math.floor(Math.random() * LOAD_HINTS.length)] + '</p></div>');
+  $('scr').classList.add('ld-on');
 }
 // bake the idle poses of every army on the field in all 8 facings (walk/attack frames bake on demand)
 function prewarm3() {
@@ -1334,7 +1352,7 @@ function frame(now) {
     if (!V) return;
     if (loading) {
       const t0 = performance.now(); if (R.is3D) R.pumpGeos(45); else if (pumpBld3(40) === 0) pumpUnit3(40 - (performance.now() - t0));
-      const left = R.is3D ? R.geoQ.length : QB.length + Q3.length, el = $('ldp'); if (el) el.textContent = Math.round((1 - left / Math.max(1, loading.total)) * 100) + '%';
+      const left = R.is3D ? R.geoQ.length : QB.length + Q3.length, el = $('ldp'), pc = Math.round((1 - left / Math.max(1, loading.total)) * 100); if (el) el.textContent = pc + '%'; const lb = $('ldb'); if (lb) lb.style.width = pc + '%';
       if (!left || !el) { loading = null; hideScr(); paused = false; }
     }
     // keyboard pan
