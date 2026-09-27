@@ -4525,7 +4525,7 @@ class Renderer3D extends Renderer {
     super(cv);
     const T = THREE;
     this.is3D = true; this.glcv = glcv;
-    const phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 700;
+    const phone = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || (screen.width > 0 && Math.min(screen.width, screen.height) < 700);
     // automatic quality: phones low, integrated graphics (Intel UHD/Iris, mobile GPUs, software) medium, real graphics cards high
     const gpu = (() => { try { const c = document.createElement('canvas').getContext('webgl'), e = c && c.getExtension('WEBGL_debug_renderer_info'); return e ? String(c.getParameter(e.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
     this.gpu = gpu; this.weakGpu = /Intel(?!.*Arc)|Mali|Adreno|PowerVR|Apple GPU|SwiftShader|llvmpipe|Basic Render/i.test(gpu);
