@@ -825,9 +825,9 @@ function menuSettings(back) {
   const rng = (id, v, min, max, step) => '<input type="range" class="rng" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + v + '">';
   show('<div class="card"><button class="x" data-a="' + (back || 'main') + '" aria-label="Назад">✖</button><h2>Настройки</h2>' +
     '<h3>Графика</h3>' + seg('gfxset', R.is3D ? '3d' : '2d', [['3d', 'Реалистичная 3D'], ['2d', 'Лёгкая 2D']]) +
-    (R.is3D ? '<h3>Качество 3D</h3>' + seg('qset', q, [[0, 'Низкое'], [1, 'Среднее'], [2, 'Высокое'], [3, 'Ультра']]) + '<p class="note">Ультра — тени 4K, густая трава, двойная чёткость. На телефоне лучше «Низкое».' + (R.gpu ? ' Видеокарта: ' + escapeHtml(R.gpu.replace(/^ANGLE \((.*?),\s*/, '').replace(/\s*(\(0x|Direct3D|vs_|,).*$/, '').replace(/\((R|TM)\)/g, '')) + (R.weakGpu ? ' (встроенная)' : '') + '.' : '') + '</p>' +
+    (R.is3D ? '<h3>Качество 3D</h3>' + seg('qset', q, [[0, 'Низкое'], [1, 'Среднее'], [2, 'Высокое'], [3, 'Ультра']]) + '<p class="note">Ультра — тени 4K, густая трава, двойная чёткость. На телефоне лучше «Низкое».</p>' + (R.gpu ? '<p class="note"><span>Видеокарта</span>: ' + escapeHtml(R.gpu.replace(/^ANGLE \((.*?),\s*/, '').replace(/\s*(\(0x|Direct3D|vs_|,).*$/, '').replace(/\((R|TM)\)/g, '')) + (R.weakGpu ? ' (<span>встроенная</span>)' : '') + '</p>' : '') +
       '<h3>Динамическое разрешение</h3>' + seg('dynres', store.get('dynres', true) ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<p class="note">В больших битвах чёткость временно снижается, чтобы не падал FPS.</p>' : '') +
-    '<h3>Звук</h3>' + seg('sndset', Snd.on ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<label class="rl">Эффекты ' + rng('vol', Snd.vol, 0, 1, 0.05) + '</label><label class="rl">Музыка ' + rng('mvol', Snd.mvol, 0, 1, 0.05) + '</label>' +
+    '<h3>Язык · Language</h3>' + seg('langset', I18N.lang, [['ru', 'Русский'], ['en', 'English']]) + '<h3>Звук</h3>' + seg('sndset', Snd.on ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<label class="rl">Эффекты ' + rng('vol', Snd.vol, 0, 1, 0.05) + '</label><label class="rl">Музыка ' + rng('mvol', Snd.mvol, 0, 1, 0.05) + '</label>' +
     '<h3>Камера</h3><label class="rl">Скорость прокрутки ' + rng('camSpd', store.get('camSpd', 1), 0.4, 2.5, 0.1) + '</label>' +
     '<h3>Интерфейс</h3>' + seg('fpsset', store.get('fps', false) ? 1 : 0, [[1, 'Показывать FPS'], [0, 'Скрыть FPS']]) +
     '<div class="btns" style="margin-top:12px"><button class="big alt" data-a="tipsreset">Снова показывать подсказки</button></div></div>');
@@ -919,8 +919,8 @@ function drawCampaignMap(cv, done) {
   // compass rose and the name of the land
   { const px = W * 0.07, py = H * 0.8, r = 30; x.strokeStyle = ink; x.fillStyle = ink; x.lineWidth = 1.2; x.beginPath(); x.arc(px, py, r * 0.62, 0, 7); x.stroke();
     for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 - Math.PI / 2; x.beginPath(); x.moveTo(px + Math.cos(a) * r, py + Math.sin(a) * r); x.lineTo(px + Math.cos(a + 0.5) * r * 0.2, py + Math.sin(a + 0.5) * r * 0.2); x.lineTo(px + Math.cos(a - 0.5) * r * 0.2, py + Math.sin(a - 0.5) * r * 0.2); x.closePath(); if (k) x.stroke(); else x.fill(); }
-    x.font = '700 13px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillText('С', px, py - r - 5); }
-  x.font = '700 ' + Math.round(H * 0.07) + 'px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(59,42,24,.7)'; x.fillText('А Л Ь Б И О Н', W * 0.8, H * 0.47);
+    x.font = '700 13px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillText(I18N.lang === 'en' ? 'N' : 'С', px, py - r - 5); }
+  x.font = '700 ' + Math.round(H * 0.07) + 'px Cinzel, Georgia, serif'; x.textAlign = 'center'; x.fillStyle = 'rgba(59,42,24,.7)'; x.fillText(L('А Л Ь Б И О Н'), W * 0.8, H * 0.47);
   // darkened, worn edge
   const v = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.62); v.addColorStop(0, 'rgba(60,35,10,0)'); v.addColorStop(1, 'rgba(60,35,10,.6)'); x.fillStyle = v; x.fillRect(0, 0, W, H);
 }
@@ -1330,6 +1330,7 @@ $('scr').addEventListener('click', e => {
     case 'qset': if (+v !== R.q) { store.set('q3', +v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Качество сменится после битвы'); break; } location.reload(); } break;
     case 'sndset': Snd.setOn(v === '1'); store.set('snd', Snd.on); Snd.init(); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
+    case 'langset': if (v !== I18N.lang) { if (mode === 'local') saveGame(); I18N.set(v); } break;
     case 'dynres': store.set('dynres', v === '1'); if (v !== '1' && R.rs !== 1) { R.rs = 1; R.resize(); } menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
