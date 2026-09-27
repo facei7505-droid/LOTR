@@ -813,7 +813,7 @@ function menuMain() {
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
-  show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Битва с ИИ</h2><h3>Ваш народ</h3>' + raceCards(setup.race, 'race') +
+  show('<div class="card"><button class="x" data-a="main" aria-label="Назад">✖</button><h2>Битва с ИИ</h2><h3>Ваш народ</h3>' + raceCards(setup.rnd ? '' : setup.race, 'race').replace(/<\/div>$/, '<button class="race rnd' + (setup.rnd ? ' on' : '') + '" data-a="rndrace"><b>🎲 Случайный</b><span>Народ выпадет при загрузке битвы</span></button></div>') +
     '<h3>Режим</h3><div class="seg">' + modes.map((m, i) => '<button data-a="modeN" data-v="' + i + '" class="' + (setup.modeN === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Сложность</h3><div class="seg">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, i) => '<button data-a="diff" data-v="' + i + '" class="' + (setup.diff === i ? 'on' : '') + '">' + m + '</button>').join('') + '</div>' +
     '<h3>Туман войны</h3><div class="seg"><button data-a="fogset" data-v="1" class="' + (store.get('fog', true) ? 'on' : '') + '">Включён</button><button data-a="fogset" data-v="0" class="' + (store.get('fog', true) ? '' : 'on') + '">Выключен</button></div>' +
@@ -1230,17 +1230,18 @@ function loadGame() {
   } catch (e) { console.error(e); toast('Сохранение повреждено'); store.set('save', null); menuMain(); }
 }
 function startLocal() {
+  const myRace = setup.rnd ? RACE_KEYS[Math.floor(Math.random() * RACE_KEYS.length)] : myRace; // 🎲 a random people, revealed on the loading screen
   if (setup.modeN === 3) { // survival: hold the citadel against 15 waves of the horde
-    const hr = RACE_KEYS.filter(r => r !== setup.race)[Math.floor(Math.random() * (RACE_KEYS.length - 1))];
-    game = new Game({ seed: (Date.now() % 100000) + 1, mode: 'survival', waveDiff: setup.diff, players: [{ race: setup.race, team: 0, name: 'Вы' }, { race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }], mapType: pickMap(setup.map) });
+    const hr = RACE_KEYS.filter(r => r !== myRace)[Math.floor(Math.random() * (RACE_KEYS.length - 1))];
+    game = new Game({ seed: (Date.now() % 100000) + 1, mode: 'survival', waveDiff: setup.diff, players: [{ race: myRace, team: 0, name: 'Вы' }, { race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }], mapType: pickMap(setup.map) });
     ais = []; R.setWorld(game.seed, game.mapType);
     V = makeLocalView(game, 0); mode = 'local'; paused = false; speed = 1;
     beginView(); toast('Выживание: первая волна через 50 секунд'); return;
   }
   const n = [2, 4, 4][setup.modeN];
-  const others = RACE_KEYS.filter(r => r !== setup.race);
+  const others = RACE_KEYS.filter(r => r !== myRace);
   const rr = mkRng(Date.now() & 0xffff);
-  const players = [{ race: setup.race, team: 0, name: 'Вы' }];
+  const players = [{ race: myRace, team: 0, name: 'Вы' }];
   for (let i = 1; i < n; i++) players.push({ race: others[Math.floor(rr() * others.length)], team: setup.modeN === 1 ? (i === 2 ? 0 : 1) : setup.modeN === 0 ? 1 : i, ai: true, diff: setup.diff, name: 'ИИ ' + i });
   if (setup.modeN === 1) { players[2].name = 'Союзник'; players[2].diff = 1; }
   game = new Game({ seed: (Date.now() % 100000) + 1, players, mapType: pickMap(setup.map) });
@@ -1330,13 +1331,14 @@ $('scr').addEventListener('click', e => {
     case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
+    case 'rndrace': setup.rnd = true; menuSkirm(); break;
     case 'lobcol': { const [si, ci] = v.split(':').map(Number); lobbyEdit(si, 'col', ci); break; }
     case 'kick': { const sl = lobby.slots[+v]; if (sl && sl.k === 'p') { lobby.kicked.add(sl.peer); sl.k = 'open'; sl.peer = null; hostSync(); onlineScreen(); } break; }
     case 'ready': { const L = lobbyView(), mine = (L.sl || []).find(x => x.peer === Net.mePeer()); Net.set({ ready: !(mine && mine.ready) }); break; }
     case 'lobsend': { const i = $('lobin'); if (i) { sendChat(i.value); i.value = ''; } break; }
     case 'gfx': store.set('gfx', R.is3D ? '2d' : '3d'); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); break;
     case 'room': { const rv = $('room'); if (rv) { Net.setRoom(rv.value); store.set('room', Net.roomCode); } onlineScreen(); break; }
-    case 'race': setup.race = v; store.set('race', v); if (lobby.role === 'guest') Net.set({ race: v }); if (lobby.role === 'host') hostSync(); if (mode === 'menu' && (lobby.role || $('nick'))) onlineScreen(); else menuSkirm(); break;
+    case 'race': setup.race = v; setup.rnd = false; store.set('race', v); if (lobby.role === 'guest') Net.set({ race: v }); if (lobby.role === 'host') hostSync(); if (mode === 'menu' && (lobby.role || $('nick'))) onlineScreen(); else menuSkirm(); break;
     case 'modeN': setup.modeN = +v; store.set('modeN', +v); menuSkirm(); break;
     case 'diff': setup.diff = +v; store.set('diff', +v); menuSkirm(); break;
     case 'go': campMission = -1; startLocal(); break;
