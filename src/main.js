@@ -1230,7 +1230,7 @@ function loadGame() {
   } catch (e) { console.error(e); toast('Сохранение повреждено'); store.set('save', null); menuMain(); }
 }
 function startLocal() {
-  const myRace = setup.rnd ? RACE_KEYS[Math.floor(Math.random() * RACE_KEYS.length)] : myRace; // 🎲 a random people, revealed on the loading screen
+  const myRace = setup.rnd ? RACE_KEYS[Math.floor(Math.random() * RACE_KEYS.length)] : setup.race; // 🎲 a random people, revealed on the loading screen
   if (setup.modeN === 3) { // survival: hold the citadel against 15 waves of the horde
     const hr = RACE_KEYS.filter(r => r !== myRace)[Math.floor(Math.random() * (RACE_KEYS.length - 1))];
     game = new Game({ seed: (Date.now() % 100000) + 1, mode: 'survival', waveDiff: setup.diff, players: [{ race: myRace, team: 0, name: 'Вы' }, { race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }], mapType: pickMap(setup.map) });
