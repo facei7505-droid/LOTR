@@ -149,7 +149,26 @@ function iconFor(d, owner) {
   if (face && url) FULLPIC.add(url);
   SPR.set(key, url); return url;
 }
-function pic(k, o) { const u = PIC.get(k, Object.assign({ col: TEAM_COLORS[V ? V.me : 0], race: V && V.player(V.me) ? V.player(V.me).race : 'hum' }, o)); if (u) FULLPIC.add(u); return u; }
+const medalPics = new Map();
+function pic(k, o) {
+  const race = V && V.player(V.me) ? V.player(V.me).race : 'hum', oo = Object.assign({ col: TEAM_COLORS[V ? V.me : 0], race, fx: FX_COLORS[ARROW_FX[race]] }, o);
+  let u = '';
+  if (R.propIcon && PROP3.has(k)) u = R.propIcon(k, oo); // real 3D props
+  else if (medalPics.has(k + oo.col + race)) u = medalPics.get(k + oo.col + race);
+  else if (R.portrait && (k === 'walls' || k === 'archers' || k === 'catapult' || k === 'build')) { const d = DEF[race + '_' + { walls: 'fort', archers: 'tower', catapult: 'siege', build: 'barr' }[k]]; const c = d && A3.has(d.key) ? R.portrait(d, oo.col, 'bld') : null; if (c) { u = medal(c, { walls: '#9aa7b4', archers: '#3b6bd6', catapult: '#c0392b', build: '#d9a441' }[k]); medalPics.set(k + oo.col + race, u); } }
+  if (!u) u = PIC.get(k, oo);
+  if (u) FULLPIC.add(u); return u;
+}
+// a rendered picture on the same steel medallion as the prop icons
+function medal(cv3, bg) {
+  const S = 128, cv = mkCanvas(S, S), x = cv.getContext('2d');
+  x.save(); x.beginPath(); x.arc(64, 64, 63, 0, 7); x.clip();
+  let g = x.createRadialGradient(56, 48, 6, 64, 64, 70); g.addColorStop(0, '#2e3136'); g.addColorStop(0.65, '#15171a'); g.addColorStop(1, '#060708'); x.fillStyle = g; x.fillRect(0, 0, S, S);
+  g = x.createRadialGradient(64, 60, 2, 64, 64, 60); g.addColorStop(0, rgba(bg, 0.7)); g.addColorStop(1, rgba(bg, 0)); x.fillStyle = g; x.fillRect(0, 0, S, S);
+  x.drawImage(cv3, 6, 6, 116, 116);
+  g = x.createRadialGradient(64, 64, 44, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)'); x.fillStyle = g; x.fillRect(0, 0, S, S);
+  x.restore(); let u = ''; try { u = cv.toDataURL(); } catch (e) {} return u;
+}
 function imgTag(u) { return '<img src="' + u + '"' + (FULLPIC.has(u) ? ' class="pic"' : '') + ' alt="">'; }
 const rgbHex = s => '#' + s.split(',').map(v => (+v).toString(16).padStart(2, '0')).join('');
 // command slot -> painted picture

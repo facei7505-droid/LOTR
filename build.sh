@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 ASSETS="const ASSET_DATA = {}; const ASSET_LIST = [];"
 EMB=0
 for f in $(ls -Sr assets/*.glb 2>/dev/null); do n=$(basename "$f" .glb); ASSETS="$ASSETS ASSET_LIST.push('$n');"; sz=$(stat -c%s "$f"); if [ $((EMB + sz)) -le 6291456 ]; then EMB=$((EMB + sz)); ASSETS="$ASSETS ASSET_DATA['$n'] = '$(base64 -w0 "$f")';"; fi; done
-JS=$(cat src/data.js src/engine.js src/map.js src/ai.js src/net.js src/audio.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/icons.js src/render3d.js src/assets3d.js src/main.js)
+JS=$(cat src/data.js src/engine.js src/map.js src/ai.js src/net.js src/audio.js src/r3d.js src/models.js src/buildings3d.js src/render.js src/icons.js src/props3d.js src/render3d.js src/assets3d.js src/main.js)
 JS="$ASSETS
 $JS"
 mkdir -p dist

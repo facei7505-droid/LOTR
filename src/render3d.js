@@ -738,6 +738,47 @@ class Renderer3D extends Renderer {
     return null;
   }
   pumpGeos(ms) { const t0 = performance.now(); while (this.geoQ.length && performance.now() - t0 < ms) { const j = this.geoQ.shift(); this.geoBusy.delete(j.key); if (j.bld) { this.bldGeo(j.d, j.col); continue; } if (!this.geos.has(j.key)) this.geos.set(j.key, (A3.has(j.d.key) && A3.unitGeo(j.d, j.col, j.frame)) || G3.build(M3.build(j.d, j.col, j.frame, j.up | 0), { metres: true })); } return this.geoQ.length; }
+  // a command icon: a 3D still life (PROP3) on a dark steel medallion with a coloured backlight
+  propIcon(key, o) {
+    const sp = PROP3.spec(key, o); if (!sp) return null;
+    const ck = key + '|' + (o.col || '') + '|' + (o.fx || '') + '|' + (o.race || ''); this._icons = this._icons || new Map(); if (this._icons.has(ck)) return this._icons.get(ck);
+    const T = THREE, grp = new T.Group(), geos = [];
+    for (const [P, rz, x, y, ry] of sp.parts) { const g = G3.build(P, { seg: 2, hi: true }); geos.push(g); const m = new T.Mesh(g, this.m3.unit); m.rotation.set(0, (ry || 0) * Math.PI / 180, (rz || 0) * Math.PI / 180); m.position.set(x || 0, y || 0, 0); grp.add(m); }
+    const bb = new T.Box3().setFromObject(grp), c = bb.getCenter(new T.Vector3()), R0 = bb.getSize(new T.Vector3()).length() * 0.5;
+    const cam = new T.PerspectiveCamera(24, 1, 1, 5000), el = (sp.el || 16) * Math.PI / 180, az = 0.32, dist = R0 / Math.sin(12 * Math.PI / 180) * 0.92;
+    cam.position.set(c.x + Math.sin(az) * Math.cos(el) * dist, c.y + Math.sin(el) * dist, c.z + Math.cos(az) * Math.cos(el) * dist); cam.lookAt(c); cam.near = dist * 0.1; cam.far = dist * 3; cam.updateProjectionMatrix();
+    const cv3 = this.renderOff(grp, cam, 160); geos.forEach(g => g.dispose());
+    const S = 128, cv = mkCanvas(S, S), x = cv.getContext('2d'), bg = sp.bg || '#9aa7b4';
+    x.save(); x.beginPath(); x.arc(64, 64, 63, 0, 7); x.clip();
+    let g = x.createRadialGradient(56, 48, 6, 64, 64, 70); g.addColorStop(0, '#2e3136'); g.addColorStop(0.65, '#15171a'); g.addColorStop(1, '#060708'); x.fillStyle = g; x.fillRect(0, 0, S, S);
+    g = x.createRadialGradient(64, 60, 2, 64, 64, 60); g.addColorStop(0, rgba(bg, 0.75)); g.addColorStop(0.55, rgba(bg, 0.22)); g.addColorStop(1, rgba(bg, 0)); x.fillStyle = g; x.fillRect(0, 0, S, S);
+    if (sp.rays) { x.save(); x.translate(64, 60); x.globalAlpha = 0.28; x.fillStyle = '#ffe9b0'; for (let k = 0; k < 14; k++) { x.rotate(Math.PI / 7); x.beginPath(); x.moveTo(-3, 8); x.lineTo(0, 70); x.lineTo(3, 8); x.fill(); } x.restore(); }
+    if (sp.ring) { x.strokeStyle = rgba(bg, 0.8); x.lineWidth = 3; for (let k = 0; k < 3; k++) { x.globalAlpha = 0.8 - k * 0.25; x.beginPath(); x.ellipse(64, 96, 24 + k * 13, 7 + k * 3.5, 0, 0, 7); x.stroke(); } x.globalAlpha = 1; }
+    if (sp.streaks) { x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineCap = 'round'; for (let k = 0; k < 5; k++) { x.lineWidth = 2.4 - k * 0.3; x.beginPath(); x.moveTo(14 + k * 3, 44 + k * 9); x.lineTo(46 + k * 2, 44 + k * 9); x.stroke(); } }
+    if (cv3) x.drawImage(cv3, -8, -8, 144, 144);
+    if (sp.sparks) { x.fillStyle = '#ffd27a'; for (let k = 0; k < 14; k++) { const a = k * 2.4, r = 10 + (k * 7) % 26; x.globalAlpha = 0.5 + (k % 3) * 0.2; x.beginPath(); x.arc(58 + Math.cos(a) * r, 70 + Math.sin(a) * r * 0.6, 1 + (k % 3) * 0.6, 0, 7); x.fill(); } x.globalAlpha = 1; }
+    g = x.createLinearGradient(0, 0, 0, 70); g.addColorStop(0, 'rgba(255,255,255,.16)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.ellipse(64, 20, 50, 24, 0, 0, 7); x.fill();
+    g = x.createRadialGradient(64, 64, 44, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.7)'); x.fillStyle = g; x.fillRect(0, 0, S, S);
+    x.restore();
+    let url = ''; try { url = cv.toDataURL(); } catch (e) {}
+    this._icons.set(ck, url); return url;
+  }
+  // render an object off-screen (transparent background) with a studio light rig; returns a canvas
+  renderOff(obj, cam, S) {
+    const T = THREE, sc = this._oScene || (this._oScene = (() => { const s = new T.Scene(); s.add(new T.HemisphereLight(0xe8eef8, 0x40362a, 0.55)); const k = new T.DirectionalLight(0xfff0dc, 1.35); k.position.set(2.5, 3.2, 3); s.add(k); const r = new T.DirectionalLight(0xa8c8ff, 0.9); r.position.set(-3, 1.5, -2.5); s.add(r); return s; })());
+    sc.environment = this.scene.environment; sc.add(obj);
+    const rt = this._oRT && this._oRT.width === S ? this._oRT : (this._oRT = new T.WebGLRenderTarget(S, S, { samples: 4 })); rt.texture.colorSpace = T.SRGBColorSpace;
+    const gl = this.gl, prevT = gl.getRenderTarget(), fogOn = this.fogU.on.value, buf = new Uint8Array(S * S * 4), prevC = gl.getClearColor(new T.Color()), prevA = gl.getClearAlpha();
+    let cv = null;
+    try {
+      this.fogU.on.value = 0; gl.setRenderTarget(rt); gl.setClearColor(0x000000, 0); gl.clear(); gl.render(sc, cam); gl.readRenderTargetPixels(rt, 0, 0, S, S, buf);
+      cv = mkCanvas(S, S); const c = cv.getContext('2d'), img = c.createImageData(S, S);
+      for (let y = 0; y < S; y++) img.data.set(buf.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4);
+      c.putImageData(img, 0, 0);
+    } catch (e) { cv = null; }
+    gl.setRenderTarget(prevT); gl.setClearColor(prevC, prevA); this.fogU.on.value = fogOn; sc.remove(obj);
+    return cv;
+  }
   // a portrait of a generated model, rendered off-screen with the game's own materials: 'face', 'bust' or 'bld'
   portrait(d, col, mode) {
     if (!A3.has(d.key)) return null;
