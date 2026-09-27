@@ -765,7 +765,7 @@ function updateHud() {
 const setup = { race: store.get('race', 'hum'), modeN: store.get('modeN', 0), diff: store.get('diff', 1), name: store.get('name', ''), map: store.get('map', 'random') };
 function pickMap(k) { return k === 'random' || !MAP_TYPES.some(m => m.k === k) ? MAP_TYPES[(Math.random() * MAP_TYPES.length) | 0].k : k; }
 function mapName(k) { const m = MAP_TYPES.find(x => x.k === k); return m ? m.name : ''; }
-function show(html) { const s = $('scr'); s.innerHTML = html; s.hidden = false; }
+function show(html) { const s = $('scr'); s.classList.remove('mm-on'); s.innerHTML = html; s.hidden = false; }
 function hideScr() { $('scr').hidden = true; $('scr').innerHTML = ''; }
 function heroThumbs(rk) { return HEROES[rk].map(h => '<img src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
 function raceCards(sel, act) {
@@ -773,10 +773,18 @@ function raceCards(sel, act) {
 }
 function menuMain() {
   mode = 'menu'; startAttract();
-  show('<div class="card"><h1 class="logo">Пепельные Королевства<small>СТРАТЕГИЯ ЭПОХИ ЛЕГЕНД</small></h1>' +
-    '<p class="lead">Шесть народов, двенадцать легендарных героев — от Короля Артура и Тора до Анубиса и Мордреда. Стройте крепость, ведите в бой батальоны под знамёнами, держите переправы через реку, прокачивайте героев и сокрушите цитадель врага.</p>' +
-    (function () { const sv = store.get('save', null); return sv && sv.game ? '<div class="btns" style="margin-bottom:8px"><button class="big" data-a="load">Продолжить битву<small class="bsub">' + RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t) + '</small></button></div>' : ''; })() +
-    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="campaign">Кампания: Пепел Камелота<small class="bsub">Миссия ' + Math.min(CAMPAIGN.length, store.get('camp', 0) + 1) + ' из ' + CAMPAIGN.length + '</small></button><button class="big alt" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button>' + (location.protocol.startsWith('http') ? '<button class="big alt" data-a="gallery">Галерея моделей</button>' : '') + '<button class="big alt" data-a="settings">Настройки</button></div></div>');
+  const sv = store.get('save', null), camp = Math.min(CAMPAIGN.length, store.get('camp', 0) + 1);
+  const item = (a, t, sub, primary) => '<button class="mm-item' + (primary ? ' primary' : '') + '" data-a="' + a + '"><span class="t">' + t + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>';
+  const heroes = RACE_KEYS.flatMap(rk => ['h1', 'h2'].map(h => DEF[rk + '_' + h])).filter(Boolean)
+    .map(d => '<button data-a="help" aria-label="' + escapeHtml(d.heroName || d.name) + '" title="' + escapeHtml(d.heroName || d.name) + '"><img src="' + iconFor(d, 0) + '" alt=""></button>').join('');
+  show('<div class="mm"><div class="mm-logo"><div class="mm-crest" aria-hidden="true">⚜</div><h1>Пепельные<br>Королевства</h1><div class="mm-sub">Стратегия эпохи легенд</div></div><div class="mm-rule"></div><nav class="mm-nav" aria-label="Главное меню">' +
+    (sv && sv.game ? item('load', 'Продолжить', RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t), true) : '') +
+    item('campaign', 'Кампания', 'Пепел Камелота · миссия ' + camp + ' из ' + CAMPAIGN.length, !(sv && sv.game)) +
+    item('skirm', 'Битва', 'Против ИИ · ' + RACE_KEYS.length + ' народов · ' + MAP_TYPES.length + ' карты') +
+    item('online', 'Онлайн', 'С друзьями по коду комнаты') +
+    '<div class="mm-row">' + (location.protocol.startsWith('http') ? '<button data-a="gallery">Галерея</button>' : '') + '<button data-a="help">Как играть</button><button data-a="settings">Настройки</button></div>' +
+    '</nav></div><div class="mm-heroes"><span class="cap">Легендарные герои</span><div class="row">' + heroes + '</div></div>');
+  $('scr').classList.add('mm-on');
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
@@ -1205,10 +1213,11 @@ function leaveGame() {
 function startAttract() {
   if (attract) return;
   const mt = MAP_TYPES[(attractN++) % MAP_TYPES.length].k;
-  const g = new Game({ seed: 4242, mapType: mt, players: [0, 1, 2, 3].map(i => ({ race: RACE_KEYS[(i + attractN * 2) % RACE_KEYS.length], team: i, ai: true, diff: 2 })) });
+  const g = new Game({ seed: 4242, mapType: mt, players: [0, 1, 2, 3].map(i => ({ race: i === 0 ? 'hum' : RACE_KEYS[1 + (i + attractN * 2) % (RACE_KEYS.length - 1)], team: i, ai: true, diff: 2 })) }); // Camelot always takes the field
   const as = g.players.map(p => new AI(g, p.i));
   for (let k = 0; k < 20 * 50; k++) { for (const a of as) a.step(TICK); for (const e of g.ents) { e.px = e.x; e.py = e.y; } g.step(TICK); }
-  attract = { g, as, view: makeLocalView(g, -1), acc: 0 };
+  attract = { g, as, view: makeLocalView(g, -1), acc: 0, focusT: 0, fx: MAP_W / 2, fy: MAP_H / 2 };
+  if (R.is3D) A3.need(g.players.map(p => p.race));
   R.setWorld(4242, mt); R.resize(); Snd.setTheme('menu'); Snd.setIntensity(0); R.cam.z = R.w < 700 ? 0.8 : 1.05; R.centerOn(MAP_W / 2, MAP_H / 2);
 }
 function stopAttract() { attract = null; }
@@ -1286,6 +1295,18 @@ function frame(now) {
         while (attract.acc >= TICK) { for (const a of attract.as) a.step(TICK); for (const e of g.ents) { e.px = e.x; e.py = e.y; } g.step(TICK); attract.acc -= TICK; }
         if (g.over !== -1) { attract = null; startAttract(); return; }
         attract.view.prep(attract.acc / TICK);
+        // cinematic camera: every few seconds pick the thickest fight (or a citadel) and drift down to it
+        attract.focusT -= dt;
+        if (attract.focusT <= 0) {
+          attract.focusT = 9;
+          const fighters = g.ents.filter(e => !e.dead && e.d.kind === 'u' && e.tgt);
+          let best = null, bn = 0;
+          for (let k = 0; k < 12 && fighters.length; k++) { const a = fighters[(Math.random() * fighters.length) | 0], n = fighters.filter(b => Math.hypot(b.x - a.x, b.y - a.y) < 220).length; if (n > bn) { bn = n; best = a; } }
+          if (!best) { const troops = g.ents.filter(e => !e.dead && e.d.kind === 'u' && !e.d.worker && e.sq); best = troops.find(e => e.owner === 0 && e.moving) || troops[(Math.random() * troops.length) | 0]; } // no battle yet: follow a marching battalion
+          attract.follow = best && best.id ? best.id : 0; if (best) { attract.fx = best.x; attract.fy = best.y; }
+        }
+        { const fe = attract.follow && g.byId.get(attract.follow); if (fe && !fe.dead) { attract.fx = fe.x; attract.fy = fe.y; } }
+        if (R.is3D) { const z0 = R.w < 700 ? 1.5 : 1.9; R.cam.z += (z0 - R.cam.z) * Math.min(1, dt * 0.4); const cx = R.cam.x + R.w / 2 / R.cam.z, cy = R.cam.y + (R.h - (R.padB || 0)) / 2 / R.cam.z, k = Math.min(1, dt * 0.35); const tx = attract.fx - (R.w < 760 ? 0 : R.w * 0.17 / R.cam.z), ty = attract.fy + (R.w < 760 ? R.h * 0.2 / R.cam.z : 0); R.centerOn(cx + (tx - cx) * k, cy + (ty - cy) * k); } // keep the subject clear of the menu column
         R.cam.x += dt * 12; if (R.cam.x > MAP_W - R.w / R.cam.z) R.cam.x = 0; R.clampCam();
         R.draw({ ents: g.ents, fx: g.fx, me: -1, sel: new Set(), time: attract.view.time, outposts: g.outposts, relic: g.relic, gameT: g.t, ups: attract.view.ups });
       }

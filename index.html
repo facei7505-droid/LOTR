@@ -3,7 +3,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js" integrity="sha384-5UGTcMIxVUKFeJH0zOS3lqMAZNBG+fCXJbi3UglUq6ABO4MQJu6rxNa+MPP+qtwq" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Fira+Sans+Condensed:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700;800&family=Fira+Sans+Condensed:wght@400;500;600;700&family=Cinzel:wght@500;700;900&family=Alegreya+Sans:wght@400;500;700&display=swap">
 <style>
 :root{
   --iron:#1d211a; --iron2:#272d22; --iron3:#343c2d; --line:#4a5340;
@@ -268,6 +268,93 @@ input[type=text]{width:100%;box-sizing:border-box;font-size:16px}
 .bdetail .big{min-height:42px;font-size:15px}
 @media (max-width:640px){:root{--ms:124px;--rs:150px;--sz:40px}#heroes{position:absolute;bottom:calc(100% + 40px);left:0;margin:0}#buildpanel{width:170px}.bcard img{width:58px;height:58px}.bcard{min-height:64px}#selplate{min-width:120px}}
 @media (max-height:430px){:root{--ms:130px;--rs:152px;--sz:40px}#heroes .hp img{width:42px;height:42px}#heroes .hp{width:46px}.spl{width:38px;height:38px;font-size:17px}#spells{gap:8px}}
+/* ================= THEME: forged steel, gold filigree and parchment (BFME-like) ================= */
+:root{
+  --disp:"Cinzel", "Trajan Pro", "Palatino Linotype", Georgia, serif; --ui:"Alegreya Sans", "Fira Sans Condensed", "Segoe UI", Roboto, sans-serif;
+  --gold1:#f6dc98; --gold2:#d4a54e; --gold3:#8a6424; --gold4:#4a3310; --steel1:#3c4046; --steel2:#26292d; --steel3:#15171a; --ink:#f1e6cb; --ink2:#b9ae93;
+  --bronze:#c9954b; --bronze2:#e8c06a; --parch:#f1e6cb; --muted:#b1a88f;
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --brush:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='120'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.004 .9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .09 0'/></filter><rect width='100%25' height='100%25' filter='url(%23b)'/></svg>");
+  --plate:var(--grain), var(--brush), linear-gradient(180deg, #34383d 0%, #202326 55%, #16181b 100%);
+  --frame:0 0 0 1px #07080a, 0 0 0 2px var(--gold3), 0 0 0 3px #0b0c0e, inset 0 1px 0 rgba(255,236,190,.12), inset 0 -1px 0 rgba(0,0,0,.5);
+}
+body{font-family:var(--ui)}
+/* ---- screens ---- */
+#scr{background:radial-gradient(ellipse at 50% 38%, rgba(10,12,14,.25), rgba(4,5,6,.88) 75%)}
+.card{background:var(--plate);border:none;border-radius:6px;box-shadow:var(--frame), 0 30px 80px rgba(0,0,0,.7);padding:22px 22px 18px;position:relative;color:var(--ink)}
+.card::before,.card::after{content:"";position:absolute;width:26px;height:26px;pointer-events:none;border:2px solid var(--gold2);opacity:.85}
+.card::before{left:6px;top:6px;border-right:none;border-bottom:none;border-radius:4px 0 0 0}
+.card::after{right:6px;bottom:6px;border-left:none;border-top:none;border-radius:0 0 4px 0}
+.card h2{font-family:var(--disp);font-weight:700;letter-spacing:.06em;font-size:26px;color:var(--gold1);text-shadow:0 2px 0 #000,0 0 18px rgba(212,165,78,.25);padding-bottom:12px;margin-bottom:12px;background:linear-gradient(90deg,transparent,var(--gold3) 20%,var(--gold2) 50%,var(--gold3) 80%,transparent) no-repeat bottom/100% 1px}
+.card h3{font-family:var(--disp);font-size:12px;letter-spacing:.18em;color:var(--gold2);font-weight:700}
+.lead{color:var(--ink2);font-size:15px}
+.x{background:none;border:none;color:var(--gold2);font-size:18px}
+.big{font-family:var(--disp);letter-spacing:.06em;font-weight:700;font-size:16px;border:none;border-radius:4px;color:var(--gold1);text-shadow:0 1px 0 #000;
+  background:var(--grain), linear-gradient(180deg,#7a5522 0%,#4d3413 55%,#2e1f0a 100%);box-shadow:0 0 0 1px #0a0806, 0 0 0 2px var(--gold2), inset 0 1px 0 rgba(255,230,160,.35), 0 6px 16px rgba(0,0,0,.5);transition:filter .15s, transform .15s}
+.big.alt{background:var(--plate);box-shadow:0 0 0 1px #07080a, 0 0 0 2px var(--gold3), inset 0 1px 0 rgba(255,236,190,.12), 0 6px 16px rgba(0,0,0,.45);color:var(--ink)}
+.big:hover:not(:disabled){filter:brightness(1.15)}.big:active:not(:disabled){transform:translateY(1px)}
+.bsub{font-family:var(--ui);letter-spacing:0;font-weight:500;color:var(--ink2);text-shadow:none}
+.seg button,.slot,.mis,.race{font-family:var(--ui)}
+.seg button{background:var(--plate);border:none;border-radius:4px;box-shadow:0 0 0 1px #07080a, 0 0 0 2px #3c3a33;color:var(--ink);font-weight:600}
+.seg button.on{box-shadow:0 0 0 1px #07080a, 0 0 0 2px var(--gold2), 0 0 12px rgba(212,165,78,.35);background:var(--grain), linear-gradient(#5a4219,#33240c);color:var(--gold1)}
+.race{background:var(--plate);border:none;border-radius:5px;box-shadow:0 0 0 1px #07080a, 0 0 0 2px #3c3a33}
+.race.on{box-shadow:0 0 0 1px #07080a, 0 0 0 2px var(--gold2), 0 0 16px rgba(212,165,78,.4);background:var(--grain), linear-gradient(#4a3818,#241a0a)}
+.race b{font-family:var(--disp);letter-spacing:.04em;color:var(--gold1)}
+.race .hh img{border-radius:50%;box-shadow:0 0 0 1px #000, 0 0 0 2px var(--gold3)}
+.mis{background:var(--plate);border:none;box-shadow:0 0 0 1px #07080a, 0 0 0 2px #3c3a33;border-radius:5px}
+.mis b{font-family:var(--disp);letter-spacing:.04em;color:var(--gold1)}
+.mis.next{box-shadow:0 0 0 1px #07080a, 0 0 0 2px var(--gold2), 0 0 14px rgba(212,165,78,.35)}
+/* ---- main menu ---- */
+#scr.mm-on{padding:0;align-items:stretch;justify-content:flex-start;background:linear-gradient(90deg, rgba(4,5,6,.92) 0%, rgba(4,5,6,.72) 34%, rgba(4,5,6,.1) 62%, rgba(4,5,6,0) 100%), linear-gradient(0deg, rgba(4,5,6,.8), transparent 30%)}
+.mm{position:relative;display:flex;flex-direction:column;justify-content:safe center;gap:22px;width:min(500px,100%);min-height:100%;padding:calc(env(safe-area-inset-top,0px) + 28px) 28px calc(env(safe-area-inset-bottom,0px) + 28px) calc(env(safe-area-inset-left,0px) + 44px);box-sizing:border-box}
+.mm-logo{display:flex;flex-direction:column;gap:6px}
+.mm-crest{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:28px;color:#1c1406;background:radial-gradient(circle at 35% 30%,#fff2c2,#e0b25a 45%,#8a6424 80%);box-shadow:0 0 0 2px #0a0806, 0 0 0 3px var(--gold2), 0 8px 24px rgba(0,0,0,.6)}
+.mm h1{margin:6px 0 0;font-family:var(--disp);font-weight:900;font-size:clamp(30px,4.1vw,48px);line-height:.98;letter-spacing:.03em;white-space:nowrap;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff5d6 0%,#f1cf7e 40%,#b07d2c 62%,#f4d98f 78%,#8a6424 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 #000) drop-shadow(0 0 22px rgba(240,190,90,.25))}
+.mm-sub{font-family:var(--disp);font-size:13px;letter-spacing:.34em;color:var(--gold2);text-transform:uppercase}
+.mm-rule{height:1px;background:linear-gradient(90deg,var(--gold2),rgba(212,165,78,0));margin:4px 0}
+.mm-nav{display:flex;flex-direction:column;gap:4px}
+.mm-item{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:none;border:none;padding:10px 14px 10px 22px;border-radius:3px;cursor:pointer;color:var(--ink)}
+.mm-item .t{font-family:var(--disp);font-size:22px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink);transition:color .15s}
+.mm-item .s{font-size:14px;color:var(--ink2)}
+.mm-item::before{content:"";position:absolute;left:4px;top:50%;width:8px;height:8px;transform:translateY(-50%) rotate(45deg);background:var(--gold3);box-shadow:0 0 0 1px #000;transition:background .15s, box-shadow .15s}
+.mm-item:hover,.mm-item:focus-visible{background:linear-gradient(90deg,rgba(212,165,78,.2),rgba(212,165,78,0));outline:none}
+.mm-item:hover .t,.mm-item:focus-visible .t,.mm-item.primary .t{color:var(--gold1)}
+.mm-item:hover::before,.mm-item:focus-visible::before,.mm-item.primary::before{background:var(--gold1);box-shadow:0 0 0 1px #000, 0 0 10px rgba(246,220,152,.8)}
+.mm-item.primary .t{font-size:27px}
+.mm-row{display:flex;flex-wrap:wrap;gap:6px 14px;padding:6px 0 0 22px}
+.mm-row button{background:none;border:none;padding:4px 0;font-family:var(--disp);font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);cursor:pointer}
+.mm-row button:hover,.mm-row button:focus-visible{color:var(--gold1);outline:none}
+.mm-heroes{position:absolute;right:calc(env(safe-area-inset-right,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.mm-heroes .cap{font-family:var(--disp);font-size:12px;letter-spacing:.24em;color:var(--gold2);text-transform:uppercase;text-shadow:0 1px 2px #000}
+.mm-heroes .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:min(52vw,560px)}
+.mm-heroes button{width:48px;height:48px;border-radius:50%;padding:0;border:none;overflow:hidden;cursor:pointer;background:#111;box-shadow:0 0 0 1px #000, 0 0 0 2px var(--gold3), 0 6px 14px rgba(0,0,0,.6);transition:transform .15s, box-shadow .15s}
+.mm-heroes button:hover,.mm-heroes button:focus-visible{transform:translateY(-3px);box-shadow:0 0 0 1px #000, 0 0 0 2px var(--gold1), 0 0 16px rgba(246,220,152,.6);outline:none}
+.mm-heroes img{width:100%;height:100%;object-fit:cover;display:block}
+.mm-ver{position:absolute;left:calc(env(safe-area-inset-left,0px) + 44px);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);font-size:12px;color:rgba(185,174,147,.6)}
+@media (max-width:760px){
+  #scr.mm-on{background:linear-gradient(0deg, rgba(4,5,6,.95) 0%, rgba(4,5,6,.8) 52%, rgba(4,5,6,.15) 100%)}
+  .mm{width:100%;justify-content:safe flex-end;padding:calc(env(safe-area-inset-top,0px) + 18px) 18px calc(env(safe-area-inset-bottom,0px) + 18px);gap:14px}
+  .mm h1{font-size:clamp(30px,9vw,42px)}
+  .mm-item{padding:7px 10px 7px 20px}.mm-item .t{font-size:19px}.mm-item.primary .t{font-size:22px}.mm-item .s{font-size:13px}
+  .mm-heroes{display:none}.mm-ver{display:none}
+}
+@media (max-height:560px){.mm{gap:8px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}.mm-sub{font-size:11px;letter-spacing:.26em}.mm-rule{display:none}.mm-row{padding-top:2px}.mm-crest{display:none}.mm h1{font-size:30px}.mm-item{padding:4px 10px 4px 20px}.mm-item .t{font-size:17px}.mm-item.primary .t{font-size:20px}.mm-item .s{font-size:12px}.mm-heroes button{width:40px;height:40px}}
+@media (max-height:560px) and (min-width:761px){.mm-item{padding:5px 12px 5px 22px}.mm-item .t{font-size:18px}.mm-item.primary .t{font-size:21px}.mm-item .s{font-size:12px}.mm h1{font-size:34px}.mm-crest{display:none}}
+/* ---- HUD materials ---- */
+#top,.res,.clk,#selplate,#wavebar,#chatbox,#buildpanel{background:var(--plate)!important;border:none!important;box-shadow:var(--frame), 0 8px 20px rgba(0,0,0,.55)!important}
+.res{border-radius:14px!important}.clk{border-radius:10px!important}
+#selplate b{font-family:var(--disp);letter-spacing:.05em;color:var(--gold1)}
+#ring{background:var(--grain), radial-gradient(circle,#26282b 0 36%,#3a3d42 37% 39.5%,#17191b 40.5% 58%,#33363a 59% 61.5%,#101113 62.5%)!important;box-shadow:0 0 0 2px #07080a, 0 0 0 5px var(--gold2), 0 0 0 6px #3c2a0c, 0 0 0 8px #07080a, 0 10px 26px rgba(0,0,0,.75)!important}
+#ring .core{background:radial-gradient(circle at 40% 32%,#3a3d42,#0e0f11)!important;box-shadow:0 0 0 2px #07080a, 0 0 0 4px var(--gold2), 0 0 0 5px #07080a!important}
+.slot{background:radial-gradient(circle at 40% 30%,#34373c,#0b0c0e 75%)!important;box-shadow:0 0 0 2px #07080a, 0 0 0 3px var(--gold3), inset 0 2px 6px rgba(0,0,0,.85)!important;color:var(--gold1)!important}
+.slot.on,.slot.ready{box-shadow:0 0 0 2px #07080a, 0 0 0 3px var(--gold1), 0 0 12px rgba(246,220,152,.7)!important}
+.slot.done{box-shadow:0 0 0 2px #07080a, 0 0 0 3px #7fae4a!important}
+.mframe{box-shadow:0 0 0 2px #07080a, 0 0 0 5px var(--gold2), 0 0 0 6px #3c2a0c, 0 0 0 8px #07080a, 0 10px 26px rgba(0,0,0,.75)!important}
+.orbbtn{background:var(--plate)!important;border:none!important;box-shadow:0 0 0 1px #07080a, 0 0 0 2px var(--gold2), 0 6px 14px rgba(0,0,0,.55)!important;color:var(--gold1)!important}
+.bcard{background:var(--plate)!important;border:none!important;box-shadow:0 0 0 1px #07080a, 0 0 0 2px #3c3a33!important;border-radius:5px!important}
+.bcard b{font-family:var(--disp);letter-spacing:.04em;color:var(--gold1)}
+#toasts .toast,.toast{background:var(--plate)!important;border:none!important;box-shadow:var(--frame), 0 8px 20px rgba(0,0,0,.55)!important;color:var(--ink)}
 </style></head><body>
 
 <div id="app">
@@ -7700,7 +7787,7 @@ function updateHud() {
 const setup = { race: store.get('race', 'hum'), modeN: store.get('modeN', 0), diff: store.get('diff', 1), name: store.get('name', ''), map: store.get('map', 'random') };
 function pickMap(k) { return k === 'random' || !MAP_TYPES.some(m => m.k === k) ? MAP_TYPES[(Math.random() * MAP_TYPES.length) | 0].k : k; }
 function mapName(k) { const m = MAP_TYPES.find(x => x.k === k); return m ? m.name : ''; }
-function show(html) { const s = $('scr'); s.innerHTML = html; s.hidden = false; }
+function show(html) { const s = $('scr'); s.classList.remove('mm-on'); s.innerHTML = html; s.hidden = false; }
 function hideScr() { $('scr').hidden = true; $('scr').innerHTML = ''; }
 function heroThumbs(rk) { return HEROES[rk].map(h => '<img src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
 function raceCards(sel, act) {
@@ -7708,10 +7795,18 @@ function raceCards(sel, act) {
 }
 function menuMain() {
   mode = 'menu'; startAttract();
-  show('<div class="card"><h1 class="logo">Пепельные Королевства<small>СТРАТЕГИЯ ЭПОХИ ЛЕГЕНД</small></h1>' +
-    '<p class="lead">Шесть народов, двенадцать легендарных героев — от Короля Артура и Тора до Анубиса и Мордреда. Стройте крепость, ведите в бой батальоны под знамёнами, держите переправы через реку, прокачивайте героев и сокрушите цитадель врага.</p>' +
-    (function () { const sv = store.get('save', null); return sv && sv.game ? '<div class="btns" style="margin-bottom:8px"><button class="big" data-a="load">Продолжить битву<small class="bsub">' + RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t) + '</small></button></div>' : ''; })() +
-    '<div class="btns"><button class="big' + (store.get('save', null) ? ' alt' : '') + '" data-a="campaign">Кампания: Пепел Камелота<small class="bsub">Миссия ' + Math.min(CAMPAIGN.length, store.get('camp', 0) + 1) + ' из ' + CAMPAIGN.length + '</small></button><button class="big alt" data-a="skirm">Битва с ИИ</button><button class="big alt" data-a="online">Онлайн с друзьями</button><button class="big alt" data-a="help">Как играть и герои</button>' + (location.protocol.startsWith('http') ? '<button class="big alt" data-a="gallery">Галерея моделей</button>' : '') + '<button class="big alt" data-a="settings">Настройки</button></div></div>');
+  const sv = store.get('save', null), camp = Math.min(CAMPAIGN.length, store.get('camp', 0) + 1);
+  const item = (a, t, sub, primary) => '<button class="mm-item' + (primary ? ' primary' : '') + '" data-a="' + a + '"><span class="t">' + t + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>';
+  const heroes = RACE_KEYS.flatMap(rk => ['h1', 'h2'].map(h => DEF[rk + '_' + h])).filter(Boolean)
+    .map(d => '<button data-a="help" aria-label="' + escapeHtml(d.heroName || d.name) + '" title="' + escapeHtml(d.heroName || d.name) + '"><img src="' + iconFor(d, 0) + '" alt=""></button>').join('');
+  show('<div class="mm"><div class="mm-logo"><div class="mm-crest" aria-hidden="true">⚜</div><h1>Пепельные<br>Королевства</h1><div class="mm-sub">Стратегия эпохи легенд</div></div><div class="mm-rule"></div><nav class="mm-nav" aria-label="Главное меню">' +
+    (sv && sv.game ? item('load', 'Продолжить', RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t), true) : '') +
+    item('campaign', 'Кампания', 'Пепел Камелота · миссия ' + camp + ' из ' + CAMPAIGN.length, !(sv && sv.game)) +
+    item('skirm', 'Битва', 'Против ИИ · ' + RACE_KEYS.length + ' народов · ' + MAP_TYPES.length + ' карты') +
+    item('online', 'Онлайн', 'С друзьями по коду комнаты') +
+    '<div class="mm-row">' + (location.protocol.startsWith('http') ? '<button data-a="gallery">Галерея</button>' : '') + '<button data-a="help">Как играть</button><button data-a="settings">Настройки</button></div>' +
+    '</nav></div><div class="mm-heroes"><span class="cap">Легендарные герои</span><div class="row">' + heroes + '</div></div>');
+  $('scr').classList.add('mm-on');
 }
 function menuSkirm() {
   const modes = ['1 на 1', '2 на 2 (с ИИ-союзником)', 'Все против всех (4)', 'Выживание: 15 волн'];
@@ -8140,10 +8235,11 @@ function leaveGame() {
 function startAttract() {
   if (attract) return;
   const mt = MAP_TYPES[(attractN++) % MAP_TYPES.length].k;
-  const g = new Game({ seed: 4242, mapType: mt, players: [0, 1, 2, 3].map(i => ({ race: RACE_KEYS[(i + attractN * 2) % RACE_KEYS.length], team: i, ai: true, diff: 2 })) });
+  const g = new Game({ seed: 4242, mapType: mt, players: [0, 1, 2, 3].map(i => ({ race: i === 0 ? 'hum' : RACE_KEYS[1 + (i + attractN * 2) % (RACE_KEYS.length - 1)], team: i, ai: true, diff: 2 })) }); // Camelot always takes the field
   const as = g.players.map(p => new AI(g, p.i));
   for (let k = 0; k < 20 * 50; k++) { for (const a of as) a.step(TICK); for (const e of g.ents) { e.px = e.x; e.py = e.y; } g.step(TICK); }
-  attract = { g, as, view: makeLocalView(g, -1), acc: 0 };
+  attract = { g, as, view: makeLocalView(g, -1), acc: 0, focusT: 0, fx: MAP_W / 2, fy: MAP_H / 2 };
+  if (R.is3D) A3.need(g.players.map(p => p.race));
   R.setWorld(4242, mt); R.resize(); Snd.setTheme('menu'); Snd.setIntensity(0); R.cam.z = R.w < 700 ? 0.8 : 1.05; R.centerOn(MAP_W / 2, MAP_H / 2);
 }
 function stopAttract() { attract = null; }
@@ -8221,6 +8317,18 @@ function frame(now) {
         while (attract.acc >= TICK) { for (const a of attract.as) a.step(TICK); for (const e of g.ents) { e.px = e.x; e.py = e.y; } g.step(TICK); attract.acc -= TICK; }
         if (g.over !== -1) { attract = null; startAttract(); return; }
         attract.view.prep(attract.acc / TICK);
+        // cinematic camera: every few seconds pick the thickest fight (or a citadel) and drift down to it
+        attract.focusT -= dt;
+        if (attract.focusT <= 0) {
+          attract.focusT = 9;
+          const fighters = g.ents.filter(e => !e.dead && e.d.kind === 'u' && e.tgt);
+          let best = null, bn = 0;
+          for (let k = 0; k < 12 && fighters.length; k++) { const a = fighters[(Math.random() * fighters.length) | 0], n = fighters.filter(b => Math.hypot(b.x - a.x, b.y - a.y) < 220).length; if (n > bn) { bn = n; best = a; } }
+          if (!best) { const troops = g.ents.filter(e => !e.dead && e.d.kind === 'u' && !e.d.worker && e.sq); best = troops.find(e => e.owner === 0 && e.moving) || troops[(Math.random() * troops.length) | 0]; } // no battle yet: follow a marching battalion
+          attract.follow = best && best.id ? best.id : 0; if (best) { attract.fx = best.x; attract.fy = best.y; }
+        }
+        { const fe = attract.follow && g.byId.get(attract.follow); if (fe && !fe.dead) { attract.fx = fe.x; attract.fy = fe.y; } }
+        if (R.is3D) { const z0 = R.w < 700 ? 1.5 : 1.9; R.cam.z += (z0 - R.cam.z) * Math.min(1, dt * 0.4); const cx = R.cam.x + R.w / 2 / R.cam.z, cy = R.cam.y + (R.h - (R.padB || 0)) / 2 / R.cam.z, k = Math.min(1, dt * 0.35); const tx = attract.fx - (R.w < 760 ? 0 : R.w * 0.17 / R.cam.z), ty = attract.fy + (R.w < 760 ? R.h * 0.2 / R.cam.z : 0); R.centerOn(cx + (tx - cx) * k, cy + (ty - cy) * k); } // keep the subject clear of the menu column
         R.cam.x += dt * 12; if (R.cam.x > MAP_W - R.w / R.cam.z) R.cam.x = 0; R.clampCam();
         R.draw({ ents: g.ents, fx: g.fx, me: -1, sel: new Set(), time: attract.view.time, outposts: g.outposts, relic: g.relic, gameT: g.t, ups: attract.view.ups });
       }
