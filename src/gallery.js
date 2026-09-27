@@ -180,7 +180,7 @@
     cam.near = orbit.dist * 0.05; cam.far = orbit.dist * 20; cam.updateProjectionMatrix();
     pumpThumbs(); gl.render(scene, cam); requestAnimationFrame(loop);
   }
-  A3.onReady = () => { geoCache.clear(); frameNow = -1; if (S.d) frameModel(); };
+  A3.onReady = () => { geoCache.clear(); if (ctx.geos) for (const k of [...ctx.geos.keys()]) if (k[0] === 'b') ctx.geos.delete(k); thumbs.clear(); frameNow = -1; if (S.d) { frameModel(); info(); } bars(); }; // procedural stand-ins built before the models arrived give way
   A3.need([S.race]);
   bars(); requestAnimationFrame(loop);
 })();

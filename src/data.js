@@ -46,9 +46,9 @@ const UNIT_BASE = {
 // race tweaks: [name, overrides]
 const UNITS_BY_RACE = {
   hum: {
-    inf:   ['Мечники', {}],
-    spear: ['Копейщики', {}],
-    arch:  ['Лучники', {}],
+    inf:   ['Мечники', { hp: 105, armor: 0.15 }],
+    spear: ['Копейщики', { hp: 92 }],
+    arch:  ['Лучники', { dmg: 8.2 }],
     cav:   ['Рыцари', { hp: 290, armor: 0.2 }],
     worker: ['Строитель', {}],
     siege: ['Катапульта', {}],
@@ -65,7 +65,7 @@ const UNITS_BY_RACE = {
     inf:   ['Секироносцы', { n: 8, hp: 110, dmg: 9, speed: 62, armor: 0.2, cost: 320 }],
     spear: ['Алебардисты', { n: 8, hp: 100, speed: 60, armor: 0.15, cost: 330 }],
     arch:  ['Арбалетчики', { range: 220, dmg: 10, rate: 2.0, hp: 65, speed: 60, armor: 0.1, proj: 'bolt' }],
-    cav:   ['Боевые вепри', { hp: 300, speed: 108, dmg: 20, armor: 0.25, cost: 500 }],
+    cav:   ['Боевые вепри', { hp: 285, speed: 108, dmg: 20, armor: 0.25, cost: 500 }],
     worker: ['Гном-каменщик', { hp: 230, speed: 72, armor: 0.15 }],
     siege: ['Камнемёт гномов', {}],
   },
@@ -78,9 +78,9 @@ const UNITS_BY_RACE = {
     siege: ['Осадный камнемёт', {}],
   },
   und: {
-    inf:   ['Скелеты-воины', { n: 12, hp: 88, dmg: 8, speed: 70, armor: 0.2, cost: 290 }],
+    inf:   ['Скелеты-воины', { n: 12, hp: 92, dmg: 8.5, speed: 70, armor: 0.2, cost: 290 }],
     spear: ['Могильные копейщики', { n: 12, hp: 82, speed: 68, armor: 0.15, cost: 300 }],
-    arch:  ['Костяные лучники', { n: 9, range: 250, dmg: 8, hp: 52, cost: 330 }],
+    arch:  ['Костяные лучники', { n: 9, range: 250, dmg: 9, hp: 52, cost: 330 }],
     cav:   ['Рыцари смерти', { hp: 300, dmg: 21, speed: 118, armor: 0.25, cost: 520 }],
     worker: ['Гуль-могильщик', { hp: 190, speed: 78 }],
     siege: ['Костяная катапульта', {}],
