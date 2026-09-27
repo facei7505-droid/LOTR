@@ -31,7 +31,7 @@ class Game {
     if (this.mode === 'survival') this.relicT = 1e9;
     this.players = cfg.players.map((p, i) => ({
       i, race: p.race, team: p.team, ai: !!p.ai, diff: p.diff || 1, remote: !!p.remote, horde: !!p.horde, name: p.name || ('Игрок ' + (i + 1)),
-      color: TEAM_COLORS[i], gold: 1000, alive: true, heroes: {}, start: START_POS[i], kills: 0, lost: 0, lastAlert: -99, pxp: 0, plvl: 1, pts: 1, spells: {}, scd: {}, peer: p.peer || null, up: {},
+      color: TEAM_COLORS[i], gold: cfg.gold || 1000, alive: true, heroes: {}, start: START_POS[p.pos !== undefined ? p.pos : i] || START_POS[i % 4], kills: 0, lost: 0, lastAlert: -99, pxp: 0, plvl: 1, pts: 1, spells: {}, scd: {}, peer: p.peer || null, up: {},
     }));
     for (const p of this.players) for (const h of HEROES[p.race]) p.heroes[h.key] = { id: 0, dead: false, recruited: false };
     if (cfg.restore) return;

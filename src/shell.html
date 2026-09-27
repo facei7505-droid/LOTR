@@ -396,6 +396,36 @@ body{font-family:var(--ui)}
 @keyframes cpulse{0%,100%{box-shadow:0 0 0 2px #3b2a18,0 0 0 4px rgba(246,220,152,.0),0 3px 8px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 2px #3b2a18,0 0 0 7px rgba(246,220,152,.75),0 0 18px rgba(246,220,152,.9)}}
 @media (prefers-reduced-motion:reduce){.cnode.next i{animation:none;box-shadow:0 0 0 2px #3b2a18,0 0 0 5px rgba(246,220,152,.7)}}
 @media (max-width:640px){.cnode span{display:none}}
+
+.lrow{display:flex;gap:14px;flex-wrap:wrap}.lcol{flex:1 1 220px}
+.games{display:flex;flex-direction:column;gap:8px}
+.game{display:flex;align-items:center;gap:12px;padding:8px;background:var(--plate);border-radius:5px;box-shadow:0 0 0 1px #07080a,0 0 0 2px #3c3a33}
+.game img{width:56px;height:56px;border-radius:3px;box-shadow:0 0 0 1px #07080a,0 0 0 2px var(--gold3)}
+.game .gi{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.game .gi b{font-family:var(--disp);color:var(--gold1)}.game .gi span{font-size:13px;color:var(--ink2)}
+.game .big{min-height:40px;font-size:15px;padding:0 16px}
+.lobby{display:flex;flex-direction:column;gap:12px}
+.lmap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:start}
+.lmapimg{grid-row:span 5;position:relative;width:clamp(120px,24vw,190px);aspect-ratio:1;border-radius:4px;overflow:hidden;box-shadow:0 0 0 1px #07080a,0 0 0 3px var(--gold3),0 8px 20px rgba(0,0,0,.6)}
+.lmapimg img{width:100%;height:100%;display:block}
+.lmapimg .q{position:absolute;inset:0;display:grid;place-items:center;font:900 64px var(--disp);color:rgba(255,240,200,.85);background:rgba(10,10,12,.45);text-shadow:0 2px 10px #000}
+.spos{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--disp);color:#fff;background:var(--c);box-shadow:0 0 0 2px #07080a,0 0 0 3px var(--gold2),0 2px 6px rgba(0,0,0,.6);text-shadow:0 1px 2px #000}
+.lmap select,.lslot select{min-height:36px;max-width:100%;background:#15171a;color:var(--ink);border:1px solid #3c3a33;border-radius:4px;font:500 14px var(--ui);padding:0 6px}
+.lmap select{width:100%}
+.lset{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink2)}.lset b{font-family:var(--disp);color:var(--gold1);font-size:15px}
+.lslots{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lslot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 10px;background:var(--plate);border-radius:5px;box-shadow:0 0 0 1px #07080a,0 0 0 2px #3c3a33}
+.lslot.mine{box-shadow:0 0 0 1px #07080a,0 0 0 2px var(--gold2)}
+.lslot.empty{opacity:.85}
+.lslot .pos{flex:0 0 26px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--disp);color:#fff;background:var(--c);box-shadow:0 0 0 2px #07080a,0 0 0 3px #5a5241}
+.lslot .who{flex:1 1 130px;display:flex;flex-direction:column;min-width:0}.lslot .who b{font-family:var(--disp);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lslot select.who{flex:1 1 130px}
+.lslot select[data-f=race],.lslot select[data-f=team],.lslot .val{flex:1 1 120px}
+.lslot .who em{font-style:normal;font-size:12px;color:var(--ink2)}.lslot .who em.ok{color:#8fd48a}
+.lslot .val{font-size:14px;color:var(--ink)}
+.lslot .cols{display:flex;gap:5px;flex-wrap:wrap}
+.sw{width:20px;height:20px;min-width:20px;border-radius:3px;border:none;padding:0;box-shadow:0 0 0 1px #07080a;cursor:pointer;display:inline-block}
+.sw.on{box-shadow:0 0 0 2px #07080a,0 0 0 3px var(--gold1)}.sw:disabled{opacity:.25;cursor:not-allowed}
+.lslot .kick{width:32px;height:32px;border-radius:4px;border:1px solid #5a2a22;background:#2a1412;color:#e8a090;cursor:pointer}
 </style>
 
 <div id="app">

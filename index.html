@@ -397,6 +397,36 @@ body{font-family:var(--ui)}
 @keyframes cpulse{0%,100%{box-shadow:0 0 0 2px #3b2a18,0 0 0 4px rgba(246,220,152,.0),0 3px 8px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 2px #3b2a18,0 0 0 7px rgba(246,220,152,.75),0 0 18px rgba(246,220,152,.9)}}
 @media (prefers-reduced-motion:reduce){.cnode.next i{animation:none;box-shadow:0 0 0 2px #3b2a18,0 0 0 5px rgba(246,220,152,.7)}}
 @media (max-width:640px){.cnode span{display:none}}
+
+.lrow{display:flex;gap:14px;flex-wrap:wrap}.lcol{flex:1 1 220px}
+.games{display:flex;flex-direction:column;gap:8px}
+.game{display:flex;align-items:center;gap:12px;padding:8px;background:var(--plate);border-radius:5px;box-shadow:0 0 0 1px #07080a,0 0 0 2px #3c3a33}
+.game img{width:56px;height:56px;border-radius:3px;box-shadow:0 0 0 1px #07080a,0 0 0 2px var(--gold3)}
+.game .gi{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.game .gi b{font-family:var(--disp);color:var(--gold1)}.game .gi span{font-size:13px;color:var(--ink2)}
+.game .big{min-height:40px;font-size:15px;padding:0 16px}
+.lobby{display:flex;flex-direction:column;gap:12px}
+.lmap{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:start}
+.lmapimg{grid-row:span 5;position:relative;width:clamp(120px,24vw,190px);aspect-ratio:1;border-radius:4px;overflow:hidden;box-shadow:0 0 0 1px #07080a,0 0 0 3px var(--gold3),0 8px 20px rgba(0,0,0,.6)}
+.lmapimg img{width:100%;height:100%;display:block}
+.lmapimg .q{position:absolute;inset:0;display:grid;place-items:center;font:900 64px var(--disp);color:rgba(255,240,200,.85);background:rgba(10,10,12,.45);text-shadow:0 2px 10px #000}
+.spos{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--disp);color:#fff;background:var(--c);box-shadow:0 0 0 2px #07080a,0 0 0 3px var(--gold2),0 2px 6px rgba(0,0,0,.6);text-shadow:0 1px 2px #000}
+.lmap select,.lslot select{min-height:36px;max-width:100%;background:#15171a;color:var(--ink);border:1px solid #3c3a33;border-radius:4px;font:500 14px var(--ui);padding:0 6px}
+.lmap select{width:100%}
+.lset{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink2)}.lset b{font-family:var(--disp);color:var(--gold1);font-size:15px}
+.lslots{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lslot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:8px 10px;background:var(--plate);border-radius:5px;box-shadow:0 0 0 1px #07080a,0 0 0 2px #3c3a33}
+.lslot.mine{box-shadow:0 0 0 1px #07080a,0 0 0 2px var(--gold2)}
+.lslot.empty{opacity:.85}
+.lslot .pos{flex:0 0 26px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--disp);color:#fff;background:var(--c);box-shadow:0 0 0 2px #07080a,0 0 0 3px #5a5241}
+.lslot .who{flex:1 1 130px;display:flex;flex-direction:column;min-width:0}.lslot .who b{font-family:var(--disp);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lslot select.who{flex:1 1 130px}
+.lslot select[data-f=race],.lslot select[data-f=team],.lslot .val{flex:1 1 120px}
+.lslot .who em{font-style:normal;font-size:12px;color:var(--ink2)}.lslot .who em.ok{color:#8fd48a}
+.lslot .val{font-size:14px;color:var(--ink)}
+.lslot .cols{display:flex;gap:5px;flex-wrap:wrap}
+.sw{width:20px;height:20px;min-width:20px;border-radius:3px;border:none;padding:0;box-shadow:0 0 0 1px #07080a;cursor:pointer;display:inline-block}
+.sw.on{box-shadow:0 0 0 2px #07080a,0 0 0 3px var(--gold1)}.sw:disabled{opacity:.25;cursor:not-allowed}
+.lslot .kick{width:32px;height:32px;border-radius:4px;border:1px solid #5a2a22;background:#2a1412;color:#e8a090;cursor:pointer}
 </style></head><body>
 
 <div id="app">
@@ -842,7 +872,7 @@ class Game {
     if (this.mode === 'survival') this.relicT = 1e9;
     this.players = cfg.players.map((p, i) => ({
       i, race: p.race, team: p.team, ai: !!p.ai, diff: p.diff || 1, remote: !!p.remote, horde: !!p.horde, name: p.name || ('Игрок ' + (i + 1)),
-      color: TEAM_COLORS[i], gold: 1000, alive: true, heroes: {}, start: START_POS[i], kills: 0, lost: 0, lastAlert: -99, pxp: 0, plvl: 1, pts: 1, spells: {}, scd: {}, peer: p.peer || null, up: {},
+      color: TEAM_COLORS[i], gold: cfg.gold || 1000, alive: true, heroes: {}, start: START_POS[p.pos !== undefined ? p.pos : i] || START_POS[i % 4], kills: 0, lost: 0, lastAlert: -99, pxp: 0, plvl: 1, pts: 1, spells: {}, scd: {}, peer: p.peer || null, up: {},
     }));
     for (const p of this.players) for (const h of HEROES[p.race]) p.heroes[h.key] = { id: 0, dead: false, recruited: false };
     if (cfg.restore) return;
@@ -8241,82 +8271,150 @@ function endScreen(win) {
   if (campMission >= 0 && win) store.set('camp', Math.max(store.get('camp', 0), campMission + 1));
 }
 
-// ---------- online lobby ----------
-const lobby = { role: null, gid: null, slots: [], hostPeer: null, started: false };
+// ---------- online lobby (BFME-style: four slots, open/closed/AI/player, race incl. random, team, colour, start position, ready) ----------
+const PALETTE = [['#3d7bd6', 'Синий'], ['#d4483a', 'Красный'], ['#43a852', 'Зелёный'], ['#dcae2e', 'Золотой'], ['#8e5bd0', 'Лиловый'], ['#e07b2a', 'Оранжевый'], ['#3fb8b0', 'Бирюзовый'], ['#c9c9c9', 'Белый']];
+const TEAM_DEFAULT = TEAM_COLORS.slice();
+function setTeamColors(cols) { for (let i = 0; i < TEAM_DEFAULT.length; i++) TEAM_COLORS[i] = (cols && cols[i]) || TEAM_DEFAULT[i]; }
+const GOLD_OPTS = [[600, 'Скудно'], [1000, 'Обычно'], [2000, 'Богато'], [4000, 'Казна короля']];
+const POP_OPTS = [[80, 'Малые армии'], [120, 'Обычные'], [200, 'Большие'], [300, 'Эпические']];
+const lobby = { role: null, gid: null, slots: [], hostPeer: null, started: false, mode: 'battle', gold: 1000, pop: 120, seed: 1, kicked: new Set(), my: {} };
+function newSlots() {
+  return [0, 1, 2, 3].map(i => i === 0 ? { k: 'h', race: setup.race, team: 0, col: 0, diff: 1 } : { k: i === 1 ? 'open' : 'closed', race: 'random', team: i % 2, col: i, diff: 1 });
+}
+const filled = s => s && (s.k === 'h' || s.k === 'p' || s.k === 'ai');
+const raceName = r => r === 'random' ? 'Случайная' : RACES[r] ? RACES[r].short : '—';
+// the host's published lobby as a guest sees it (or the host's own)
+function lobbyView() {
+  if (lobby.role === 'host') return { sl: lobby.slots, map: setup.map, mode: lobby.mode, gold: lobby.gold, pop: lobby.pop, seed: lobby.seed };
+  const hp = Net.peer(lobby.hostPeer); return (hp && hp.presence && hp.presence.lob) || { sl: [] };
+}
+// a map preview: water, cliffs, woods, outposts and the four numbered start positions in the slots' colours
+const mapPrevCache = new Map();
+function mapPreview(type, seed) {
+  const key = type + ':' + seed; if (mapPrevCache.has(key)) return mapPrevCache.get(key);
+  const S = 150, cv = mkCanvas(S, S), x = cv.getContext('2d'), M = makeMap(seed, type), k = S / MAP_W;
+  const ground = { meadow: [104, 128, 62], highland: [118, 116, 84], snow: [214, 222, 228], desert: [206, 172, 110] }[M.biome] || [104, 128, 62];
+  const img = x.createImageData(S, S), rn = mkRng(seed);
+  for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
+    const wx = (px + 0.5) / k, wy = (py + 0.5) / k, w = M.water(wx, wy), cl = M.clAt ? M.clAt(wx, wy) : 99, n = (rn() - 0.5) * 10;
+    let c = ground;
+    if (w === 1) c = M.biome === 'snow' ? [150, 184, 204] : [58, 96, 118]; else if (w) c = M.biome === 'snow' ? [176, 204, 220] : [92, 130, 140];
+    else if (cl < 0) c = [96, 90, 84]; else if (cl < 10) c = [130, 122, 104];
+    const o = (py * S + px) * 4; img.data[o] = c[0] + n; img.data[o + 1] = c[1] + n; img.data[o + 2] = c[2] + n; img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  x.fillStyle = M.biome === 'snow' ? 'rgba(40,70,50,.75)' : M.biome === 'desert' ? 'rgba(70,110,40,.8)' : 'rgba(34,62,26,.75)';
+  for (const t of M.trees) { x.beginPath(); x.arc(t.x * k, t.y * k, 1.3, 0, 7); x.fill(); }
+  for (const [ox, oy] of M.outposts) { x.fillStyle = '#f3e3b0'; x.fillRect(ox * k - 1, oy * k - 5, 1.5, 6); x.beginPath(); x.moveTo(ox * k + 0.5, oy * k - 5); x.lineTo(ox * k + 5, oy * k - 3.5); x.lineTo(ox * k + 0.5, oy * k - 2); x.fill(); }
+  for (const cp of M.camps) { x.fillStyle = '#2b2118'; x.beginPath(); x.arc(cp[0] * k, cp[1] * k, 2.4, 0, 7); x.fill(); }
+  const url = cv.toDataURL(); mapPrevCache.set(key, url); return url;
+}
+function lobbySlotRow(s, i, isHost, me) {
+  const mine = s.k === 'h' ? isHost : s.k === 'p' && s.peer === me;
+  const my = !isHost && mine ? Object.assign({}, s, lobby.my) : s;
+  const col = PALETTE[my.col] ? PALETTE[my.col][0] : '#777';
+  let h = '<div class="lslot' + (filled(s) ? '' : ' empty') + (mine ? ' mine' : '') + '"><span class="pos" style="--c:' + (filled(s) ? col : '#555') + '">' + (i + 1) + '</span>';
+  // who sits here
+  if (s.k === 'h' || s.k === 'p') h += '<span class="who"><b>' + escapeHtml(s.nm || 'Игрок') + '</b>' + (s.k === 'h' ? '<em>хост</em>' : s.ready ? '<em class="ok">готов</em>' : '<em>не готов</em>') + '</span>';
+  else if (isHost) h += '<select class="who" data-sl="' + i + '" data-f="state" aria-label="Слот ' + (i + 1) + '">' + [['open', 'Открыт'], ['closed', 'Закрыт'], ['ai0', 'ИИ · лёгкий'], ['ai1', 'ИИ · средний'], ['ai2', 'ИИ · тяжёлый']].map(([v, t]) => '<option value="' + v + '"' + ((s.k === 'ai' ? 'ai' + s.diff : s.k) === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>';
+  else h += '<span class="who"><b>' + (s.k === 'ai' ? 'ИИ · ' + ['лёгкий', 'средний', 'тяжёлый'][s.diff | 0] : s.k === 'open' ? 'Открыт' : 'Закрыт') + '</b></span>';
+  if (!filled(s)) return h + '</div>';
+  const edit = (isHost && (s.k === 'h' || s.k === 'ai')) || (!isHost && mine);
+  const sel = (f, opts, cur, lab) => edit ? '<select data-sl="' + i + '" data-f="' + f + '" aria-label="' + lab + '">' + opts.map(([v, t]) => '<option value="' + v + '"' + (String(cur) === String(v) ? ' selected' : '') + '>' + t + '</option>').join('') + '</select>' : '<span class="val">' + (opts.find(o => String(o[0]) === String(cur)) || ['', '—'])[1] + '</span>';
+  h += sel('race', [['random', '🎲 Случайная'], ...RACE_KEYS.map(r => [r, RACES[r].short])], my.race, 'Народ');
+  h += sel('team', [[-1, 'Без команды'], [0, 'Команда 1'], [1, 'Команда 2'], [2, 'Команда 3'], [3, 'Команда 4']], my.team, 'Команда');
+  h += edit ? '<span class="cols" role="radiogroup" aria-label="Цвет">' + PALETTE.map(([c, n], ci) => { const taken = lobbyView().sl.some((o, oi) => oi !== i && filled(o) && o.col === ci); return '<button class="sw' + (my.col === ci ? ' on' : '') + '" style="background:' + c + '" data-a="lobcol" data-v="' + i + ':' + ci + '" aria-label="' + n + '"' + (taken ? ' disabled' : '') + '></button>'; }).join('') + '</span>' : '<span class="sw on" style="background:' + col + '" aria-label="' + (PALETTE[my.col] || ['', ''])[1] + '"></span>';
+  if (isHost && s.k === 'p') h += '<button class="kick" data-a="kick" data-v="' + i + '" aria-label="Выгнать">✖</button>';
+  return h + '</div>';
+}
 function onlineScreen() {
   mode = 'menu';
-  let h = '<div class="card"><button class="x" data-a="leaveLobby" aria-label="Назад">✖</button><h2>Онлайн с друзьями</h2>';
+  let h = '<div class="card"><button class="x" data-a="leaveLobby" aria-label="Назад">✖</button><h2>Онлайн</h2>';
   if (!Net.ready) {
-    if (Net.kind === 'mqtt' && !Net.connecting && !Net.failed) Net.connectPublic().then(() => { if (mode === 'menu' && $('scr').innerHTML.includes('Онлайн с друзьями</h2>')) onlineScreen(); });
+    if (Net.kind === 'mqtt' && !Net.connecting && !Net.failed) Net.connectPublic().then(() => { if (mode === 'menu' && $('scr').innerHTML.includes('<h2>Онлайн</h2>')) onlineScreen(); });
     h += Net.failed ? '<div class="warn">Не удалось подключиться к серверу лобби. Проверьте интернет и попробуйте ещё раз.</div><div class="btns"><button class="big" data-a="online2">Повторить</button></div>' : '<p class="note">Подключение к серверу лобби…</p>';
     show(h + '</div>'); return;
   }
-  h += '<h3>Ваше имя</h3><input type="text" id="nick" maxlength="16" value="' + escapeHtml(setup.name) + '" placeholder="Например: Странник">';
   if (!lobby.role) {
-    h += '<h3>Ваш народ</h3>' + raceCards(setup.race, 'race');
-    h += '<div class="btns" style="margin-top:12px"><button class="big" data-a="host">Создать игру</button></div>';
+    h += '<div class="lrow"><div class="lcol"><h3>Ваше имя</h3><input type="text" id="nick" maxlength="16" value="' + escapeHtml(setup.name) + '" placeholder="Например: Странник"></div>';
+    if (Net.kind === 'mqtt') h += '<div class="lcol"><h3>Комната</h3><div class="roomrow"><input type="text" id="room" maxlength="24" value="' + escapeHtml(Net.roomCode) + '" placeholder="public"><button class="big alt" data-a="room">Войти</button></div></div>';
+    h += '</div><div class="btns" style="margin:12px 0 4px"><button class="big" data-a="host">Создать игру</button></div>';
     const open = Net.peers.filter(p => !p.sameTab && p.presence && p.presence.lob && p.presence.lob.st === 0);
     h += '<h3>Открытые игры</h3>';
-    if (!open.length) h += '<p class="note">Пока нет. Попросите друга открыть эту игру и нажать «Создать игру», или создайте сами — друзья увидят её здесь.</p>';
-    h += '<div class="slots">' + open.map(p => '<div class="slot"><span class="nm">' + escapeHtml(p.presence.nm || 'Игрок') + '</span><span class="note">' + (p.presence.lob.sl || []).length + '/4</span><button class="big" style="min-height:38px;font-size:15px" data-a="join" data-v="' + p.peer + '">Войти</button></div>').join('') + '</div>';
-    if (Net.kind === 'mqtt') h += '<h3>Комната</h3><div class="roomrow"><input type="text" id="room" maxlength="24" value="' + escapeHtml(Net.roomCode) + '" placeholder="public"><button class="big alt" data-a="room">Войти</button></div><p class="note">«public» — общая комната: ваше лобби увидят все игроки в интернете. Придумайте свой код и скажите его друзьям, чтобы играть только вместе.</p>';
-    h += '<p class="note" style="margin-top:12px">Сейчас в комнате: ' + Net.peers.length + ' чел.' + (Net.kind === 'room' ? ' Друзей приглашайте через «Поделиться» у этой игры на claude.ai.' : '') + '</p>';
-  } else {
-    const isHost = lobby.role === 'host';
-    h += '<h3>Лобби</h3><div class="slots">';
-    const sl = isHost ? lobby.slots : ((Net.peer(lobby.hostPeer) || {}).presence || {}).lob ? Net.peer(lobby.hostPeer).presence.lob.sl : [];
-    (sl || []).forEach((s, i) => {
-      h += '<div class="slot"><span class="dot" style="background:' + TEAM_COLORS[i] + '"></span><span class="nm">' + escapeHtml(s.nm || (s.k === 'ai' ? 'ИИ' : 'Игрок')) + (s.k === 'h' ? ' (хост)' : '') + '</span>';
-      if (isHost && s.k === 'ai') h += '<select data-sl="' + i + '" data-f="race">' + RACE_KEYS.map(rk => '<option value="' + rk + '"' + (s.race === rk ? ' selected' : '') + '>' + RACES[rk].short + '</option>').join('') + '</select><select data-sl="' + i + '" data-f="diff">' + ['Лёгкий', 'Средний', 'Тяжёлый'].map((m, k) => '<option value="' + k + '"' + (s.diff === k ? ' selected' : '') + '>' + m + '</option>').join('') + '</select>';
-      else h += '<span class="note">' + RACES[s.race].short + '</span>';
-      if (isHost) h += '<select data-sl="' + i + '" data-f="team">' + [0, 1, 2, 3].map(t => '<option value="' + t + '"' + (s.team === t ? ' selected' : '') + '>Команда ' + (t + 1) + '</option>').join('') + '</select>';
-      else h += '<span class="note">Команда ' + (s.team + 1) + '</span>';
-      if (isHost && s.k === 'ai') h += '<button class="x" style="float:none" data-a="rmslot" data-v="' + i + '">✖</button>';
-      h += '</div>';
-    });
-    h += '</div>';
-    if (!isHost) h += '<h3>Ваш народ</h3>' + raceCards(setup.race, 'race');
-    if (isHost) {
-      h += '<h3>Режим</h3><div class="seg"><button data-a="lobmode" data-v="battle" class="' + (lobby.mode !== 'survival' ? 'on' : '') + '">Битва</button><button data-a="lobmode" data-v="survival" class="' + (lobby.mode === 'survival' ? 'on' : '') + '">Выживание вместе</button></div>';
-      h += '<h3>Карта</h3><div class="seg">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная' }]).map(m => '<button data-a="lobmap" data-v="' + m.k + '" class="' + (setup.map === m.k ? 'on' : '') + '">' + m.name + '</button>').join('') + '</div>';
-      h += '<div class="btns" style="margin-top:10px">' + (lobby.slots.length < 4 ? '<button class="big alt" data-a="addai">+ Добавить ИИ</button>' : '') +
-        '<button class="big" data-a="start"' + (lobby.mode === 'survival' ? '' : (lobby.slots.length < 2 || new Set(lobby.slots.map(s => s.team)).size < 2 ? ' disabled' : '')) + '>Начать битву</button></div>';
-      h += '<p class="note" style="margin-top:8px">Друзья, открывшие игру, увидят ваше лобби в «Открытых играх». Нужно минимум две команды.</p>';
-    } else { const hl = ((Net.peer(lobby.hostPeer) || {}).presence || {}).lob; h += '<p class="note" style="margin-top:10px">Карта: ' + escapeHtml(hl && hl.map ? mapName(hl.map === 'random' ? 'river' : hl.map) + (hl.map === 'random' ? ' (случайная)' : '') : '—') + ' · ждём, пока хост начнёт битву…</p>'; }
-    h += '<h3>Чат</h3><div id="lobchat" class="lobchat"></div><div class="roomrow"><input type="text" id="lobin" maxlength="120" placeholder="Сообщение…"><button class="big alt" data-a="lobsend">Отпр.</button></div>';
+    if (!open.length) h += '<p class="note">Пока нет. Создайте игру — друзья в этой комнате увидят её здесь.</p>';
+    h += '<div class="games">' + open.map(p => { const L = p.presence.lob, sl = L.sl || [], n = sl.filter(filled).length, free = sl.filter(s => s.k === 'open').length;
+      return '<div class="game"><img src="' + mapPreview(L.map === 'random' ? 'river' : L.map, L.seed || 1) + '" alt=""><div class="gi"><b>' + escapeHtml(p.presence.nm || 'Игрок') + '</b><span>' + (L.map === 'random' ? 'Случайная карта' : mapName(L.map)) + ' · ' + (L.mode === 'survival' ? 'выживание' : 'битва') + ' · ' + n + '/' + (n + free) + '</span></div><button class="big" data-a="join" data-v="' + p.peer + '"' + (free ? '' : ' disabled') + '>' + (free ? 'Войти' : 'Мест нет') + '</button></div>'; }).join('') + '</div>';
+    h += '<p class="note" style="margin-top:10px">' + (Net.kind === 'mqtt' ? '«public» — общая комната для всех. Придумайте свой код и скажите друзьям, чтобы играть только вместе. ' : 'Друзей приглашайте через «Поделиться» у этой игры на claude.ai. ') + 'Сейчас в комнате: ' + Net.peers.length + '.</p>';
+    show(h + '</div>'); return;
   }
+  const isHost = lobby.role === 'host', L = lobbyView(), me = Net.mePeer(), sl = L.sl || [];
+  if (!isHost && !sl.length) { show(h + '<p class="note">Подключаемся к лобби…</p></div>'); return; }
+  const mapK = L.map || 'river', prev = mapPreview(mapK === 'random' ? 'river' : mapK, L.seed || 1);
+  h += '<div class="lobby"><div class="lmap"><div class="lmapimg"><img src="' + prev + '" alt="Карта">' + (mapK === 'random' ? '<span class="q">?</span>' : '') +
+    START_POS.map((p, i) => { const s = sl[i]; const c = filled(s) ? (PALETTE[(s.k === 'p' && s.peer === me && lobby.my.col !== undefined ? lobby.my.col : s.col)] || ['#777'])[0] : 'rgba(40,40,40,.7)'; return '<span class="spos" style="left:' + (p[0] / MAP_W * 100) + '%;top:' + (p[1] / MAP_H * 100) + '%;--c:' + c + '">' + (i + 1) + '</span>'; }).join('') + '</div>';
+  if (isHost) h += '<select data-f="map" aria-label="Карта">' + MAP_TYPES.concat([{ k: 'random', name: 'Случайная карта' }]).map(m => '<option value="' + m.k + '"' + (setup.map === m.k ? ' selected' : '') + '>' + m.name + '</option>').join('') + '</select>' +
+    '<select data-f="mode" aria-label="Режим"><option value="battle"' + (lobby.mode !== 'survival' ? ' selected' : '') + '>Битва</option><option value="survival"' + (lobby.mode === 'survival' ? ' selected' : '') + '>Выживание вместе</option></select>' +
+    '<select data-f="gold" aria-label="Стартовое золото">' + GOLD_OPTS.map(([v, t]) => '<option value="' + v + '"' + (lobby.gold === v ? ' selected' : '') + '>Золото: ' + t + ' (' + v + ')</option>').join('') + '</select>' +
+    '<select data-f="pop" aria-label="Лимит армии">' + POP_OPTS.map(([v, t]) => '<option value="' + v + '"' + (lobby.pop === v ? ' selected' : '') + '>Армии: ' + t + ' (' + v + ')</option>').join('') + '</select>';
+  else h += '<div class="lset"><b>' + (mapK === 'random' ? 'Случайная карта' : mapName(mapK)) + '</b><span>' + (L.mode === 'survival' ? 'Выживание вместе' : 'Битва') + '</span><span>Золото: ' + (L.gold || 1000) + ' · армии до ' + (L.pop || 120) + '</span></div>';
+  h += '</div><div class="lslots">' + sl.map((s, i) => lobbySlotRow(s, i, isHost, me)).join('') + '</div></div>';
+  const teams = new Set(sl.filter(filled).map((s, i) => s.team < 0 ? 'x' + i : s.team)), nFill = sl.filter(filled).length, unready = sl.filter(s => s.k === 'p' && !s.ready).length;
+  const why = L.mode === 'survival' ? '' : nFill < 2 ? 'Нужно хотя бы два участника: откройте слот для друга или поставьте ИИ.' : teams.size < 2 ? 'Все в одной команде — разведите игроков по разным командам.' : '';
+  if (isHost) h += '<div class="btns" style="margin-top:12px"><button class="big" data-a="start"' + (why || unready ? ' disabled' : '') + '>Начать битву</button></div><p class="note">' + (why || (unready ? 'Ждём готовности игроков: ' + unready + '.' : 'Все готовы. В бой!')) + '</p>';
+  else { const mine = sl.find(s => s.peer === me); h += '<div class="btns" style="margin-top:12px"><button class="big' + (mine && mine.ready ? ' alt' : '') + '" data-a="ready">' + (mine && mine.ready ? 'Не готов' : 'Готов!') + '</button></div><p class="note">Выберите народ, команду и цвет. Хост начнёт битву, когда все будут готовы.</p>'; }
+  h += '<h3>Чат</h3><div id="lobchat" class="lobchat"></div><div class="roomrow"><input type="text" id="lobin" maxlength="120" placeholder="Сообщение…"><button class="big alt" data-a="lobsend">Отпр.</button></div>';
   show(h + '</div>');
+  pollChat();
 }
 function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function hostSync() {
   if (lobby.role !== 'host' || lobby.started) return;
-  const me = Net.mePeer();
-  // update guests
-  const guests = Net.peers.filter(p => !p.sameTab && p.presence && p.presence.join === lobby.gid);
-  lobby.slots = lobby.slots.filter(s => s.k !== 'p' || guests.some(g => g.peer === s.peer));
+  const me = Net.mePeer(), S = lobby.slots;
+  const guests = Net.peers.filter(p => !p.sameTab && p.presence && p.presence.join === lobby.gid && !lobby.kicked.has(p.peer));
+  for (const s of S) if (s.k === 'p' && !guests.some(g => g.peer === s.peer)) { s.k = 'open'; s.peer = null; s.ready = false; }
   for (const g of guests) {
-    let s = lobby.slots.find(x => x.peer === g.peer);
-    if (!s && lobby.slots.length < 4) { s = { k: 'p', peer: g.peer, team: lobby.slots.length % 2, race: 'hum' }; lobby.slots.push(s); }
-    if (s) { s.race = RACE_KEYS.includes(g.presence.race) ? g.presence.race : 'hum'; s.nm = String(g.presence.nm || 'Игрок').slice(0, 16); }
+    let s = S.find(x => x.k === 'p' && x.peer === g.peer);
+    if (!s) { s = S.find(x => x.k === 'open'); if (!s) continue; s.k = 'p'; s.peer = g.peer; s.ready = false; const freeCol = PALETTE.findIndex((c, ci) => !S.some(o => o !== s && filled(o) && o.col === ci)); if (S.some(o => o !== s && filled(o) && o.col === s.col)) s.col = freeCol; }
+    const P = g.presence;
+    s.race = P.race === 'random' || RACE_KEYS.includes(P.race) ? P.race : 'random';
+    if (Number.isInteger(P.team) && P.team >= -1 && P.team <= 3) s.team = P.team;
+    if (Number.isInteger(P.col) && PALETTE[P.col] && !S.some(o => o !== s && filled(o) && o.col === P.col)) s.col = P.col;
+    s.ready = !!P.ready; s.nm = String(P.nm || 'Игрок').slice(0, 16);
   }
-  const h = lobby.slots[0]; h.peer = me; h.race = setup.race; h.nm = setup.name || 'Хост';
-  Net.set({ nm: setup.name || 'Хост', lob: { gid: lobby.gid, st: 0, sl: lobby.slots, map: setup.map } });
+  const h = S[0]; h.peer = me; h.race = lobby.hostRace || setup.race; h.nm = setup.name || 'Хост';
+  Net.set({ nm: setup.name || 'Хост', lob: { gid: lobby.gid, st: 0, sl: S, map: setup.map, mode: lobby.mode, gold: lobby.gold, pop: lobby.pop, seed: lobby.seed } });
+}
+// slot edits: the host changes any AI/own slot and the lobby settings; a guest only its own slot (sent as presence)
+function lobbyEdit(i, f, v) {
+  const isHost = lobby.role === 'host';
+  if (i < 0) { if (!isHost) return; if (f === 'map') { setup.map = v; store.set('map', v); } else if (f === 'mode') lobby.mode = v; else if (f === 'gold') lobby.gold = +v; else if (f === 'pop') lobby.pop = +v; hostSync(); onlineScreen(); return; }
+  if (isHost) {
+    const s = lobby.slots[i]; if (!s) return;
+    if (f === 'state') { if (v.startsWith('ai')) { s.k = 'ai'; s.diff = +v[2]; s.nm = 'ИИ'; if (lobby.slots.some(o => o !== s && filled(o) && o.col === s.col)) s.col = PALETTE.findIndex((c, ci) => !lobby.slots.some(o => o !== s && filled(o) && o.col === ci)); } else { s.k = v; s.nm = ''; } }
+    else if (f === 'race') { s.race = v; if (s.k === 'h') { lobby.hostRace = v; if (v !== 'random') { setup.race = v; store.set('race', v); } } }
+    else if (f === 'team') s.team = +v;
+    else if (f === 'col') { if (!lobby.slots.some(o => o !== s && filled(o) && o.col === +v)) s.col = +v; }
+    hostSync();
+  } else {
+    const val = f === 'race' ? v : +v; lobby.my[f] = val; Net.set({ [f]: val });
+  }
+  onlineScreen();
 }
 let lobbyRenderT = 0;
 Net.onPeers(() => {
   pollChat();
   if (lobby.role === 'host' && !lobby.started) hostSync();
   if (lobby.role === 'guest' && !lobby.started) {
-    const hp = Net.peer(lobby.hostPeer);
-    if (!hp) { lobby.role = null; toast('Хост закрыл лобби'); }
-    else if (hp.presence.lob && hp.presence.lob.st === 1) {
-      const lob = hp.presence.lob; const me = Net.mePeer();
-      const idx = (lob.sl || []).findIndex(s => s.peer === me);
+    const hp = Net.peer(lobby.hostPeer), me = Net.mePeer();
+    if (!hp || !hp.presence.lob || hp.presence.lob.gid !== lobby.gid) { lobby.role = null; toast('Хост закрыл лобби'); }
+    else if (hp.presence.lob.st === 1) {
+      const lob = hp.presence.lob, idx = (lob.sl || []).findIndex(s => s.peer === me);
       if (idx >= 0) startClient(lob, idx); else { lobby.role = null; toast('Игра началась без вас'); }
-    }
+    } else if (!(hp.presence.lob.sl || []).some(s => s.peer === me) && lobby.joinedT && performance.now() - lobby.joinedT > 6000) { lobby.role = null; Net.set({ join: null }); toast('Мест нет или хост вас убрал из лобби'); }
   }
-  if (mode === 'menu' && $('scr').querySelector('#nick') || (mode === 'menu' && lobby.role)) {
-    const now = performance.now(); if (now - lobbyRenderT > 300 && document.activeElement && !['nick', 'room', 'lobin'].includes(document.activeElement.id)) { lobbyRenderT = now; onlineScreen(); }
+  if (mode === 'menu' && ($('scr').querySelector('#nick') || lobby.role)) {
+    const now = performance.now(), ae = document.activeElement;
+    if (now - lobbyRenderT > 300 && !(ae && (['nick', 'room', 'lobin'].includes(ae.id) || ae.tagName === 'SELECT'))) { lobbyRenderT = now; onlineScreen(); }
   }
   if (mode === 'host') hostPeersChanged();
   if (mode === 'client') clientPeersChanged();
@@ -8325,6 +8423,7 @@ Net.onPeers(() => {
 // ---------- game start ----------
 let speed = 1, paused = false, loading = null;
 function beginView() {
+  if (mode === 'local') setTeamColors(null); // lobby colours only live in online battles
   if (R.is3D && V) { const rs = []; for (let i = 0; i < V.nplayers; i++) { const p = V.player(i); if (p && !rs.includes(p.race)) rs.push(p.race); } A3.need(rs); } // generated models of the peoples in this battle
   hideScr(); stopAttract();
   $('palette').hidden = false; $('quick').hidden = false; $('bMenu').hidden = false; $('bChat').hidden = !(mode === 'host' || mode === 'client'); $('chatlog').innerHTML = ''; $('spells').hidden = false; $('spells').innerHTML = ''; closeBook(); UI.groups = [[], [], []]; quickSig = ''; ringSig = ''; spellSig = null; buildSig = ''; heroSig = ''; UI.buildOpen = false;
@@ -8334,7 +8433,7 @@ function beginView() {
   R.resize();
   const me = V.player(V.me); void me;
   R.cam.z = R.w < 700 ? 0.75 : 1;
-  const st = START_POS[V.me]; R.centerOn(st[0], st[1]);
+  const st = (game && game.players[V.me] ? game.players[V.me].start : V.players && V.players[V.me] && V.players[V.me].start) || START_POS[V.me]; R.centerOn(st[0], st[1]);
   Snd.play('horn'); Snd.setTheme(me ? me.race : 'hum');
   prewarm3();
   // local battles wait (paused) until the 3D buildings and the idle poses are baked
@@ -8415,26 +8514,27 @@ function startLocal() {
 }
 function startHost() {
   campMission = -1;
-  const slots = lobby.slots;
   lobby.started = true;
-  const seed = (Date.now() % 100000) + 1;
-  const surv = lobby.mode === 'survival';
-  const players = slots.map((s, i) => ({ race: s.race, team: surv ? 0 : s.team, ai: s.k === 'ai', diff: s.diff === undefined ? 1 : s.diff, remote: s.k === 'p', peer: s.peer, name: s.nm || (s.k === 'ai' ? 'ИИ ' + i : 'Игрок') }));
+  const seed = lobby.seed, surv = lobby.mode === 'survival', rr = mkRng(Date.now() & 0xffffff);
+  const used = lobby.slots.map((s, i) => [s, i]).filter(([s]) => filled(s));
+  const players = used.map(([s, i]) => ({ race: s.race === 'random' || !RACE_KEYS.includes(s.race) ? RACE_KEYS[Math.floor(rr() * RACE_KEYS.length)] : s.race, team: surv ? 0 : s.team < 0 ? 10 + i : s.team, ai: s.k === 'ai', diff: s.diff === undefined ? 1 : s.diff, remote: s.k === 'p', peer: s.peer, name: s.nm || (s.k === 'ai' ? 'ИИ ' + (i + 1) : 'Игрок'), pos: i }));
+  const cols = used.map(([s]) => (PALETTE[s.col] || PALETTE[0])[0]);
   const mapType = pickMap(setup.map);
-  if (surv) { const hr = RACE_KEYS.filter(r => !players.some(p => p.race === r))[0] || 'und'; players.push({ race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }); }
-  game = new Game({ seed, players, online: true, mapType, mode: surv ? 'survival' : 'battle', waveDiff: 1 });
-  if (players.length > 2) game.popMax = 80;
+  if (surv) { const hr = RACE_KEYS.filter(r => !players.some(p => p.race === r))[0] || 'und'; players.push({ race: hr, team: 1, horde: true, name: 'Орда: ' + RACES[hr].short }); cols.push(PALETTE.map(c => c[0]).find(c => !cols.includes(c)) || '#888'); }
+  setTeamColors(cols);
+  game = new Game({ seed, players, online: true, mapType, mode: surv ? 'survival' : 'battle', waveDiff: 1, gold: lobby.gold, popMax: lobby.pop });
   ais = game.players.filter(p => p.ai).map(p => new AI(game, p.i));
   R.setWorld(seed, mapType);
   V = makeLocalView(game, 0); mode = 'host'; paused = false; speed = 1;
   hostSeq = {};
-  Net.set({ lob: { gid: lobby.gid, st: 1, seed, map: mapType, sl: players.map((p, i) => ({ k: p.horde ? 'horde' : (slots[i] || {}).k, peer: p.peer || null, race: p.race, team: p.team, nm: p.name })) } });
+  Net.set({ lob: { gid: lobby.gid, st: 1, seed, map: mapType, cols, gold: lobby.gold, sl: players.map(p => ({ k: p.horde ? 'horde' : p.ai ? 'ai' : p.remote ? 'p' : 'h', peer: p.peer || null, race: p.race, team: p.team, nm: p.name, pos: p.pos })) } });
   beginView();
 }
 function startClient(lob, idx) {
   campMission = -1;
   lobby.started = true;
-  const players = lob.sl.map((s, i) => ({ race: s.race, team: s.team, name: s.nm || ('Игрок ' + (i + 1)) }));
+  setTeamColors(lob.cols);
+  const players = lob.sl.map((s, i) => ({ race: s.race, team: s.team, name: s.nm || ('Игрок ' + (i + 1)), horde: s.k === 'horde', ai: s.k === 'ai', start: START_POS[s.pos !== undefined && s.pos !== null ? s.pos : i] }));
   game = null; ais = [];
   R.setWorld(lob.seed, lob.map);
   V = makeClientView(idx, players, lob.seed, lob.map); mode = 'client';
@@ -8492,8 +8592,9 @@ $('scr').addEventListener('click', e => {
     case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
-    case 'lobmode': lobby.mode = v; hostSync(); onlineScreen(); break;
-    case 'lobmap': setup.map = v; store.set('map', v); hostSync(); onlineScreen(); break;
+    case 'lobcol': { const [si, ci] = v.split(':').map(Number); lobbyEdit(si, 'col', ci); break; }
+    case 'kick': { const sl = lobby.slots[+v]; if (sl && sl.k === 'p') { lobby.kicked.add(sl.peer); sl.k = 'open'; sl.peer = null; hostSync(); onlineScreen(); } break; }
+    case 'ready': { const L = lobbyView(), mine = (L.sl || []).find(x => x.peer === Net.mePeer()); Net.set({ ready: !(mine && mine.ready) }); break; }
     case 'lobsend': { const i = $('lobin'); if (i) { sendChat(i.value); i.value = ''; } break; }
     case 'gfx': store.set('gfx', R.is3D ? '2d' : '3d'); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Графика сменится после битвы'); break; } location.reload(); break;
     case 'room': { const rv = $('room'); if (rv) { Net.setRoom(rv.value); store.set('room', Net.roomCode); } onlineScreen(); break; }
@@ -8505,11 +8606,9 @@ $('scr').addEventListener('click', e => {
     case 'mission': briefing(+v); break;
     case 'missiongo': startMission(+v); break;
     case 'nextmission': if (campMission + 1 < CAMPAIGN.length) briefing(campMission + 1); else menuCampaign(); break;
-    case 'host': lobby.role = 'host'; lobby.gid = Math.random().toString(36).slice(2, 8); lobby.slots = [{ k: 'h', race: setup.race, team: 0, nm: setup.name || 'Хост' }]; lobby.started = false; hostSync(); onlineScreen(); break;
-    case 'join': lobby.role = 'guest'; lobby.hostPeer = v; lobby.started = false; { const hp = Net.peer(v); lobby.gid = hp && hp.presence.lob ? hp.presence.lob.gid : null; } Net.set({ nm: setup.name || 'Гость', join: lobby.gid, race: setup.race, lob: null, cmd: null, snap: null }); onlineScreen(); break;
+    case 'host': lobby.role = 'host'; lobby.gid = Math.random().toString(36).slice(2, 8); lobby.seed = (Date.now() % 100000) + 1; lobby.kicked = new Set(); lobby.hostRace = setup.race; lobby.slots = newSlots(); lobby.started = false; hostSync(); onlineScreen(); break;
+    case 'join': lobby.role = 'guest'; lobby.hostPeer = v; lobby.started = false; { const hp = Net.peer(v); lobby.gid = hp && hp.presence.lob ? hp.presence.lob.gid : null; } lobby.my = {}; lobby.joinedT = performance.now(); Net.set({ nm: setup.name || 'Гость', join: lobby.gid, race: setup.race, team: null, col: null, ready: false, lob: null, cmd: null, snap: null }); onlineScreen(); break;
     case 'leaveLobby': lobby.role = null; lobby.started = false; Net.set({ lob: null, join: null }); menuMain(); break;
-    case 'addai': if (lobby.slots.length < 4) { lobby.slots.push({ k: 'ai', race: RACE_KEYS[lobby.slots.length % 4], team: lobby.slots.length % 2, diff: 1, nm: 'ИИ' }); hostSync(); onlineScreen(); } break;
-    case 'rmslot': lobby.slots.splice(+v, 1); hostSync(); onlineScreen(); break;
     case 'start': startHost(); break;
     case 'resume': hideScr(); paused = false; break;
     case 'sound': Snd.setOn(!Snd.on); store.set('snd', Snd.on); Snd.init(); menuPause(); break;
@@ -8522,9 +8621,8 @@ $('scr').addEventListener('click', e => {
   }
 });
 $('scr').addEventListener('change', e => {
-  const s = e.target; if (!s.dataset || s.dataset.sl === undefined) return;
-  const sl = lobby.slots[+s.dataset.sl]; if (!sl) return;
-  const f = s.dataset.f; sl[f] = f === 'race' ? s.value : +s.value; hostSync();
+  const s = e.target; if (!s.dataset || !s.dataset.f || !lobby.role) return;
+  lobbyEdit(s.dataset.sl === undefined ? -1 : +s.dataset.sl, s.dataset.f, s.value);
 });
 $('scr').addEventListener('input', e => { if (e.target.id === 'nick') { setup.name = e.target.value.trim().slice(0, 16); store.set('name', setup.name); if (lobby.role === 'host') hostSync(); else if (Net.ready) Net.set({ nm: setup.name }); } });
 $('scr').addEventListener('input', e => {
@@ -8724,7 +8822,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && mod
 R.resize();
 menuMain();
 requestAnimationFrame(frame);
-Net.init().then(() => { if (mode === 'menu' && $('scr').innerHTML.includes('Онлайн с друзьями</h2>')) onlineScreen(); });
+Net.init().then(() => { if (mode === 'menu' && $('scr').innerHTML.includes('<h2>Онлайн</h2>')) onlineScreen(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { UI.panelSig = ''; });
 window.__AK = { get game() { return game; }, get V() { return V; }, R, UI, Net, startLocal, setup, get mode() { return mode; } };
 </script></body></html>
