@@ -1,0 +1,42 @@
+{
+  "_note": "Короткие промпты для Hunyuan 3D (поле до 500 символов): subject + окончание по типу. char — персонаж в A-позе, still — всадник/машина, bld — здание.",
+  "_end": {
+    "char": " Standing in A-pose, arms slightly away from body, empty open hands, no weapon, no shield. Royal blue cloth only, no other blue. Realistic dark fantasy like Lord of the Rings films, detailed PBR textures, game-ready.",
+    "still": " Standing still, whole figure visible, no ground. Royal blue cloth only, no other blue. Realistic dark fantasy like Lord of the Rings films, detailed PBR textures, game-ready.",
+    "bld": " Single building on a small flat patch of ground, no surroundings, whole building visible. Royal blue cloth only. Realistic dark fantasy like Lord of the Rings films, detailed PBR textures, game-ready."
+  },
+  "elf": [
+    ["elf_worker", "char", "Elf craftsman, full body, slender young high elf with pointed ears and long blond hair tied back, green linen tunic, leather apron with carving tools, soft leather boots, royal blue sash."],
+    ["elf_inf", "char", "Elven grove guard, full body, slender high elf with pointed ears, tall gold elven helmet with a leaf crest, gold-green scale armour with Celtic knotwork, royal blue tabard with a silver tree, leather greaves."],
+    ["elf_spear", "char", "Elven dawn spearman, full body, slender high elf with pointed ears, tall gold elven helmet, gold-green scale armour, royal blue sash and cloak clasp, leather greaves, calm face."],
+    ["elf_arch", "char", "Elven moon archer, full body, slender high elf with pointed ears and long silver hair, no helmet, fitted dark-green leather armour, royal blue half-cloak, quiver of white arrows on the back."],
+    ["elf_cav", "still", "High elf knight riding a great white stag with large antlers, rider in a gold elven helmet and gold-green scale armour holding a long spear upright, the stag wears a royal blue saddle cloth with silver trim."],
+    ["elf_siege", "still", "Elegant elven ballista of pale carved wood on two wheels, curved bow arms shaped like branches, silver fittings, loaded long bolt, small royal blue pennant, single object."],
+    ["elf_fort", "bld", "Elven citadel: white stone palace grown together with ancient silver-barked trees, slender spires with leaf-shaped silver-green roofs, arched bridges, royal blue banners."],
+    ["elf_farm", "bld", "Elven moon garden: small pavilion of pale carved wood, silver trees, beds of softly glowing white flowers, stone path, royal blue silk canopy."],
+    ["elf_barr", "bld", "Elven hall of blades: long hall of pale stone and carved wood with a curved leaf-shaped roof, racks of slender swords and spears, royal blue banners."],
+    ["elf_range", "bld", "Elven archery glade: open pavilion of pale wood among young trees, round straw targets painted with silver rings, royal blue pennants."],
+    ["elf_stable", "bld", "Elven stag stable: open stalls of pale woven wood under a curved leaf roof, hay, a water basin of white stone, royal blue saddle cloths on the rail."],
+    ["elf_forge", "bld", "Elven rune workshop: round pale stone workshop with a curved roof, workbench, rune stones glowing white-gold, small furnace, royal blue curtain."],
+    ["elf_tower", "bld", "Guardian tree tower: huge ancient living tree with a spiral stair and an archer platform in its crown, silver lanterns, royal blue banner."],
+    ["elf_gate", "bld", "Elven gate: tall pointed arch of pale white stone with doors woven from living branches, two slender flanking towers with leaf-shaped roofs, royal blue banners, no walls attached."]
+  ],
+  "dwf": [
+    ["dwf_h1", "char", "Thor, Norse god of thunder as a mighty stout dwarf warrior, full body, short broad build, braided red beard, winged steel helmet, heavy steel plate armour with Norse knotwork, dark red cape with fur trim, white-gold lightning on the arms."],
+    ["dwf_h2", "char", "Freyja, Norse goddess of seidr magic as a short stout dwarf woman, full body, long golden braids, amber necklace, purple robe embroidered with gold, cloak of falcon feathers, soft amber glow, royal blue sash."],
+    ["dwf_worker", "char", "Dwarf stonemason, full body, short stocky build, long braided brown beard, leather cap, leather apron over a wool tunic, heavy boots, royal blue belt sash."],
+    ["dwf_inf", "char", "Dwarf axe warrior, full body, short stocky build, rounded steel helmet with a nose guard, long braided beard, chainmail with steel pauldrons, royal blue tabard with a silver anvil, heavy boots."],
+    ["dwf_spear", "char", "Dwarf halberdier, full body, short stocky build, tall steel helmet with cheek guards, long braided beard, chainmail with steel plates, royal blue tabard, heavy boots."],
+    ["dwf_arch", "char", "Dwarf crossbowman, full body, short stocky build, rounded steel helmet, braided beard, chainmail, leather bolt case on the belt, royal blue tabard, heavy boots."],
+    ["dwf_cav", "still", "Short stocky dwarf warrior riding a huge armoured war boar with tusks, the dwarf in a steel helmet and mail holding an axe, the boar wears steel face plates and a royal blue saddle cloth."],
+    ["dwf_siege", "still", "Dwarven stone thrower: heavy torsion catapult of dark oak and riveted steel on iron wheels, gears and chains, loaded boulder, royal blue pennant, single object."],
+    ["dwf_fort", "bld", "Dwarven citadel: mountain hall carved into a grey rock cliff, massive square stone gate flanked by two giant dwarf statues, bronze doors, glowing forge windows, royal blue banners."],
+    ["dwf_farm", "bld", "Dwarven mine: tunnel entrance in a rock outcrop with timber supports, mine cart on rails, piles of ore and coal, lanterns, royal blue flag."],
+    ["dwf_barr", "bld", "Dwarven forge-barracks: squat hall of heavy grey stone blocks with bronze doors, two smoking chimneys, racks of axes, royal blue banners."],
+    ["dwf_range", "bld", "Dwarven crossbow range: stone shooting hall with an open side, iron targets on posts, barrels of bolts, royal blue pennants."],
+    ["dwf_stable", "bld", "Dwarven boar pen: low stone enclosure with an iron gate, mud and straw, feeding trough, stone hut with a slate roof, royal blue flag."],
+    ["dwf_forge", "bld", "Great dwarven forge: huge stone furnace with a glowing orange mouth, bronze bellows, giant anvil, chains and hooks, royal blue banners."],
+    ["dwf_tower", "bld", "Dwarven bastion: squat heavy square stone tower with crossbow ports and a bronze-clad roof, runes carved over the door, royal blue banner."],
+    ["dwf_gate", "bld", "Dwarven gate: massive square stone gatehouse with double bronze doors covered in runes, two squat towers, royal blue banners, no walls attached."]
+  ]
+}
