@@ -17,7 +17,7 @@ const ASSET_BLDS = {
   hum_fort: { file: 'castle_fortress', team: ['Main'], span: 2.5, tall: 1.35, yaw: 0 },
 };
 // per-model fine tuning once a generated file arrives (height, turn, grip of the props): key -> fields merged into the entry
-const ASSET_TUNE = {};
+const ASSET_TUNE = { elf_siege: { yaw: 0 } }; // per-model fixes: the ballista's tall bow is its front (catapults lead with the low end)
 const ASSET_H = { worker: 1.75, inf: 1.85, spear: 1.85, arch: 1.8, cav: 2.7, siege: 2.8, hero: 1.95, troll: 3.4, wolf: 1.0, treant: 3.6, ghoul: 1.8, bandit: 1.8 };
 const PROP_LEN = { weapon: 1.0, shield: 0.85 }, PROP_LEN_SUB = { spear: 2.6, cav: 2.9, arch: 1.4 };
 const A3 = {

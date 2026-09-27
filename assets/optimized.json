@@ -37,5 +37,9 @@
  "elf_worker_lo": "c50573ca39f52866",
  "elf_worker": "72262773526f9043",
  "elf_arch_lo": "f3ac3e26261104eb",
- "elf_arch": "f36349bd717a3c80"
+ "elf_arch": "f36349bd717a3c80",
+ "elf_cav_lo": "61258609da6d77e3",
+ "elf_cav": "8caefcb7d1dd14a2",
+ "elf_siege_lo": "4e02f4c251d2c508",
+ "elf_siege": "422ff4e8e0107a72"
 }
