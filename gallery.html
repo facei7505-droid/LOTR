@@ -61,7 +61,7 @@ button:focus-visible{outline:2px solid var(--bronze2);outline-offset:2px}
 <div id="err" hidden></div>
 <script>
 "use strict";
-const ASSET_DATA = {}; const ASSET_LIST = []; ASSET_LIST.push('hum_worker_lo'); ASSET_LIST.push('hum_inf_lo'); ASSET_LIST.push('hum_spear_lo'); ASSET_LIST.push('hum_arch_lo'); ASSET_LIST.push('elf_h2_lo'); ASSET_LIST.push('hum_cav_lo'); ASSET_LIST.push('hum_h2_lo'); ASSET_LIST.push('hum_h1_lo'); ASSET_LIST.push('orc'); ASSET_LIST.push('hum_siege_lo'); ASSET_LIST.push('hum_worker'); ASSET_LIST.push('hum_arch'); ASSET_LIST.push('elf_h1_lo'); ASSET_LIST.push('castle_fortress'); ASSET_LIST.push('hum_inf'); ASSET_LIST.push('hum_spear'); ASSET_LIST.push('hum_gate'); ASSET_LIST.push('hum_tower'); ASSET_LIST.push('hum_range'); ASSET_LIST.push('hum_farm'); ASSET_LIST.push('hum_forge'); ASSET_LIST.push('hum_barr'); ASSET_LIST.push('hum_stable'); ASSET_LIST.push('elf_h2'); ASSET_LIST.push('hum_cav'); ASSET_LIST.push('hum_h2'); ASSET_LIST.push('hum_h1'); ASSET_LIST.push('hum_siege'); ASSET_LIST.push('elf_h1'); ASSET_LIST.push('hum_fort'); ASSET_LIST.push('king');
+const ASSET_DATA = {}; const ASSET_LIST = []; ASSET_LIST.push('elf_worker_lo'); ASSET_LIST.push('hum_worker_lo'); ASSET_LIST.push('hum_inf_lo'); ASSET_LIST.push('elf_arch_lo'); ASSET_LIST.push('elf_inf_lo'); ASSET_LIST.push('hum_spear_lo'); ASSET_LIST.push('hum_arch_lo'); ASSET_LIST.push('elf_spear_lo'); ASSET_LIST.push('elf_h2_lo'); ASSET_LIST.push('hum_cav_lo'); ASSET_LIST.push('hum_h2_lo'); ASSET_LIST.push('hum_h1_lo'); ASSET_LIST.push('elf_arch'); ASSET_LIST.push('orc'); ASSET_LIST.push('hum_siege_lo'); ASSET_LIST.push('hum_worker'); ASSET_LIST.push('elf_worker'); ASSET_LIST.push('hum_arch'); ASSET_LIST.push('elf_h1_lo'); ASSET_LIST.push('castle_fortress'); ASSET_LIST.push('elf_spear'); ASSET_LIST.push('hum_inf'); ASSET_LIST.push('elf_inf'); ASSET_LIST.push('hum_spear'); ASSET_LIST.push('hum_gate'); ASSET_LIST.push('hum_tower'); ASSET_LIST.push('hum_range'); ASSET_LIST.push('hum_farm'); ASSET_LIST.push('hum_forge'); ASSET_LIST.push('hum_barr'); ASSET_LIST.push('hum_stable'); ASSET_LIST.push('elf_h2'); ASSET_LIST.push('hum_cav'); ASSET_LIST.push('hum_h2'); ASSET_LIST.push('hum_h1'); ASSET_LIST.push('hum_siege'); ASSET_LIST.push('elf_h1'); ASSET_LIST.push('hum_fort'); ASSET_LIST.push('king');
 // ================= DATA: races, units, buildings, heroes, skills =================
 const TEAM_COLORS = ['#3d7bd6', '#d4483a', '#43a852', '#dcae2e'];
 const TEAM_NAMES = ['Синие', 'Красные', 'Зелёные', 'Золотые'];
@@ -126,16 +126,16 @@ const UNITS_BY_RACE = {
     siege: ['Баллиста рощи', {}],
   },
   dwf: {
-    inf:   ['Секироносцы', { n: 8, hp: 140, dmg: 10, speed: 62, armor: 0.25, cost: 330 }],
-    spear: ['Алебардисты', { n: 8, hp: 125, speed: 60, armor: 0.2, cost: 340 }],
-    arch:  ['Арбалетчики', { range: 220, dmg: 12, rate: 2.0, hp: 70, speed: 60, armor: 0.1, proj: 'bolt' }],
-    cav:   ['Боевые вепри', { hp: 330, speed: 108, dmg: 20, armor: 0.25, cost: 500 }],
+    inf:   ['Секироносцы', { n: 8, hp: 110, dmg: 9, speed: 62, armor: 0.2, cost: 320 }],
+    spear: ['Алебардисты', { n: 8, hp: 100, speed: 60, armor: 0.15, cost: 330 }],
+    arch:  ['Арбалетчики', { range: 220, dmg: 10, rate: 2.0, hp: 65, speed: 60, armor: 0.1, proj: 'bolt' }],
+    cav:   ['Боевые вепри', { hp: 300, speed: 108, dmg: 20, armor: 0.25, cost: 500 }],
     worker: ['Гном-каменщик', { hp: 230, speed: 72, armor: 0.15 }],
     siege: ['Камнемёт гномов', {}],
   },
   orc: {
-    inf:   ['Громилы', { n: 12, hp: 80, dmg: 7, cost: 260, time: 9, speed: 78 }],
-    spear: ['Пикинёры', { n: 12, hp: 75, cost: 280, time: 9 }],
+    inf:   ['Громилы', { n: 12, hp: 90, dmg: 7.5, cost: 260, time: 9, speed: 78 }],
+    spear: ['Пикинёры', { n: 12, hp: 82, cost: 280, time: 9 }],
     arch:  ['Метатели копий', { range: 200, dmg: 9.5, rate: 1.5, cost: 300, proj: 'javelin' }],
     cav:   ['Волчьи наездники', { n: 6, hp: 210, speed: 155, dmg: 16, cost: 440 }],
     worker: ['Орк-невольник', { cost: 80, hp: 150 }],
@@ -153,7 +153,7 @@ const UNITS_BY_RACE = {
     inf:   ['Хопешники', { hp: 90, dmg: 9, speed: 80, cost: 310 }],
     spear: ['Стража Нила', { hp: 95, armor: 0.15, cost: 330 }],
     arch:  ['Лучники Сета', { range: 260, dmg: 8, rate: 1.4, cost: 350 }],
-    cav:   ['Боевые колесницы', { n: 4, hp: 340, dmg: 22, speed: 140, armor: 0.2, cost: 520, r: 14 }],
+    cav:   ['Боевые колесницы', { n: 4, hp: 310, dmg: 22, speed: 140, armor: 0.2, cost: 520, r: 14 }],
     worker: ['Каменотёс', {}],
     siege: ['Осадная катапульта', {}],
   },
@@ -1189,7 +1189,7 @@ class Game {
   }
   doCast(h, si, x, y) {
     const sk = h.d.skills[si]; const lv = 1 + 0.07 * (h.lvl - 1);
-    h.scd[si] = sk.cd; h.atk = 0.35;
+    h.scd[si] = sk.cd; h.atk = 0.35; if (sk.type !== 'dash') h.castT = this.t; // the renderer raises the hero's arms for a spell
     const foes = (cx, cy, R) => this.unitsIn(cx, cy, R, o => this.enemy(h.owner, o.owner));
     const allies = (cx, cy, R) => this.unitsIn(cx, cy, R, o => !this.enemy(h.owner, o.owner) && o.d.kind === 'u');
     const col = FX_COLORS[sk.fx] ? sk.fx : 'def';
@@ -2482,6 +2482,8 @@ const M3 = (() => {
     if (w === 'bow') { hL = P3(0.4, 1.36, 0.1); eL = P3(0.22, 1.36, 0.2); if (at !== 0) { hR = P3(-0.05, 1.4, 0.05); eR = P3(-0.15, 1.38, -0.18); } else { hR = P3(0.32, 1.3, 0.02); eR = P3(0.1, 1.25, -0.2); } }
     if (w === 'xbow') { hL = P3(0.42, 1.28, 0.08); eL = P3(0.22, 1.24, 0.2); hR = P3(0.2, 1.3, -0.04); eR = P3(0.02, 1.26, -0.2); }
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
+    // casting (frame 23): the weapon thrust skyward, the free hand stretched out towards the target
+    if (pose.cast) { eR = P3(0.1, 1.66, -0.24); hR = P3(0.22, 1.98, -0.16); wd = [0.18, 0.98, 0]; eL = P3(0.24, 1.42, 0.26); hL = P3(0.5, 1.5, 0.2); }
     // idle variants: shifting weight, re-gripping the weapon (frames 21 / 22)
     const idl = pose.idle || 0; if (idl) { hR = add3(hR, [0.02 * idl, 0.035 * Math.abs(idl), -0.01 * idl]); eR = add3(eR, [0.01 * idl, 0.02 * Math.abs(idl), 0]); hL = add3(hL, [-0.015 * idl, 0.02, 0.01 * idl]); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
@@ -2601,7 +2603,7 @@ const M3 = (() => {
   // ---------- build a model for a unit type ----------
   function build(d, colorHex, frame, up, det) {
     const DET0 = DET; if (det) DET = 1;
-    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : frame === 21 ? { atk: 0, idle: 1 } : frame === 22 ? { atk: 0, idle: -1 } : { atk: 0 }; // 17-20: in-between strike frames
+    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : frame === 21 ? { atk: 0, idle: 1 } : frame === 22 ? { atk: 0, idle: -1 } : frame === 23 ? { atk: 0, cast: 1 } : { atk: 0 }; // 17-20: in-between strike frames
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
     else if (d.sub === 'wolf') beast('wolf', pose, P, '#6f675b', null);
@@ -5305,7 +5307,8 @@ class Renderer3D extends Renderer {
       }
       // unit: pose frame as in the 2D renderer
       let frame = 0;
-      if (e.atkT > 0) { const a = e.atkT; frame = a > 0.26 ? 18 : a > 0.2 ? 8 : a > 0.15 ? 19 : a > 0.1 ? 9 : a > 0.05 ? 20 : 0; } // swing through 5 frames
+      if (e.castT !== undefined && now - e.castT >= 0 && now - e.castT < 0.6) frame = 23; // a spell: arms raised
+      else if (e.atkT > 0) { const a = e.atkT; frame = a > 0.26 ? 18 : a > 0.2 ? 8 : a > 0.15 ? 19 : a > 0.1 ? 9 : a > 0.05 ? 20 : 0; } // swing through 5 frames
       else if (e.moving) { const st = ((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 18 : 15) + e.id * 0.37) | 0) % 12; frame = st & 1 ? 11 + (st >> 1) : 1 + (st >> 1); }
       else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = e.cd > 0.16 ? 17 : 7; // wind-up in two steps
       else if (!e.d.worker && e.d.kind === 'u') { const ip = Math.sin(now * 0.9 + e.id * 1.7); frame = ip > 0.55 ? 21 : ip < -0.55 ? 22 : 0; } // the ranks breathe
@@ -6221,7 +6224,7 @@ function hsvRgb(h, s, v) { const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 -
     else g = (A3.has(d.key) && A3.unitGeo(d, S.col, frame)) || G3.build(M3.build(d, S.col, frame, S.up), { metres: true, hi: S.hi });
     geoCache.set(k, g); return g;
   }
-  const SEQ = { idle: [0, 21, 21, 0, 22, 22], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10] }, FPS = { idle: 1.5, walk: 11, atk: 7, death: 2 };
+  const SEQ = { idle: [0, 21, 21, 0, 22, 22], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10], cast: [0, 23, 23, 23, 0, 0] }, FPS = { idle: 1.5, walk: 11, atk: 7, death: 2, cast: 3 };
   let animT = 0, frameNow = -1, fit = { r: 40, cy: 20 };
   function setModel() {
     const d = S.d; if (!d) return;
@@ -6273,7 +6276,7 @@ function hsvRgb(h, s, v) { const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 -
   function ctlBar() {
     const d = S.d, isU = d && d.kind !== 'b';
     $('anim').hidden = !isU;
-    $('anim').innerHTML = [['idle', 'Стойка'], ['walk', 'Шаг'], ['atk', 'Удар'], ['death', 'Гибель']].map(([k, n]) => '<button data-anim="' + k + '" class="' + (S.anim === k ? 'on' : '') + '">' + n + '</button>').join('');
+    $('anim').innerHTML = [['idle', 'Стойка'], ['walk', 'Шаг'], ['atk', 'Удар'], ['death', 'Гибель']].concat(S.d && S.d.hero ? [['cast', 'Заклинание']] : []).map(([k, n]) => '<button data-anim="' + k + '" class="' + (S.anim === k ? 'on' : '') + '">' + n + '</button>').join('');
     const canUp = isU && !d.hero && !d.worker && !d.creep && !d.summon && d.sub !== 'siege';
     $('ups').hidden = !canUp;
     $('ups').innerHTML = '<button data-up="1" class="' + (S.up & 1 ? 'on' : '') + '">Кованые клинки</button><button data-up="2" class="' + (S.up & 2 ? 'on' : '') + '">Тяжёлая броня</button>';

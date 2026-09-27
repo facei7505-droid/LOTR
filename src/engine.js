@@ -750,7 +750,7 @@ class Game {
   }
   doCast(h, si, x, y) {
     const sk = h.d.skills[si]; const lv = 1 + 0.07 * (h.lvl - 1);
-    h.scd[si] = sk.cd; h.atk = 0.35;
+    h.scd[si] = sk.cd; h.atk = 0.35; if (sk.type !== 'dash') h.castT = this.t; // the renderer raises the hero's arms for a spell
     const foes = (cx, cy, R) => this.unitsIn(cx, cy, R, o => this.enemy(h.owner, o.owner));
     const allies = (cx, cy, R) => this.unitsIn(cx, cy, R, o => !this.enemy(h.owner, o.owner) && o.d.kind === 'u');
     const col = FX_COLORS[sk.fx] ? sk.fx : 'def';

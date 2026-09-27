@@ -961,7 +961,8 @@ class Renderer3D extends Renderer {
       }
       // unit: pose frame as in the 2D renderer
       let frame = 0;
-      if (e.atkT > 0) { const a = e.atkT; frame = a > 0.26 ? 18 : a > 0.2 ? 8 : a > 0.15 ? 19 : a > 0.1 ? 9 : a > 0.05 ? 20 : 0; } // swing through 5 frames
+      if (e.castT !== undefined && now - e.castT >= 0 && now - e.castT < 0.6) frame = 23; // a spell: arms raised
+      else if (e.atkT > 0) { const a = e.atkT; frame = a > 0.26 ? 18 : a > 0.2 ? 8 : a > 0.15 ? 19 : a > 0.1 ? 9 : a > 0.05 ? 20 : 0; } // swing through 5 frames
       else if (e.moving) { const st = ((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 18 : 15) + e.id * 0.37) | 0) % 12; frame = st & 1 ? 11 + (st >> 1) : 1 + (st >> 1); }
       else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = e.cd > 0.16 ? 17 : 7; // wind-up in two steps
       else if (!e.d.worker && e.d.kind === 'u') { const ip = Math.sin(now * 0.9 + e.id * 1.7); frame = ip > 0.55 ? 21 : ip < -0.55 ? 22 : 0; } // the ranks breathe

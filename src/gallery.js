@@ -79,7 +79,7 @@
     else g = (A3.has(d.key) && A3.unitGeo(d, S.col, frame)) || G3.build(M3.build(d, S.col, frame, S.up), { metres: true, hi: S.hi });
     geoCache.set(k, g); return g;
   }
-  const SEQ = { idle: [0, 21, 21, 0, 22, 22], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10] }, FPS = { idle: 1.5, walk: 11, atk: 7, death: 2 };
+  const SEQ = { idle: [0, 21, 21, 0, 22, 22], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10], cast: [0, 23, 23, 23, 0, 0] }, FPS = { idle: 1.5, walk: 11, atk: 7, death: 2, cast: 3 };
   let animT = 0, frameNow = -1, fit = { r: 40, cy: 20 };
   function setModel() {
     const d = S.d; if (!d) return;
@@ -131,7 +131,7 @@
   function ctlBar() {
     const d = S.d, isU = d && d.kind !== 'b';
     $('anim').hidden = !isU;
-    $('anim').innerHTML = [['idle', 'Стойка'], ['walk', 'Шаг'], ['atk', 'Удар'], ['death', 'Гибель']].map(([k, n]) => '<button data-anim="' + k + '" class="' + (S.anim === k ? 'on' : '') + '">' + n + '</button>').join('');
+    $('anim').innerHTML = [['idle', 'Стойка'], ['walk', 'Шаг'], ['atk', 'Удар'], ['death', 'Гибель']].concat(S.d && S.d.hero ? [['cast', 'Заклинание']] : []).map(([k, n]) => '<button data-anim="' + k + '" class="' + (S.anim === k ? 'on' : '') + '">' + n + '</button>').join('');
     const canUp = isU && !d.hero && !d.worker && !d.creep && !d.summon && d.sub !== 'siege';
     $('ups').hidden = !canUp;
     $('ups').innerHTML = '<button data-up="1" class="' + (S.up & 1 ? 'on' : '') + '">Кованые клинки</button><button data-up="2" class="' + (S.up & 2 ? 'on' : '') + '">Тяжёлая броня</button>';

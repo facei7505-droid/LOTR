@@ -29,5 +29,13 @@
  "elf_h1_lo": "394fde59d46720b5",
  "elf_h1": "c963662af32f6283",
  "elf_h2_lo": "0b002b1c536d88d5",
- "elf_h2": "1427f013e50873a0"
+ "elf_h2": "1427f013e50873a0",
+ "elf_inf_lo": "4ef7f9a0d9ab61ea",
+ "elf_inf": "56092b0560b6d285",
+ "elf_spear_lo": "456d0c04dddb0c70",
+ "elf_spear": "af327488deb8227e",
+ "elf_worker_lo": "c50573ca39f52866",
+ "elf_worker": "72262773526f9043",
+ "elf_arch_lo": "f3ac3e26261104eb",
+ "elf_arch": "f36349bd717a3c80"
 }

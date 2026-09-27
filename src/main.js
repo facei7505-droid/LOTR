@@ -825,7 +825,8 @@ function menuSettings(back) {
   const rng = (id, v, min, max, step) => '<input type="range" class="rng" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + v + '">';
   show('<div class="card"><button class="x" data-a="' + (back || 'main') + '" aria-label="Назад">✖</button><h2>Настройки</h2>' +
     '<h3>Графика</h3>' + seg('gfxset', R.is3D ? '3d' : '2d', [['3d', 'Реалистичная 3D'], ['2d', 'Лёгкая 2D']]) +
-    (R.is3D ? '<h3>Качество 3D</h3>' + seg('qset', q, [[0, 'Низкое'], [1, 'Среднее'], [2, 'Высокое'], [3, 'Ультра']]) + '<p class="note">Ультра — тени 4K, густая трава, двойная чёткость. На телефоне лучше «Низкое».</p>' : '') +
+    (R.is3D ? '<h3>Качество 3D</h3>' + seg('qset', q, [[0, 'Низкое'], [1, 'Среднее'], [2, 'Высокое'], [3, 'Ультра']]) + '<p class="note">Ультра — тени 4K, густая трава, двойная чёткость. На телефоне лучше «Низкое».' + (R.gpu ? ' Видеокарта: ' + escapeHtml(R.gpu.replace(/^ANGLE \((.*?),\s*/, '').replace(/\s*(\(0x|Direct3D|vs_|,).*$/, '').replace(/\((R|TM)\)/g, '')) + (R.weakGpu ? ' (встроенная)' : '') + '.' : '') + '</p>' +
+      '<h3>Динамическое разрешение</h3>' + seg('dynres', store.get('dynres', true) ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<p class="note">В больших битвах чёткость временно снижается, чтобы не падал FPS.</p>' : '') +
     '<h3>Звук</h3>' + seg('sndset', Snd.on ? 1 : 0, [[1, 'Вкл'], [0, 'Выкл']]) + '<label class="rl">Эффекты ' + rng('vol', Snd.vol, 0, 1, 0.05) + '</label><label class="rl">Музыка ' + rng('mvol', Snd.mvol, 0, 1, 0.05) + '</label>' +
     '<h3>Камера</h3><label class="rl">Скорость прокрутки ' + rng('camSpd', store.get('camSpd', 1), 0.4, 2.5, 0.1) + '</label>' +
     '<h3>Интерфейс</h3>' + seg('fpsset', store.get('fps', false) ? 1 : 0, [[1, 'Показывать FPS'], [0, 'Скрыть FPS']]) +
@@ -1329,6 +1330,7 @@ $('scr').addEventListener('click', e => {
     case 'qset': if (+v !== R.q) { store.set('q3', +v); if (mode === 'local') saveGame(); if (mode === 'host' || mode === 'client') { toast('Качество сменится после битвы'); break; } location.reload(); } break;
     case 'sndset': Snd.setOn(v === '1'); store.set('snd', Snd.on); Snd.init(); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'fogset': store.set('fog', v === '1'); menuSkirm(); break;
+    case 'dynres': store.set('dynres', v === '1'); if (v !== '1' && R.rs !== 1) { R.rs = 1; R.resize(); } menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'fpsset': store.set('fps', v === '1'); menuSettings(mode === 'menu' ? 'main' : 'pause'); break;
     case 'tipsreset': store.set('tipsDone', false); toast('Подсказки снова включены'); break;
     case 'rndrace': setup.rnd = true; menuSkirm(); break;

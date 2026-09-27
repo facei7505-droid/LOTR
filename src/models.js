@@ -152,6 +152,8 @@ const M3 = (() => {
     if (w === 'bow') { hL = P3(0.4, 1.36, 0.1); eL = P3(0.22, 1.36, 0.2); if (at !== 0) { hR = P3(-0.05, 1.4, 0.05); eR = P3(-0.15, 1.38, -0.18); } else { hR = P3(0.32, 1.3, 0.02); eR = P3(0.1, 1.25, -0.2); } }
     if (w === 'xbow') { hL = P3(0.42, 1.28, 0.08); eL = P3(0.22, 1.24, 0.2); hR = P3(0.2, 1.3, -0.04); eR = P3(0.02, 1.26, -0.2); }
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
+    // casting (frame 23): the weapon thrust skyward, the free hand stretched out towards the target
+    if (pose.cast) { eR = P3(0.1, 1.66, -0.24); hR = P3(0.22, 1.98, -0.16); wd = [0.18, 0.98, 0]; eL = P3(0.24, 1.42, 0.26); hL = P3(0.5, 1.5, 0.2); }
     // idle variants: shifting weight, re-gripping the weapon (frames 21 / 22)
     const idl = pose.idle || 0; if (idl) { hR = add3(hR, [0.02 * idl, 0.035 * Math.abs(idl), -0.01 * idl]); eR = add3(eR, [0.01 * idl, 0.02 * Math.abs(idl), 0]); hL = add3(hL, [-0.015 * idl, 0.02, 0.01 * idl]); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
@@ -271,7 +273,7 @@ const M3 = (() => {
   // ---------- build a model for a unit type ----------
   function build(d, colorHex, frame, up, det) {
     const DET0 = DET; if (det) DET = 1;
-    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : frame === 21 ? { atk: 0, idle: 1 } : frame === 22 ? { atk: 0, idle: -1 } : { atk: 0 }; // 17-20: in-between strike frames
+    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : frame === 21 ? { atk: 0, idle: 1 } : frame === 22 ? { atk: 0, idle: -1 } : frame === 23 ? { atk: 0, cast: 1 } : { atk: 0 }; // 17-20: in-between strike frames
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
     else if (d.sub === 'wolf') beast('wolf', pose, P, '#6f675b', null);
