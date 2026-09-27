@@ -126,6 +126,8 @@ const G3 = {
 };
 
 // ---------- trees as 3D volumes (world px) ----------
+// portrait camera angle round a generated hero (default: three-quarter view from the shield side, the weapon behind the face)
+const PORTRAIT_CAM = { hum_h2: { yaw: 0.42 }, elf_h2: { dy: -0.07 } };
 // which way a lying (frame 10) figure's head points along local x: the tilt that stands it back up
 function fallSide(g) { const a = g.attributes.position.array; let m = 0; for (let i = 0; i < a.length; i += 3) m += a[i]; return m >= 0 ? 1 : -1; }
 function treePrims(v) {
@@ -792,7 +794,7 @@ class Renderer3D extends Renderer {
     if (d.kind === 'u' && !A3.humanoid(d)) mode = 'bld'; // riders and engines: the whole silhouette
     const top = mode !== 'bld' && ASSET_UNITS[d.key] && ASSET_UNITS[d.key].h ? ASSET_UNITS[d.key].h : bb.max.y; // head height, not the raised spear
     if (mode === 'bld') { const c = new T.Vector3(); bb.getCenter(c); const R0 = bb.getSize(new T.Vector3()).length() * 0.5, dist = R0 / Math.tan(13 * Math.PI / 180) * 0.74; cam.position.set(c.x + dist * 0.62, c.y + dist * 0.55, c.z + dist * 0.56); cam.lookAt(c); cam.far = dist * 4; cam.near = dist * 0.05; }
-    else { const Hh = top - Math.max(0, bb.min.y), cy = top - Hh * (mode === 'face' ? 0.1 : 0.22), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; cam.position.set(Math.cos(-0.5) * dist, cy + span * 0.12, Math.sin(-0.5) * dist); cam.lookAt(0, cy, 0); }
+    else { const Hh = top - Math.max(0, bb.min.y), pc = PORTRAIT_CAM[d.key] || {}, cy = top - Hh * ((mode === 'face' ? 0.1 : 0.22) - (pc.dy || 0)), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; const yw = pc.yaw !== undefined ? pc.yaw : -0.5; cam.position.set(Math.cos(yw) * dist, cy + span * 0.12, Math.sin(yw) * dist); cam.lookAt(0, cy, 0); }
     cam.updateProjectionMatrix();
     const S = 128, rt = this._pRT || (this._pRT = new T.WebGLRenderTarget(S, S, { samples: 4 })); rt.texture.colorSpace = T.SRGBColorSpace;
     const gl = this.gl, prevT = gl.getRenderTarget(), fogOn = this.fogU.on.value, buf = new Uint8Array(S * S * 4), prevC = gl.getClearColor(new T.Color()), prevA = gl.getClearAlpha();

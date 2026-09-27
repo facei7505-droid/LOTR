@@ -786,7 +786,13 @@ function pickMap(k) { return k === 'random' || !MAP_TYPES.some(m => m.k === k) ?
 function mapName(k) { const m = MAP_TYPES.find(x => x.k === k); return m ? m.name : ''; }
 function show(html) { const s = $('scr'); s.classList.remove('mm-on', 'ld-on'); s.innerHTML = html; s.hidden = false; }
 function hideScr() { $('scr').hidden = true; $('scr').classList.remove('mm-on', 'ld-on'); $('scr').innerHTML = ''; }
-function heroThumbs(rk) { return HEROES[rk].map(h => '<img src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
+function heroThumbs(rk) { heroModels(); return HEROES[rk].map(h => '<img data-hk="' + rk + '_' + h.key + '" src="' + iconFor(DEF[rk + '_' + h.key], 0) + '" alt="' + h.name + '" title="' + h.name + '">').join(''); }
+// menus show every hero: fetch the generated hero models once, then swap the painted busts for their portraits
+let heroModelsAsked = false;
+function heroModels() {
+  if (heroModelsAsked || !R.is3D) return; heroModelsAsked = true;
+  A3.need(RACE_KEYS).then(() => { for (const im of document.querySelectorAll('#scr img[data-hk]')) { const d = DEF[im.dataset.hk]; if (d && A3.has(d.key)) im.src = iconFor(d, 0); } });
+}
 function raceCards(sel, act) {
   return '<div class="races">' + RACE_KEYS.map(rk => '<button class="race ' + (sel === rk ? 'on' : '') + '" data-a="' + act + '" data-v="' + rk + '"><b>' + RACES[rk].short + '</b><span>' + RACES[rk].name + '</span><div class="hh">' + heroThumbs(rk) + '</div><span>' + HEROES[rk].map(h => h.name).join(' · ') + '</span></button>').join('') + '</div>';
 }
@@ -795,7 +801,7 @@ function menuMain() {
   const sv = store.get('save', null), camp = Math.min(CAMPAIGN.length, store.get('camp', 0) + 1);
   const item = (a, t, sub, primary) => '<button class="mm-item' + (primary ? ' primary' : '') + '" data-a="' + a + '"><span class="t">' + t + '</span>' + (sub ? '<span class="s">' + sub + '</span>' : '') + '</button>';
   const heroes = RACE_KEYS.flatMap(rk => ['h1', 'h2'].map(h => DEF[rk + '_' + h])).filter(Boolean)
-    .map(d => '<button data-a="help" aria-label="' + escapeHtml(d.heroName || d.name) + '" title="' + escapeHtml(d.heroName || d.name) + '"><img src="' + iconFor(d, 0) + '" alt=""></button>').join('');
+    .map(d => '<button data-a="help" aria-label="' + escapeHtml(d.heroName || d.name) + '" title="' + escapeHtml(d.heroName || d.name) + '"><img data-hk="' + d.key + '" src="' + iconFor(d, 0) + '" alt=""></button>').join(''); heroModels();
   show('<div class="mm"><div class="mm-logo"><div class="mm-crest" aria-hidden="true">⚜</div><h1>Пепельные<br>Королевства</h1><div class="mm-sub">Стратегия эпохи легенд</div></div><div class="mm-rule"></div><nav class="mm-nav" aria-label="Главное меню">' +
     (sv && sv.game ? item('load', 'Продолжить', RACES[sv.race].short + ' · ' + mapName(sv.map) + ' · ' + fmtT(sv.game.t), true) : '') +
     item('campaign', 'Кампания', 'Пепел Камелота · миссия ' + camp + ' из ' + CAMPAIGN.length, !(sv && sv.game)) +

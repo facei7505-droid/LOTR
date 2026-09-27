@@ -314,10 +314,11 @@ const A3 = {
     let base = this.rigBase(m, A, col).geo, P = base.attributes.position.array;
     let H = 0; for (let i = 1; i < P.length; i += 3) H = Math.max(H, P[i]);
     const band = (y0, y1, f) => { for (let i = 0; i < P.length; i += 3) { const y = P[i + 1]; if (y >= y0 * H && y <= y1 * H) f(P[i], y, P[i + 2]); } };
-    // facing: the toes stick out in front of the ankles; generated models may face either way
-    let tx = 0, tn = 0, ax = 0, an = 0;
-    band(0, 0.035, x => { tx += x; tn++; }); band(0.08, 0.14, x => { ax += x; an++; });
-    if (tn && an && tx / tn < ax / an - 0.004 * H && !m.flip) { m.flip = true; base = this.rigBase(m, A, col).geo; P = base.attributes.position.array; }
+    // facing: generated models face forward; turn one around only when the toes stick out behind the ankles
+    // and the face sits behind the head's centre too (a cloak trailing on the ground alone fooled the toe test)
+    let tx = 0, tn = 0, ax = 0, an = 0, h0 = 1e9, h1 = -1e9;
+    band(0, 0.035, x => { tx += x; tn++; }); band(0.08, 0.14, x => { ax += x; an++; }); band(0.86, 0.95, x => { h0 = Math.min(h0, x); h1 = Math.max(h1, x); });
+    if (tn && an && tx / tn < ax / an - 0.004 * H && (h0 + h1) / 2 < -0.01 * H && !m.flip) { m.flip = true; base = this.rigBase(m, A, col).geo; P = base.attributes.position.array; }
     const rs = m.flip ? -1 : 1; // lateral side of the right hand (glTF characters face +z with the right hand at -x)
     // centre line and legs
     let cx = 0, cn = 0; band(0.4, 0.9, (x, y, z) => { if (Math.abs(z) < 0.08 * H) { cx += x; cn++; } }); cx = cn ? cx / cn : 0;

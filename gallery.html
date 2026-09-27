@@ -4470,6 +4470,8 @@ const G3 = {
 };
 
 // ---------- trees as 3D volumes (world px) ----------
+// portrait camera angle round a generated hero (default: three-quarter view from the shield side, the weapon behind the face)
+const PORTRAIT_CAM = { hum_h2: { yaw: 0.42 }, elf_h2: { dy: -0.07 } };
 // which way a lying (frame 10) figure's head points along local x: the tilt that stands it back up
 function fallSide(g) { const a = g.attributes.position.array; let m = 0; for (let i = 0; i < a.length; i += 3) m += a[i]; return m >= 0 ? 1 : -1; }
 function treePrims(v) {
@@ -5136,7 +5138,7 @@ class Renderer3D extends Renderer {
     if (d.kind === 'u' && !A3.humanoid(d)) mode = 'bld'; // riders and engines: the whole silhouette
     const top = mode !== 'bld' && ASSET_UNITS[d.key] && ASSET_UNITS[d.key].h ? ASSET_UNITS[d.key].h : bb.max.y; // head height, not the raised spear
     if (mode === 'bld') { const c = new T.Vector3(); bb.getCenter(c); const R0 = bb.getSize(new T.Vector3()).length() * 0.5, dist = R0 / Math.tan(13 * Math.PI / 180) * 0.74; cam.position.set(c.x + dist * 0.62, c.y + dist * 0.55, c.z + dist * 0.56); cam.lookAt(c); cam.far = dist * 4; cam.near = dist * 0.05; }
-    else { const Hh = top - Math.max(0, bb.min.y), cy = top - Hh * (mode === 'face' ? 0.1 : 0.22), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; cam.position.set(Math.cos(-0.5) * dist, cy + span * 0.12, Math.sin(-0.5) * dist); cam.lookAt(0, cy, 0); }
+    else { const Hh = top - Math.max(0, bb.min.y), pc = PORTRAIT_CAM[d.key] || {}, cy = top - Hh * ((mode === 'face' ? 0.1 : 0.22) - (pc.dy || 0)), span = Hh * (mode === 'face' ? 0.2 : 0.44), dist = span / Math.tan(13 * Math.PI / 180) * 0.55; const yw = pc.yaw !== undefined ? pc.yaw : -0.5; cam.position.set(Math.cos(yw) * dist, cy + span * 0.12, Math.sin(yw) * dist); cam.lookAt(0, cy, 0); }
     cam.updateProjectionMatrix();
     const S = 128, rt = this._pRT || (this._pRT = new T.WebGLRenderTarget(S, S, { samples: 4 })); rt.texture.colorSpace = T.SRGBColorSpace;
     const gl = this.gl, prevT = gl.getRenderTarget(), fogOn = this.fogU.on.value, buf = new Uint8Array(S * S * 4), prevC = gl.getClearColor(new T.Color()), prevA = gl.getClearAlpha();
@@ -5941,10 +5943,11 @@ const A3 = {
     let base = this.rigBase(m, A, col).geo, P = base.attributes.position.array;
     let H = 0; for (let i = 1; i < P.length; i += 3) H = Math.max(H, P[i]);
     const band = (y0, y1, f) => { for (let i = 0; i < P.length; i += 3) { const y = P[i + 1]; if (y >= y0 * H && y <= y1 * H) f(P[i], y, P[i + 2]); } };
-    // facing: the toes stick out in front of the ankles; generated models may face either way
-    let tx = 0, tn = 0, ax = 0, an = 0;
-    band(0, 0.035, x => { tx += x; tn++; }); band(0.08, 0.14, x => { ax += x; an++; });
-    if (tn && an && tx / tn < ax / an - 0.004 * H && !m.flip) { m.flip = true; base = this.rigBase(m, A, col).geo; P = base.attributes.position.array; }
+    // facing: generated models face forward; turn one around only when the toes stick out behind the ankles
+    // and the face sits behind the head's centre too (a cloak trailing on the ground alone fooled the toe test)
+    let tx = 0, tn = 0, ax = 0, an = 0, h0 = 1e9, h1 = -1e9;
+    band(0, 0.035, x => { tx += x; tn++; }); band(0.08, 0.14, x => { ax += x; an++; }); band(0.86, 0.95, x => { h0 = Math.min(h0, x); h1 = Math.max(h1, x); });
+    if (tn && an && tx / tn < ax / an - 0.004 * H && (h0 + h1) / 2 < -0.01 * H && !m.flip) { m.flip = true; base = this.rigBase(m, A, col).geo; P = base.attributes.position.array; }
     const rs = m.flip ? -1 : 1; // lateral side of the right hand (glTF characters face +z with the right hand at -x)
     // centre line and legs
     let cx = 0, cn = 0; band(0.4, 0.9, (x, y, z) => { if (Math.abs(z) < 0.08 * H) { cx += x; cn++; } }); cx = cn ? cx / cn : 0;
