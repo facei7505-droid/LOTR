@@ -1,0 +1,20 @@
+{
+  "name": "Пепельные Королевства",
+  "short_name": "Королевства",
+  "description": "Стратегия эпохи легенд: шесть народов, герои, батальоны, осады и онлайн-битвы.",
+  "lang": "ru",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b0c0e",
+  "theme_color": "#12140f",
+  "categories": ["games", "strategy"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
