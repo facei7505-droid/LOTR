@@ -762,7 +762,7 @@ class Renderer3D extends Renderer {
     for (const [k, u] of this.units) if (hit(k)) { this.scene.remove(u.mesh); u.mesh.dispose(); this.units.delete(k); }
     for (const [id, bm] of this.bldMesh) if (ASSET_BLDS[bm.e.d.key]) { this.scene.remove(bm.mesh); this.bldMesh.delete(id); }
   }
-  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) this.geoFor(d, col, f, 0); }
+  prewarm(units, blds) { for (const [d, col] of blds || []) if (d) this.geoQ.push({ key: 'b' + d.key + col, bld: 1, d, col }); for (const [d, col] of units) if (d) for (const f of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]) this.geoFor(d, col, f, 0); }
   inst(key, geo, mats) {
     let u = this.units.get(key);
     if (!u || u.cap < u.n + 1) {
@@ -895,6 +895,7 @@ class Renderer3D extends Renderer {
       if (e.atkT > 0) { const a = e.atkT; frame = a > 0.26 ? 18 : a > 0.2 ? 8 : a > 0.15 ? 19 : a > 0.1 ? 9 : a > 0.05 ? 20 : 0; } // swing through 5 frames
       else if (e.moving) { const st = ((now * (e.d.sub === 'cav' || e.d.sub === 'wolf' ? 18 : 15) + e.id * 0.37) | 0) % 12; frame = st & 1 ? 11 + (st >> 1) : 1 + (st >> 1); }
       else if (e.tgt && e.cd > 0 && e.cd < 0.28) frame = e.cd > 0.16 ? 17 : 7; // wind-up in two steps
+      else if (!e.d.worker && e.d.kind === 'u') { const ip = Math.sin(now * 0.9 + e.id * 1.7); frame = ip > 0.55 ? 21 : ip < -0.55 ? 22 : 0; } // the ranks breathe
       const up3 = e.eqv | 0, uk = upLook(e.d, up3);
       let geo = this.geoFor(e.d, col, frame, uk), fk = frame;
       if (!geo) { geo = this.geoFor(e.d, col, 0, uk); fk = 0; }

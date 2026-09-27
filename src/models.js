@@ -52,7 +52,7 @@ const M3 = (() => {
     const base = pose.seated ? (pose.seatY !== undefined ? pose.seatY : 0.78) : 0, lean = (R.hunch || 0) + (pose.atk > 0.5 ? 0.08 : 0);
     const walking = pose.walk !== undefined && pose.walk !== null;
     const ph = pose.walk || 0, swing = walking ? Math.sin(ph) * 0.5 : 0, bob = walking ? Math.abs(Math.cos(ph)) * 0.03 : 0;
-    const hipY = base + 0.93 * S + bob;
+    const hipY = base + 0.93 * S + bob - (pose.idle ? 0.012 * S : 0);
     // joints of this pose: the automatic skeleton of generated models copies them
     const J = P.J = { hip: [0, hipY, 0], top: base + 1.76 * S };
     for (const side of [1, -1]) { J['knee' + side] = [0.02, base + 0.49 * S, 0.1 * B * side]; J['ank' + side] = [0, base + 0.06 * S, 0.1 * B * side]; J['hip' + side] = [0, hipY, 0.1 * B * side]; }
@@ -152,6 +152,8 @@ const M3 = (() => {
     if (w === 'bow') { hL = P3(0.4, 1.36, 0.1); eL = P3(0.22, 1.36, 0.2); if (at !== 0) { hR = P3(-0.05, 1.4, 0.05); eR = P3(-0.15, 1.38, -0.18); } else { hR = P3(0.32, 1.3, 0.02); eR = P3(0.1, 1.25, -0.2); } }
     if (w === 'xbow') { hL = P3(0.42, 1.28, 0.08); eL = P3(0.22, 1.24, 0.2); hR = P3(0.2, 1.3, -0.04); eR = P3(0.02, 1.26, -0.2); }
     if (w === 'staff' || w === 'banner') { hL = P3(0.3, 1.2 + (at > 0.3 ? 0.3 : 0), 0.2); eL = P3(0.15, 1.2, 0.26); }
+    // idle variants: shifting weight, re-gripping the weapon (frames 21 / 22)
+    const idl = pose.idle || 0; if (idl) { hR = add3(hR, [0.02 * idl, 0.035 * Math.abs(idl), -0.01 * idl]); eR = add3(eR, [0.01 * idl, 0.02 * Math.abs(idl), 0]); hL = add3(hL, [-0.015 * idl, 0.02, 0.01 * idl]); }
     const armM = o.arm === 'leather' || o.arm === 'rags' || o.arm === 'apron' || o.robe ? (o.robe ? MAT(o.robe, { pat: 'cloth' }) : cloth) : armour;
     for (const [s0, e0, h0] of [[sh(1), eL, hL], [sh(-1), eR, hR]]) { P.push(cap(s0, e0, 0.055 * B, armM), cap(e0, h0, 0.047 * B, armM), sph(h0[0], h0[1], h0[2], 0.042 * B, o.arm === 'plate' ? steel : leather)); if (DET && !o.robe) { P.push(cap(lerp3(e0, h0, 0.35), lerp3(e0, h0, 0.92), 0.054 * B, armd ? steel : leather)); if (armd) P.push(sph(e0[0], e0[1], e0[2], 0.06 * B, steel)); } }
     Object.assign(J, { ch, hd, shL: sh(1), shR: sh(-1), eL, hL, eR, hR }); P.wIdx = P.length;
@@ -269,7 +271,7 @@ const M3 = (() => {
   // ---------- build a model for a unit type ----------
   function build(d, colorHex, frame, up, det) {
     const DET0 = DET; if (det) DET = 1;
-    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : { atk: 0 }; // 17-20: in-between strike frames
+    const pose = frame >= 1 && frame <= 6 ? { walk: (frame - 1) / 6 * Math.PI * 2, atk: 0 } : frame >= 11 && frame <= 16 ? { walk: (frame - 10.5) / 6 * Math.PI * 2, atk: 0 } : frame === 7 || frame === 17 ? { atk: -0.45 } : frame === 8 ? { atk: 1 } : frame === 9 || frame === 19 ? { atk: 0.55 } : frame === 18 ? { atk: 0.9 } : frame === 21 ? { atk: 0, idle: 1 } : frame === 22 ? { atk: 0, idle: -1 } : { atk: 0 }; // 17-20: in-between strike frames
     const P = [], team = teamCol(colorHex);
     if (d.sub === 'treant') treant(pose, P);
     else if (d.sub === 'wolf') beast('wolf', pose, P, '#6f675b', null);

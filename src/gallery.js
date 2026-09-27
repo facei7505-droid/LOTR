@@ -79,7 +79,7 @@
     else g = (A3.has(d.key) && A3.unitGeo(d, S.col, frame)) || G3.build(M3.build(d, S.col, frame, S.up), { metres: true, hi: S.hi });
     geoCache.set(k, g); return g;
   }
-  const SEQ = { idle: [0], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10] }, FPS = { idle: 1, walk: 11, atk: 7, death: 2 };
+  const SEQ = { idle: [0, 21, 21, 0, 22, 22], walk: [1, 11, 2, 12, 3, 13, 4, 14, 5, 15, 6, 16], atk: [0, 7, 7, 8, 9, 9, 0, 0], death: [0, 10] }, FPS = { idle: 1.5, walk: 11, atk: 7, death: 2 };
   let animT = 0, frameNow = -1, fit = { r: 40, cy: 20 };
   function setModel() {
     const d = S.d; if (!d) return;
