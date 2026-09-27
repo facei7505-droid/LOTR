@@ -57,9 +57,11 @@ const A3 = {
       for (const f of [...files]) if (this.models.has(f) || this.missing.has(f)) files.delete(f);
       if (!files.size) return;
       if (!THREE.GLTFLoader) await loadScript(GLTF_LIB, GLTF_SRI);
+      // downloads run in parallel; parsing stays one model at a time
+      const bufs = new Map([...files].map(f => [f, this.bytes(f).catch(e => e)]));
       for (const f of files) {
         try {
-          const buf = await this.bytes(f);
+          const buf = await bufs.get(f); if (buf instanceof Error) throw buf;
           const gltf = await new Promise((ok, bad) => new THREE.GLTFLoader().parse(buf, '', ok, bad));
           this.models.set(f, this.prepare(gltf));
         } catch (e) { this.missing.add(f); console.warn('model', f, e); }
