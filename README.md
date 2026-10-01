@@ -1,4 +1,35 @@
-# Пепельные Королевства
+<div align="center">
+
+# Ashen Kingdoms · Пепельные Королевства
+
+**A real-time strategy game for mobile and desktop browsers, inspired by *The Battle for Middle-earth*. Plain JavaScript and three.js, with no game engine.**
+
+[**▶ Play in the browser**](https://facei7505-droid.github.io/LOTR/) · [**3D model gallery**](https://facei7505-droid.github.io/LOTR/gallery.html)
+
+![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-f7df1e?logo=javascript&logoColor=black)
+![three.js](https://img.shields.io/badge/three.js-WebGL-000?logo=threedotjs)
+![PWA](https://img.shields.io/badge/PWA-offline-5a0fc8?logo=pwa&logoColor=white)
+![Multiplayer](https://img.shields.io/badge/online-MQTT%20over%20WebSocket-660066)
+![Tests](https://img.shields.io/badge/tests-Playwright%20%2B%20Node-2ead33?logo=playwright&logoColor=white)
+
+![Gameplay](docs/graphics.png)
+
+</div>
+
+## Highlights
+
+- **Custom engine, about 8.6k lines of JS:** simulation, pathfinding, battalion formations, AI opponent, and save/load.
+- **Real 3D on WebGL:** dynamic shadows, water reflections, weather, a day/night cycle, post-processing, and procedural textures. It falls back to 2D automatically when WebGL is unavailable.
+- **Content:** 6 factions, 12 heroes with level-up skill trees, 3 maps, forge upgrades, neutral camps, and faction powers.
+- **Online multiplayer:** host and guest connect through a public MQTT broker over WebSocket, with no backend of their own.
+- **Mobile-first:** touch controls, a radial command ring, offline play through a service worker, and installation as a PWA.
+- **Generative music and i18n:** RU and EN.
+- **Asset pipeline:** generated `.glb` models are compressed to a polygon budget with glTF-Transform (WebP textures), and team colours are swapped at runtime.
+- **Tested:** AI-vs-AI simulations, engine tests for all factions, and Playwright scenarios for touch UI and two-tab netplay.
+
+---
+
+## Подробное описание (RU)
 
 Мобильная стратегия в реальном времени в духе *The Battle for Middle-earth*: шесть народов, двенадцать легендарных героев из истории и мифов, батальоны под знамёнами, три карты, кузница с улучшениями, лагеря чудовищ, смена дня и ночи, погода, генеративная музыка, сохранение битвы, бой с ИИ и онлайн через интернет.
 
